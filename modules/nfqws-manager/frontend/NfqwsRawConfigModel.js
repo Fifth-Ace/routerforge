@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Pure functions for the native Svelte owner of the active nfqws2.conf editor.
 // No DOM, network, configuration writes or service actions at evaluation time.
 export const sha256RE = /^[0-9a-f]{64}$/i;
@@ -29,7 +30,7 @@ export function rawPreflight(reference, actual, editor, sent) {
   if(!sha256RE.test(ref.sha256) || !sha256RE.test(latest.sha256) ||
      ref.sha256.toLowerCase()!==latest.sha256.toLowerCase() ||
      ref.content!==latest.content || ref.path!==latest.path)
-    throw Error('NFQWS_ACTIVE_CONFIG_STALE: серверный конфиг изменился, запись запрещена');
+    throw Error(rfUi('NFQWS_ACTIVE_CONFIG_STALE: серверный конфиг изменился, запись запрещена',"The active configuration changed on the server. Saving is blocked until it is reloaded."));
   if(typeof editor!=='string' || editor===ref.content || editor!==sent)
     throw Error('NFQWS_ACTIVE_CONFIG_DRAFT_CHANGED');
   return true;
@@ -50,11 +51,11 @@ export function rawValidationSummary(response) {
   const dry=String(response.native_dry_run||'not_performed');
   return {issues,unknownLua:issues.some(x=>x?.code==='UNKNOWN_PAYLOAD_LUA'),
     dry,valid:response.syntax_ok&&response.semantic_ok&&dry!=='failed',
-    text:!response.syntax_ok?'Синтаксис shell: '+String(response.error||'ошибка'):
-      !response.semantic_ok?'Ошибки семантики: сохранение будет отклонено':
-      dry==='failed'?'Native dry-run отклонил параметры':
+    text:!response.syntax_ok?rfUi('Синтаксис shell: ',"Shell syntax:")+String(response.error||rfUi('ошибка',"error")):
+      !response.semantic_ok?rfUi('Ошибки семантики: сохранение будет отклонено',"Configuration errors: saving will be blocked"):
+      dry==='failed'?rfUi('Native dry-run отклонил параметры',"Native dry-run rejected the parameters"):
       dry==='passed'?'Синтаксис, параметры и native nfqws2 --dry-run: PASS':
-      'Статический анализ: OK · native dry-run не подтверждён'};
+      rfUi('Статический анализ: OK · native dry-run не подтверждён',"Static analysis OK · native dry-run not verified")};
 }
 export function rawApiRequest(fetcher, pathname, signal){
   if(typeof fetcher!=='function')throw Error('NFQWS_CONFIG_FETCH_MISSING');

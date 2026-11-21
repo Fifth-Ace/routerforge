@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {editCustom, customSummaryTokens} from './NfqwsCustomStrategiesModel.js';
   import {highlightCustomStrategy} from './NfqwsCustomSyntax.js';
   let {snapshot, onChange, busy=false} = $props();
@@ -28,20 +29,20 @@
         <div class="custom-block-actions">
           <button type="button" class="custom-up" disabled={busy||i===0} onclick={()=>act('up',i)} aria-label={`Поднять блок ${i+1}`}>↑</button>
           <button type="button" class="custom-down" disabled={busy||i===snapshot.blocks.length-1} onclick={()=>act('down',i)} aria-label={`Опустить блок ${i+1}`}>↓</button>
-          <button type="button" class="custom-clone" disabled={busy} onclick={()=>act('clone',i)}>Клонировать</button>
-          <button type="button" class="custom-delete danger" disabled={busy} onclick={()=>act('remove',i)}>Удалить</button>
+          <button type="button" class="custom-clone" disabled={busy} onclick={()=>act('clone',i)}>{rfUi("Клонировать","Clone")}</button>
+          <button type="button" class="custom-delete danger" disabled={busy} onclick={()=>act('remove',i)}>{rfUi("Удалить","Delete")}</button>
         </div>
       </div>
-      <div class="custom-label-row"><label for={`nfqws-custom-label-${i}`}>Название блока</label><input id={`nfqws-custom-label-${i}`} class="custom-label-input" value={snapshot.labels[i] || ''} maxlength="120" disabled={busy} placeholder="Например: YouTube / основной обход" oninput={e=>act('label',i,e.currentTarget.value)} /></div>
+      <div class="custom-label-row"><label for={`nfqws-custom-label-${i}`}>{rfUi("Название блока","Block name")}</label><input id={`nfqws-custom-label-${i}`} class="custom-label-input" value={snapshot.labels[i] || ''} maxlength="120" disabled={busy} placeholder={rfUi("Например: YouTube / основной обход","For example: YouTube / primary strategy")} oninput={e=>act('label',i,e.currentTarget.value)} /></div>
       <div class="custom-live-summary setup-chips">
-        {#each customSummaryTokens(value) as chip (chip.key)}<span class={`setup-chip ${chip.type}`}>{chip.label} {chip.value}</span>{:else}<span class="setup-chip">Без краткого summary</span>{/each}
+        {#each customSummaryTokens(value) as chip (chip.key)}<span class={`setup-chip ${chip.type}`}>{chip.label} {chip.value}</span>{:else}<span class="setup-chip">{rfUi("Без краткого summary","No short summary")}</span>{/each}
       </div>
       <div class="syntax-editor-shell" class:syntax-fullscreen={fullscreen===i}>
         <div class="syntax-editor-toolbar"><span class="syntax-editor-caption"><strong>{snapshot.labels[i] || `CUSTOM #${i+1}`}</strong><span class="syntax-editor-hint">NFQWS syntax · Ctrl+S → Diff</span></span><div class="syntax-editor-actions"><button type="button" disabled={busy} onclick={()=>fullscreen=fullscreen===i?-1:i}>{fullscreen===i?'Закрыть fullscreen':'На весь экран'}</button></div></div>
         <div class="syntax-editor-body"><pre class="syntax-editor-highlight" aria-hidden="true" bind:this={highlights[i]}>{@html highlightCustomStrategy(value)}</pre><textarea spellcheck="false" disabled={busy} aria-label={`Аргументы custom-блока ${i+1}`} value={value} oninput={e=>act('text',i,e.currentTarget.value)} onkeydown={e=>tabKey(e,i)} onscroll={e=>syncScroll(e,i)}></textarea></div>
       </div>
-      <div class="label-help">Название сохраняется в raw-конфиге как безопасный комментарий <span class="mono"># RouterForge:</span> и не передаётся nfqws2 как аргумент.</div>
+      <div class="label-help">{rfUi("Название сохраняется в raw-конфиге как безопасный комментарий","The name is stored as a safe comment in the raw configuration")} <span class="mono"># RouterForge:</span> {rfUi("и не передаётся nfqws2 как аргумент.","and is not passed to nfqws2 as an argument.")}</div>
     </div>
-  {:else}<div class="empty">Custom-стратегий нет. Это нормально — базовые HTTPS / QUIC / UDP выше работают независимо.</div>{/each}
+  {:else}<div class="empty">{rfUi("Custom-стратегий нет. Это нормально — базовые HTTPS / QUIC / UDP выше работают независимо.","No custom strategies have been added. The basic HTTPS, QUIC, and UDP strategies above work independently.")}</div>{/each}
 </div>
-<button type="button" id="addCustomBlock" class="custom-add" disabled={busy} onclick={()=>act('add')}>+ Добавить custom-блок</button>
+<button type="button" id="addCustomBlock" class="custom-add" disabled={busy} onclick={()=>act('add')}>{rfUi("+ Добавить custom-блок","+ Add custom block")}</button>

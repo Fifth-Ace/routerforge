@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Pure Selector V2 UI model. The backend remains the authority for capability,
 // session, active SHA, profile binding and atomic apply/rollback.
 const shaPattern=/^[a-f\d]{64}$/i;
@@ -74,22 +75,22 @@ export function selectorTone(value){
   return'info';
 }
 export function selectorResultLabel(value){
-  const raw=String(value||'—'),map={WORKING:'Работает',FAILED:'Не работает',FAIL:'Не работает',INCONCLUSIVE:'Не удалось проверить',PARTIAL:'Частично',PASS:'Готово',DONE:'Готово',OK:'Готово'};
+  const raw=String(value||'—'),map={WORKING:'Работает',FAILED:'Не работает',FAIL:'Не работает',INCONCLUSIVE:'Не удалось проверить',PARTIAL:'Частично',PASS:rfUi('Готово',"Ready"),DONE:rfUi('Готово',"Ready"),OK:rfUi('Готово',"Ready")};
   return map[raw.toUpperCase()]||raw;
 }
 export function selectorSource(value){
-  const raw=String(value||'').toLowerCase(),map={production:'Текущая конфигурация',curated:'RouterForge',other:'Встроенный пул',custom:'Пользовательская',library:'Библиотека',community:'Сообщество',baseline:'Без обхода'};
+  const raw=String(value||'').toLowerCase(),map={production:rfUi('Текущая конфигурация',"Current configuration"),curated:'RouterForge',other:'Встроенный пул',custom:'Пользовательская',library:'Библиотека',community:'Сообщество',baseline:'Без обхода'};
   return map[raw]||String(value||'');
 }
 export function selectorReason(value){
   const map={
-    'baseline completed reliably; bypass strategy is not required for this target':'Сайт работает без обхода — дополнительная стратегия не требуется.',
+    'baseline completed reliably; bypass strategy is not required for this target':rfUi('Сайт работает без обхода — дополнительная стратегия не требуется.',"The site works without bypass; no additional strategy is needed."),
     'candidate improved verified HTTP reachability over baseline':'Найдена рабочая стратегия, которая открывает сайт лучше исходного соединения.',
     'no candidate proved a working HTTP response through isolated NFQUEUE':'Среди проверенных стратегий рабочая не найдена.',
-    'best candidate did not improve reliability/completeness over baseline':'Проверенные стратегии не дали результата лучше исходного соединения.',
-    'no selector recommendation is available':'Рекомендация пока недоступна.',
-    'verified candidate matches multiple production profiles; explicit slot selection is required':'Стратегия найдена, но нужно выбрать профиль nfqws2, к которому её применить.',
-    'verified candidate has no unique production profile binding for this target':'Стратегия найдена, но для этого домена не определён единственный профиль nfqws2.'
+    'best candidate did not improve reliability/completeness over baseline':rfUi('Проверенные стратегии не дали результата лучше исходного соединения.',"Tested strategies did not outperform the original connection."),
+    'no selector recommendation is available':rfUi('Рекомендация пока недоступна.',"No recommendation available yet."),
+    'verified candidate matches multiple production profiles; explicit slot selection is required':rfUi('Стратегия найдена, но нужно выбрать профиль nfqws2, к которому её применить.',"Strategy found, but select the nfqws2 profile to apply it to."),
+    'verified candidate has no unique production profile binding for this target':rfUi('Стратегия найдена, но для этого домена не определён единственный профиль nfqws2.',"Strategy found, but no unique nfqws2 profile could be identified for this domain.")
   };
   return map[String(value||'')]||String(value||'');
 }
@@ -98,12 +99,12 @@ export function selectorWorking(result){
 }
 export function selectorProfileQuality(profile){
   const reason=String(profile?.match_reason||'').toLowerCase();
-  if(reason.includes('hostlist-domains='))return{rank:400,label:'ТОЧНЫЙ ДОМЕН'};
+  if(reason.includes('hostlist-domains='))return{rank:400,label:rfUi('ТОЧНЫЙ ДОМЕН',"EXACT DOMAIN")};
   if(/(^|;\s*)include-auto\s/.test(reason))return{rank:320,label:'HOSTLIST AUTO'};
   if(/(^|;\s*)include\s/.test(reason))return{rank:300,label:'HOSTLIST'};
   if(/(^|;\s*)ipset\s/.test(reason))return{rank:200,label:'IPSET'};
-  if(reason.includes('target is not excluded'))return{rank:50,label:'ОБЩИЙ MATCH'};
-  if(reason.includes('profile has no target selector'))return{rank:10,label:'БЕЗ SELECTOR'};
+  if(reason.includes('target is not excluded'))return{rank:50,label:rfUi('ОБЩИЙ MATCH',"GENERAL MATCH")};
+  if(reason.includes('profile has no target selector'))return{rank:10,label:rfUi('БЕЗ SELECTOR',"NO SELECTOR")};
   return{rank:100,label:'MATCH'};
 }
 export function selectorPreviewBody(result,configSHA){

@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount, getContext} from 'svelte';
   import DnsP34Diagnostics from './DnsP34Diagnostics.svelte';
 
@@ -11,9 +12,9 @@
   let scope = $derived(fields.p243Scope);
   let ipEnabled = $derived(fields.p241IPEnabled);
   let ipMode = $derived(fields.p241IPMode);
-  let ipStatus = $state('Монитор выключен');
+  let ipStatus = $state(rfUi('Монитор выключен',"Monitoring disabled"));
   let ipRows = $state([]);
-  let performanceStatus = $state('Метрики: нет данных');
+  let performanceStatus = $state(rfUi('Метрики: нет данных',"Metrics: no data"));
   let cacheClearBusy = $state(false);
   let cacheClearStatus = $state('');
   let english = $state(false);
@@ -51,31 +52,31 @@
     settingsHooks.change(control.id);
   }
   const sections = [
-    {id:'service',ru:'DNS-сервис',en:'DNS service',status:'available'},
-    {id:'cache',ru:'Кэш',en:'Cache',status:'available'},
+    {id:'service',ru:rfUi('DNS-сервис',"DNS service"),en:'DNS service',status:'available'},
+    {id:'cache',ru:rfUi('Кэш',"Cache"),en:'Cache',status:'available'},
     {id:'ip',ru:'IP Intelligence',en:'IP Intelligence',status:'experimental'},
-    {id:'upstream',ru:'Выбор DNS',en:'Upstream selection',status:'available'},
-    {id:'security',ru:'Защита запросов',en:'Query protection',status:'available'},
+    {id:'upstream',ru:rfUi('Выбор DNS',"Select DNS"),en:'Upstream selection',status:'available'},
+    {id:'security',ru:rfUi('Защита запросов',"Query protection"),en:'Query protection',status:'available'},
     {id:'privacy',ru:'EDNS / ECS / DNSSEC',en:'EDNS / ECS / DNSSEC',status:'available'},
     {id:'dns64',ru:'DNS64 / rDNS',en:'DNS64 / rDNS',status:'available'},
-    {id:'performance',ru:'Производительность',en:'Performance',status:'available'},
-    {id:'local',ru:'Локальный DNS',en:'Local DNS',status:'available'},
-    {id:'secure',ru:'Защищённый DNS',en:'Secure DNS',status:'experimental'},
-    {id:'diagnostics',ru:'Диагностика DNS',en:'DNS diagnostics',status:'available'}
+    {id:'performance',ru:rfUi('Производительность',"Performance"),en:'Performance',status:'available'},
+    {id:'local',ru:rfUi('Локальный DNS',"Local DNS"),en:'Local DNS',status:'available'},
+    {id:'secure',ru:rfUi('Защищённый DNS',"Encrypted DNS"),en:'Secure DNS',status:'experimental'},
+    {id:'diagnostics',ru:rfUi('Диагностика DNS',"DNS diagnostics"),en:'DNS diagnostics',status:'available'}
   ];
   const settingsHooks = getContext('routerforge:dns-lite-settings');
   const navigationHooks = getContext('routerforge:dns-lite-navigation');
   const inputChange = settingsInputChange;
   const notes = {
-    original:['Без изменения IP в DNS-ответе.','No address changes.'],
-    round_robin:['Циклически меняет первый IP при каждом новом DNS-запросе, включая ответы из кэша.','Rotates the first IP on each DNS request, including cached responses.'],
-    random:['Случайно переставляет все IP; исходный DNS-ответ сохранён.','Shuffles addresses; original DNS response is preserved.'],
-    fastest:['С проверками TCP/TLS сортирует по задержке; без них сохраняет исходный порядок.','Sorts measured IPs by latency; otherwise preserves original order.'],
-    health_aware:['С проверками ставит доступные IP первыми; неизвестные адреса не считаются упавшими.','Prefers healthy IPs; unknown is not down.'],
-    adaptive:['С измерениями учитывает доступность и задержку; без измерений использует ротацию.','Adapts to measurements; rotates otherwise.'],
-    sticky:['Закрепляет порядок за проверенным MAC; для неизвестных устройств использует ротацию.','Keeps stable client ordering; rotates for unknown devices.'],
-    weighted:['С измерениями веса учитывают задержку; без них используются равные веса.','Weights measured latency; otherwise equal weights.'],
-    healthy_only:['Без проверок IP ничего не исключается. DNSSEC-защищённые наборы не сокращаются.','Without checks no IP is excluded. DNSSEC-protected RRsets remain intact.']
+    original:[rfUi('Без изменения IP в DNS-ответе.',"Without changing IP addresses in DNS responses."),'No address changes.'],
+    round_robin:[rfUi('Циклически меняет первый IP при каждом новом DNS-запросе, включая ответы из кэша.',"Rotates the first IP on every DNS query, including cached responses."),'Rotates the first IP on each DNS request, including cached responses.'],
+    random:[rfUi('Случайно переставляет все IP; исходный DNS-ответ сохранён.',"Randomizes all IPs; original DNS response is preserved."),'Shuffles addresses; original DNS response is preserved.'],
+    fastest:[rfUi('С проверками TCP/TLS сортирует по задержке; без них сохраняет исходный порядок.',"With TCP/TLS checks, sorts by latency; otherwise preserves original order."),'Sorts measured IPs by latency; otherwise preserves original order.'],
+    health_aware:[rfUi('С проверками ставит доступные IP первыми; неизвестные адреса не считаются упавшими.',"With checks, reachable IPs come first; unknown addresses are not treated as down."),'Prefers healthy IPs; unknown is not down.'],
+    adaptive:[rfUi('С измерениями учитывает доступность и задержку; без измерений использует ротацию.',"With measurements, selects by availability and latency; otherwise rotates."),'Adapts to measurements; rotates otherwise.'],
+    sticky:[rfUi('Закрепляет порядок за проверенным MAC; для неизвестных устройств использует ротацию.',"Keeps IP order for a verified MAC; rotates for unknown devices."),'Keeps stable client ordering; rotates for unknown devices.'],
+    weighted:[rfUi('С измерениями веса учитывают задержку; без них используются равные веса.',"With measurements, weights account for latency; otherwise equal weights are used."),'Weights measured latency; otherwise equal weights.'],
+    healthy_only:[rfUi('Без проверок IP ничего не исключается. DNSSEC-защищённые наборы не сокращаются.',"Without IP checks, no addresses are excluded. DNSSEC-protected sets are not reduced."),'Without checks no IP is excluded. DNSSEC-protected RRsets remain intact.']
   };
   let modeNote = $derived(!ipEnabled ? t('Функция выключена. DNS-ответы не изменяются.','Feature disabled. DNS responses remain unchanged.') : t(...(notes[ipMode] || notes.original)));
 
@@ -184,12 +185,12 @@
 </script>
 <div use:ownSlot={advanced ? 'p25Settings_service' : 'rf-dns-lite-basic-service-slot'} class="p25-native-service-fields">
   <div class="fields two">
-    <label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" onchange={settingsInputChange} bind:value={fields.serviceListen}/></label>
-    <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" spellcheck="false" onchange={settingsInputChange} bind:value={fields.allowedNetworks}/></label>
+    <label class="field"><span>{rfUi("Адрес DNS-сервиса","DNS service address")}</span><input id="serviceListen" onchange={settingsInputChange} bind:value={fields.serviceListen}/></label>
+    <label class="field"><span>{rfUi("Разрешённые сети","Allowed networks")}</span><input id="allowedNetworks" spellcheck="false" onchange={settingsInputChange} bind:value={fields.allowedNetworks}/></label>
   </div>
 </div>
 <div use:ownSlot={advanced ? 'p25Settings_cache' : 'rf-dns-lite-basic-cache-slot'} class="p25-native-cache-field">
-  <label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" min="0" max="8" step="1" onchange={settingsInputChange} bind:value={fields.cacheSize}/></label>
+  <label class="field"><span>{rfUi("Кэш, МиБ","Cache, MiB")}</span><input id="cacheSize" type="number" min="0" max="8" step="1" onchange={settingsInputChange} bind:value={fields.cacheSize}/></label>
 </div>
 
 <button use:ownSlot={'rf-dns-lite-settings-nav-slot'} id="p25SettingsNav" class="tab p22-advanced-tab" type="button" aria-controls="p25SettingsCard" class:selected={active} aria-current={active?'page':undefined} onclick={openSettings}>{t('Настройки','Settings')}</button>
@@ -204,45 +205,45 @@
     <div class="p25-settings-content">
       <section id="p25Settings_service" class="p25-settings-section" hidden={section!=='service'} aria-label={t('DNS-сервис','DNS service')}><h3>{t('DNS-сервис','DNS service')}</h3><p class="p25-settings-info">{t('Параметры DNS-сервиса. Сохранение и применение выполняются только через общую панель.','DNS service settings. Save and apply only through the shared toolbar.')}</p></section>
       <section id="p25Settings_cache" class="p25-settings-section" hidden={section!=='cache'} aria-label={t('Кэш','Cache')}><h3>{t('Кэш','Cache')}</h3><p class="p25-settings-info">{t('Кэш изменяется только после явного сохранения и применения.','Cache changes require an explicit save and apply.')}</p></section>
-      <section id="p25Settings_ip" class="p25-settings-section" hidden={section!=='ip'} aria-label="IP Intelligence"><h3>IP Intelligence</h3><p class="p25-settings-info">P24.0 contains nine IP ordering strategies. P24.2 adds opt-in public-IP TCP/TLS checks; unknown never means down.</p>
+      <section id="p25Settings_ip" class="p25-settings-section" hidden={section!=='ip'} aria-label="IP Intelligence"><h3>IP Intelligence</h3><p class="p25-settings-info">{t('Доступны девять способов выбора IP-адресов. Дополнительная проверка TCP/TLS запускается по желанию; отсутствие ответа не означает, что узел недоступен.','Choose from nine IP-selection strategies. Optional TCP/TLS checks can be enabled; an unknown result does not mean the host is down.')}</p>
         <p class="p25-settings-info">{modeNote}</p>
         <p class="p25-settings-info" id="p25IPHealthState">{ipStatus}</p>
             <div id="p241IPControls" class="p241-ip-controls">
-      <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled" onchange={(event)=>{settingsInputChange(event);}} bind:checked={fields.p241IPEnabled}><span>Включить IP Intelligence</span></label>
-      <label class="field p241-ip-mode"><span>Алгоритм выбора IP</span>
-        <select id="p241IPMode" onchange={(event)=>{settingsInputChange(event);}} aria-label="Алгоритм IP Intelligence" bind:value={fields.p241IPMode}>
-          <option value="original">Original · без изменений</option>
-          <option value="round_robin">Round-Robin · по кругу</option>
-          <option value="random">Random · случайный порядок</option>
-          <option value="fastest">Fastest IP · быстрые первыми</option>
-          <option value="health_aware">Health-Aware · доступные первыми</option>
-          <option value="adaptive">Adaptive · адаптивная ротация</option>
-          <option value="sticky">Sticky IP · закрепить за устройством</option>
-          <option value="weighted">Weighted · распределение по весам</option>
-          <option value="healthy_only">Healthy Only · исключать недоступные</option>
+      <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled" onchange={(event)=>{settingsInputChange(event);}} bind:checked={fields.p241IPEnabled}><span>{rfUi("Включить IP Intelligence","Enable IP Intelligence")}</span></label>
+      <label class="field p241-ip-mode"><span>{rfUi("Алгоритм выбора IP","IP selection algorithm")}</span>
+        <select id="p241IPMode" onchange={(event)=>{settingsInputChange(event);}} aria-label={rfUi("Алгоритм IP Intelligence","IP Intelligence algorithm")} bind:value={fields.p241IPMode}>
+          <option value="original">{rfUi("Original · без изменений","Original · unchanged")}</option>
+          <option value="round_robin">{rfUi("Round-Robin · по кругу","Round-Robin · rotating order")}</option>
+          <option value="random">{rfUi("Random · случайный порядок","Random · randomized order")}</option>
+          <option value="fastest">{rfUi("Fastest IP · быстрые первыми","Fastest IP · fastest first")}</option>
+          <option value="health_aware">{rfUi("Health-Aware · доступные первыми","Health-Aware · reachable first")}</option>
+          <option value="adaptive">{rfUi("Adaptive · адаптивная ротация","Adaptive · adaptive rotation")}</option>
+          <option value="sticky">{rfUi("Sticky IP · закрепить за устройством","Sticky IP · pin to device")}</option>
+          <option value="weighted">{rfUi("Weighted · распределение по весам","Weighted · weighted distribution")}</option>
+          <option value="healthy_only">{rfUi("Healthy Only · исключать недоступные","Healthy Only · exclude unreachable")}</option>
         </select>
       </label>
       <p class="p25-settings-info" id="p241IPModeNote" role="status">{modeNote}</p>
       <div class="p243-scope-settings">
-        <label class="field"><span>Область применения</span><select id="p243Scope" onchange={(event)=>{settingsInputChange(event);}} bind:value={fields.p243Scope}><option value="all">Все внешние домены</option><option value="domains">Выбранные домены</option><option value="lists">Выбранные списки</option></select></label>
-        <label class="field p243-domains" hidden={scope!=='domains'}><span>Домены, по одному в строке (включая поддомены)</span><textarea id="p243Domains" onchange={settingsInputChange} rows="3" spellcheck="false" placeholder="example.org" bind:value={fields.p243Domains}></textarea></label>
-        <label class="field p243-lists" hidden={scope!=='lists'}><span>Списки доменов (Ctrl/Shift для нескольких)</span><select id="p243ListIDs" onchange={settingsInputChange} multiple size="4" bind:value={fields.p243ListIDs}>{#each fields.ipListOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
+        <label class="field"><span>{rfUi("Область применения","Scope")}</span><select id="p243Scope" onchange={(event)=>{settingsInputChange(event);}} bind:value={fields.p243Scope}><option value="all">{rfUi("Все внешние домены","All external domains")}</option><option value="domains">{rfUi("Выбранные домены","Selected domains")}</option><option value="lists">{rfUi("Выбранные списки","Selected lists")}</option></select></label>
+        <label class="field p243-domains" hidden={scope!=='domains'}><span>{rfUi("Домены, по одному в строке (включая поддомены)","Domains, one per line (including subdomains)")}</span><textarea id="p243Domains" onchange={settingsInputChange} rows="3" spellcheck="false" placeholder="example.org" bind:value={fields.p243Domains}></textarea></label>
+        <label class="field p243-lists" hidden={scope!=='lists'}><span>{rfUi("Списки доменов (Ctrl/Shift для нескольких)","Domain lists (Ctrl/Shift to select multiple)")}</span><select id="p243ListIDs" onchange={settingsInputChange} multiple size="4" bind:value={fields.p243ListIDs}>{#each fields.ipListOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
       </div>
       <div class="p242-health-settings">
-        <label class="check"><input type="checkbox" id="p242HealthEnabled" onchange={settingsInputChange} bind:checked={fields.p242HealthEnabled}> Фоновая проверка IP-адресов (экспериментально)</label>
+        <label class="check"><input type="checkbox" id="p242HealthEnabled" onchange={settingsInputChange} bind:checked={fields.p242HealthEnabled}> {rfUi("Фоновая проверка IP-адресов (экспериментально)","Background IP checks (experimental)")}</label>
         <div class="p242-health-fields">
-          <label class="field"><span>Проверка</span><select id="p242HealthProtocol" onchange={settingsInputChange} bind:value={fields.p242HealthProtocol}><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option><option value="http">HTTP: ответ приложения</option><option value="https">HTTPS: ответ приложения + TLS</option></select></label>
-          <label class="field"><span>Порт</span><input id="p242HealthPort" onchange={settingsInputChange} type="number" min="80" max="65535" bind:value={fields.p242HealthPort}></label>
-          <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" onchange={settingsInputChange} type="number" min="30" max="3600" bind:value={fields.p242HealthInterval}></label>
-          <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" onchange={settingsInputChange} type="number" min="250" max="3000" bind:value={fields.p242HealthTimeout}></label>
-          <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" onchange={settingsInputChange} type="number" min="1" max="5" bind:value={fields.p242HealthFailures}></label>
-          <label class="field"><span>Успехов до UP</span><input id="p243Recoveries" onchange={settingsInputChange} type="number" min="1" max="5" bind:value={fields.p243Recoveries}></label>
-          <label class="field"><span>Выдержка DOWN, сек</span><input id="p243MinDown" onchange={settingsInputChange} type="number" min="0" max="3600" bind:value={fields.p243MinDown}></label>
-          <label class="field"><span>HTTP-путь</span><input id="p243HTTPPath" onchange={settingsInputChange} maxlength="128" placeholder="/health" bind:value={fields.p243HTTPPath}></label>
+          <label class="field"><span>{rfUi("Проверка","Check")}</span><select id="p242HealthProtocol" onchange={settingsInputChange} bind:value={fields.p242HealthProtocol}><option value="tcp">{rfUi("TCP: соединение с портом","TCP: connect to port")}</option><option value="tls">{rfUi("TLS: проверка сертификата","TLS: verify certificate")}</option><option value="http">{rfUi("HTTP: ответ приложения","HTTP: application response")}</option><option value="https">{rfUi("HTTPS: ответ приложения + TLS","HTTPS: application response + TLS")}</option></select></label>
+          <label class="field"><span>{rfUi("Порт","Port")}</span><input id="p242HealthPort" onchange={settingsInputChange} type="number" min="80" max="65535" bind:value={fields.p242HealthPort}></label>
+          <label class="field"><span>{rfUi("Интервал, секунд","Interval, seconds")}</span><input id="p242HealthInterval" onchange={settingsInputChange} type="number" min="30" max="3600" bind:value={fields.p242HealthInterval}></label>
+          <label class="field"><span>{rfUi("Тайм-аут, мс","Timeout, ms")}</span><input id="p242HealthTimeout" onchange={settingsInputChange} type="number" min="250" max="3000" bind:value={fields.p242HealthTimeout}></label>
+          <label class="field"><span>{rfUi("Неудач до DOWN","Failures before marking down")}</span><input id="p242HealthFailures" onchange={settingsInputChange} type="number" min="1" max="5" bind:value={fields.p242HealthFailures}></label>
+          <label class="field"><span>{rfUi("Успехов до UP","Successes before marking up")}</span><input id="p243Recoveries" onchange={settingsInputChange} type="number" min="1" max="5" bind:value={fields.p243Recoveries}></label>
+          <label class="field"><span>{rfUi("Выдержка DOWN, сек","Down-state hold, sec")}</span><input id="p243MinDown" onchange={settingsInputChange} type="number" min="0" max="3600" bind:value={fields.p243MinDown}></label>
+          <label class="field"><span>{rfUi("HTTP-путь","HTTP path")}</span><input id="p243HTTPPath" onchange={settingsInputChange} maxlength="128" placeholder="/health" bind:value={fields.p243HTTPPath}></label>
         </div>
-        <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. HTTP/HTTPS проверяют ответ сервиса, 5xx считаются ошибкой; редиректы не выполняются. TCP/TLS подтверждают только соединение.</p>
-        <div class="p242-monitor"><div class="p242-monitor-heading"><strong>Монитор IP</strong><small id="p242MonitorStatus">Нет измерений</small></div>
-          <div id="p242MonitorRows" class="p242-monitor-rows" aria-live="polite"><span class="muted">Записи появятся после запросов и фоновых проверок.</span></div>
+        <p class="p25-settings-info">{rfUi("Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. HTTP/HTTPS проверяют ответ сервиса, 5xx считаются ошибкой; редиректы не выполняются. TCP/TLS подтверждают только соединение.","Only public IPs from real A/AAAA responses are checked, at most once per second. Private and reserved addresses are excluded. HTTP/HTTPS checks assess the service response; 5xx responses are failures, and redirects are not followed. TCP/TLS checks confirm connectivity only.")}</p>
+        <div class="p242-monitor"><div class="p242-monitor-heading"><strong>{rfUi("Монитор IP","IP monitor")}</strong><small id="p242MonitorStatus">{rfUi("Нет измерений","No measurements")}</small></div>
+          <div id="p242MonitorRows" class="p242-monitor-rows" aria-live="polite"><span class="muted">{rfUi("Записи появятся после запросов и фоновых проверок.","Entries appear after queries and background checks.")}</span></div>
         </div>
       </div>
     </div>
@@ -262,13 +263,13 @@
         <label class="field"><span>{t('Тайм-аут на DNS, мс','Timeout per DNS, ms')}</span><input id="p28Timeout" type="number" min="250" max="5000" onchange={inputChange} bind:value={fields.p28Timeout}/></label>
       </section>
       <section id="p25Settings_security" class="p25-settings-section" hidden={section!=='security'} aria-label={t('Защита запросов','Query protection')}><h3>{t('Защита запросов','Query protection')}</h3><p class="p25-settings-info">{t('Частотные ограничения, DNS ANY и Bogus NXDOMAIN действуют только после сохранения и явного применения.','Rate limits, ANY refusal and Bogus NXDOMAIN require explicit save and apply.')}</p>    <div id="p27SecurityControls" class="p27-security-controls">
-      <p class="p25-settings-info">Защита применяется к независимому DNS Router, не меняет правила Keenetic. Все параметры по умолчанию выключены.</p>
+      <p class="p25-settings-info">{rfUi("Защита применяется к независимому DNS Router, не меняет правила Keenetic. Все параметры по умолчанию выключены.","Protection applies to the standalone DNS Router and does not alter Keenetic rules. All options are disabled by default.")}</p>
       <div class="fields two">
-        <label class="field"><span>Лимит запросов одного клиента в секунду (0 — выкл.)</span><input id="p27RateLimit" onchange={settingsInputChange} type="number" min="0" max="2000" bind:value={fields.p27RateLimit}></label>
-        <label class="check"><input type="checkbox" id="p27RefuseAny" onchange={settingsInputChange} bind:checked={fields.p27RefuseAny}> Отказывать на DNS ANY (NOTIMP)</label>
+        <label class="field"><span>{rfUi("Лимит запросов одного клиента в секунду (0 — выкл.)","Per-client request limit per second (0 = disabled)")}</span><input id="p27RateLimit" onchange={settingsInputChange} type="number" min="0" max="2000" bind:value={fields.p27RateLimit}></label>
+        <label class="check"><input type="checkbox" id="p27RefuseAny" onchange={settingsInputChange} bind:checked={fields.p27RefuseAny}> {rfUi("Отказывать на DNS ANY (NOTIMP)","Reject DNS ANY (NOTIMP)")}</label>
       </div>
-      <label class="field"><span>Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)</span><textarea id="p27BogusIPs" onchange={settingsInputChange} rows="4" spellcheck="false" placeholder="0.0.0.0" bind:value={fields.p27BogusIPs}></textarea></label>
-      <p class="p25-settings-info">Если DNS вернул такой IP, RouterForge отправит NXDOMAIN. Не включает блокировку доменов и не проверяет криптографически DNSSEC. CIDR: IPv4 от /24, IPv6 от /64.</p>
+      <label class="field"><span>{rfUi("Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)","Bogus NXDOMAIN — IP addresses or CIDR ranges (one per line)")}</span><textarea id="p27BogusIPs" onchange={settingsInputChange} rows="4" spellcheck="false" placeholder="0.0.0.0" bind:value={fields.p27BogusIPs}></textarea></label>
+      <p class="p25-settings-info">{rfUi("Если DNS вернул такой IP, RouterForge отправит NXDOMAIN. Не включает блокировку доменов и не проверяет криптографически DNSSEC. CIDR: IPv4 от /24, IPv6 от /64.","When a DNS answer contains a matching IP, RouterForge returns NXDOMAIN. This does not enable domain blocking or cryptographically verify DNSSEC. CIDR: IPv4 /24 or larger, IPv6 /64 or larger.")}</p>
     </div>
 </section>
       <section id="p25Settings_privacy" class="p25-settings-section" hidden={section!=='privacy'} aria-label="EDNS / ECS / DNSSEC"><h3>EDNS / ECS / DNSSEC</h3><p class="p25-settings-info">{t('Require AD доверяет только шифрованным DNS; локальная проверка DNSSEC не выполняется.','Require AD trusts only encrypted upstreams; there is no local DNSSEC validation.')}</p>
@@ -282,14 +283,14 @@
         <label class="field"><span>{t('Префикс NAT64 /96','NAT64 /96 prefix')}</span><input id="p31DNS64Prefix" type="text" onchange={inputChange} bind:value={fields.p31DNS64Prefix}/></label>
         <label class="check"><span>{t('Подтверждаю, что NAT64 уже настроен','I confirm NAT64 already works')}</span><input id="p31NAT64Confirmed" type="checkbox" onchange={inputChange} bind:checked={fields.p31NAT64Confirmed}/></label>
         <label class="check"><span>{t('Отдельный DNS для приватных PTR','Custom private PTR resolver')}</span><input id="p31ReverseEnabled" type="checkbox" onchange={inputChange} bind:checked={fields.p31ReverseEnabled}/></label>
-        <label class="field"><span>{t('DNS для rDNS','rDNS upstream')}</span><select id="p31ReverseUpstream" onchange={inputChange} bind:value={fields.p31ReverseUpstream}><option value="">Выбери прямой DNS…</option>{#each fields.reverseOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
+        <label class="field"><span>{t('DNS для rDNS','rDNS upstream')}</span><select id="p31ReverseUpstream" onchange={inputChange} bind:value={fields.p31ReverseUpstream}><option value="">{rfUi("Выбери прямой DNS…","Select a direct DNS…")}</option>{#each fields.reverseOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
       </section>
       <section id="p25Settings_diagnostics" class="p25-settings-section" hidden={section!=='diagnostics'} aria-label={t('Диагностика DNS','DNS diagnostics')}>
         <h3>{t('Диагностика DNS','DNS diagnostics')}</h3>
         {#if section==='diagnostics'}<DnsP34Diagnostics/>{/if}
       </section>
       <section id="p25Settings_secure" class="p25-settings-section" hidden={section!=='secure'} aria-label={t('Защищённый DNS','Secure DNS')}>
-        <h3>{t('Защищённый DNS (P36)','Secure DNS (P36)')}</h3>
+        <h3>{t('Защищённый DNS','Secure DNS')}</h3>
         <p class="p25-settings-info">{t('Входящие DoT, DoH и DoQ: TLS 1.3 и ОБЯЗАТЕЛЬНЫЙ клиентский сертификат (mTLS). Доступ только по IP интерфейса DNS Router, через разрешённые сети. Не открывает порты Keenetic и ничего не запускает без общего Save и Apply.','Inbound DoT, DoH and DoQ: TLS 1.3 with MANDATORY client certificates (mTLS). Explicit DNS Router IP, existing allowed networks, no Keenetic port changes; requires Save then Apply.')}</p>
         <label class="check"><input id="p36Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p36Enabled}/><span>{t('Включить защищённые входящие DNS','Enable encrypted inbound DNS')}</span></label>
         <div class="fields two">

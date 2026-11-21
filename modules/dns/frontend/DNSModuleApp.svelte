@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import { onMount } from 'svelte';
   import { withRequestTimeout } from '$lib/http.js';
   import { createReadSessions } from '$lib/readSessions.js';
@@ -99,38 +100,38 @@
 
   const strings = {
     ru: {
-      title:'DNS', subtitle:'Резолверы Keenetic, маршрутизация, трафик и диагностика.',
+      title:'DNS', subtitle:rfUi('Резолверы Keenetic, маршрутизация, трафик и диагностика.',"Keenetic resolvers, routing, traffic, and diagnostics."),
       overview:'Обзор', resolvers:'Резолверы', rules:'Правила', traffic:'Трафик', diagnostics:'Диагностика',
       refresh:'Обновить', add:'Добавить DNS', edit:'Настроить', disable:'Отключить', enable:'Включить', remove:'Удалить',
       active:'АКТИВЕН', disabled:'ОТКЛЮЧЕН', dynamic:'ДИНАМИЧЕСКИЙ', global:'Все домены', scope:'Область запросов',
       requests:'Запросы', responses:'Ответы', sent:'Передано', avg:'Среднее', median:'Медиана', errors:'Ошибки', cache:'Ответы из кэша',
       activeResolvers:'Активные', disabledResolvers:'Отключённые', dynamicResolvers:'Динамические', physical:'Физические записи',
-      native:'Native mode', nativeHint:'Один логический резолвер может разворачиваться в несколько нативных записей Keenetic.',
+      native:'Штатный режим', nativeHint:'Один логический резолвер может разворачиваться в несколько нативных записей Keenetic.',
       noResolvers:'Резолверы не найдены.', noData:'Данных пока нет.', localRecords:'Локальные записи', rebind:'Защита DNS',
-      policy:'DNS-контекст', upstreams:'Работа резолверов', advanced:'Advanced', copy:'Копировать отчёт', saveReport:'Сохранить отчёт',
+      policy:'DNS-контекст', upstreams:'Работа резолверов', advanced:'Расширенные', copy:'Копировать отчёт', saveReport:'Сохранить отчёт',
       protocol:'Протокол', address:'Адрес', uri:'DoH URL', port:'Порт', sni:'SNI / FQDN', iface:'Интерфейс', domains:'Домены',
-      domainsHint:'По одному домену в строке. Пусто — для всех доменов.', spki:'SPKI', format:'Format', cancel:'Отмена', save:'Сохранить',
+      domainsHint:'По одному домену в строке. Пусто — для всех доменов.', spki:'SPKI', format:'Формат', cancel:'Отмена', save:'Сохранить',
       confirmDelete:'Удалить этот резолвер из конфигурации Keenetic?', confirmDisable:'Временно отключить этот резолвер?', confirmEnable:'Вернуть этот резолвер в активную конфигурацию?',
       readOnly:'Управляется Keenetic автоматически', physicalCount:'Нативных записей', moduleError:'Не удалось загрузить данные DNS',
-      system:'Системный', copied:'Отчёт скопирован.', saved:'Изменение применено и подтверждено readback-проверкой.',
-      rollbackNote:'Все изменения проходят snapshot → mutation → save → readback; при несовпадении выполняется rollback.',
-      topDomains:'Популярные домены', recentFlow:'Последние DNS-события', status:'Состояние', memory:'Память', rank:'Rank',
+      system:'Системный', copied:'Отчёт скопирован.', saved:'Изменение сохранено и подтверждено повторным чтением настроек.',
+      rollbackNote:'Перед изменением сохраняется текущее состояние. После записи настройки проверяются; при ошибке возвращаются прежние значения.',
+      topDomains:'Популярные домены', recentFlow:'Последние DNS-события', status:'Состояние', memory:'Память', rank:'Место',
       rebindOn:'Включена', rebindOff:'Выключена', protectedNets:'Защищённые сети', exclusions:'Исключения',
       editTitle:'Настройка резолвера', addTitle:'Новый резолвер', all:'Все', moduleVersion:'Версия модуля',
       secureSlots:'DoT/DoH-слоты', dnsDomainLimit:'Домены DNS', afterSave:'После сохранения', limitExceeded:'Превышен лимит Keenetic',
-      mainDns:'Основной DNS', protectedDns:'Защищённые DNS', problems:'Проблемы', quality:'Качество', latency:'Latency', fallback:'Fallback',
+      mainDns:'Основной DNS', protectedDns:'Защищённые DNS', problems:'Проблемы', quality:'Качество', latency:'Задержка', fallback:'Резервный переход',
       searchDns:'Поиск DNS…', activeOnly:'Активные', currentUse:'используется сейчас', detected:'Доступен', unavailable:'Недоступен', degraded:'Есть проблемы', hadIssues:'Были сбои',      trafficShare:'трафика', timeouts:'Таймауты', policyContexts:'Маршрутные DNS-контексты', route:'Маршрут', resolverCount:'Резолверы', markTable:'MARK / TABLE',
       bindings:'Доменные привязки', bindingsHint:'Нативные domain bindings активных резолверов Keenetic.', fallbackRoutes:'Fallback-маршруты', fallbackHint:'Фактические переходы между DNS upstream за выбранный период.', keeneticProfiles:'Профили Keenetic', discoveryData:'Текущие discovery-данные', triggers:'Срабатывания', from:'Откуда', to:'Куда', allProfiles:'Все профили',
-      trafficGraph:'DNS traffic', buckets:'интервалов', flow:'DNS Flow', devices:'Устройства', interfaces:'Интерфейсы', domainsTab:'Домены',
+      trafficGraph:'DNS-трафик', buckets:'интервалов', flow:'DNS Flow', devices:'Устройства', interfaces:'Интерфейсы', domainsTab:'Домены',
       domainOrDevice:'Домен или устройство…', fallbackOnly:'Только fallback', pause:'Пауза', continue:'Продолжить', live:'LIVE', frozen:'ЗАМОРОЖЕНО', noMatching:'Ничего не найдено.',
       device:'Устройство', type:'Тип', profile:'Профиль', allDevices:'Все устройства', activeDevice:'Активен', offline:'Не в сети', clientState:'DNS состояние клиента', policyRoute:'Маршрут Policy', systemDefault:'Системный маршрут по умолчанию', noPolicyRoute:'Специальный маршрут Policy не обнаружен.',
       forwarded:'Forwarded', cacheLocal:'Cache local', clientAvg:'Client avg', clientP95:'Client p95', outcome:'Результат', allOutcomes:'Все результаты',
       interfaceName:'Интерфейс', network:'Сеть', topClients:'Топ клиентов', qtypes:'Типы запросов',
       journal:'Журнал', connections:'Соединения', dnsInfo:'Сведения о DNS', systemTab:'Система', errorSummary:'Сводка ошибок', examples:'Примеры доменов', localProxies:'Локальные DNS proxy', target:'Назначение',
       discovery:'Discovery', counters:'Счётчики', lastDiscovery:'Последний discovery', discoveryError:'Ошибка discovery', captureError:'Ошибка capture', clientCaptureError:'Ошибка client capture', none:'нет', runtime:'Runtime', process:'Процесс',
-      health:'Health', issues:'Проблемы', lastUse:'Последнее использование', noFallbacks:'Fallback-переходов за период нет.', mainRecent:'Последние запросы основного DNS',
+      health:'Состояние', issues:'Проблемы', lastUse:'Последнее использование', noFallbacks:'Fallback-переходов за период нет.', mainRecent:'Последние запросы основного DNS',
       filterProtocol:'Протокол', filterStatus:'Статус', configured:'Настроенные', routeOk:'Есть default route', routeMissing:'Нет default route',
-      diagnosticsRuntime:'Runtime diagnostics', stage:'Stage', assessment:'Assessment', healthError:'Health error'
+      diagnosticsRuntime:'Диагностика сервиса', stage:'Этап', assessment:'Оценка', healthError:'Ошибка проверки'
     },
     en: {
       title:'DNS', subtitle:'Keenetic resolvers, routing, traffic and diagnostics.',
@@ -147,7 +148,7 @@
       confirmDelete:'Delete this resolver from Keenetic configuration?', confirmDisable:'Temporarily disable this resolver?', confirmEnable:'Restore this resolver to active configuration?',
       readOnly:'Managed automatically by Keenetic', physicalCount:'Native entries', moduleError:'Could not load DNS data',
       system:'System', copied:'Report copied.', saved:'Change applied and confirmed by readback verification.',
-      rollbackNote:'Every change uses snapshot → mutation → save → readback; mismatch triggers rollback.',
+      rollbackNote:'Settings are backed up before changes, verified after saving, and restored on failure.',
       topDomains:'Top domains', recentFlow:'Recent DNS events', status:'Status', memory:'Memory', rank:'Rank',
       rebindOn:'Enabled', rebindOff:'Disabled', protectedNets:'Protected networks', exclusions:'Exclusions',
       editTitle:'Configure resolver', addTitle:'New resolver', all:'All', moduleVersion:'Module version',
@@ -708,7 +709,7 @@
         return {
           key:`provider:${provider}`,
           label:provider,
-          subtitle:currentLocale === 'en' ? 'Provider resolvers · DoT + DoH' : 'Резолверы провайдера · DoT + DoH',
+          subtitle:currentLocale === 'en' ? 'Provider resolvers · DoT + DoH' : rfUi('Резолверы провайдера · DoT + DoH',"Provider resolvers · DoT + DoH"),
           preset:true,
           resolvers:providerRows
         };
@@ -722,14 +723,14 @@
       sections.push({
         key:'custom',
         label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
-        subtitle:currentLocale === 'en' ? 'Configured, active and dynamic resolvers' : 'Настроенные, активные и динамические резолверы',
+        subtitle:currentLocale === 'en' ? 'Configured, active and dynamic resolvers' : rfUi('Настроенные, активные и динамические резолверы',"Configured, active, and dynamic resolvers"),
         kind:'custom',
         badge:'LOCAL',
         total:custom.length,
         groups:[{
           key:'custom',
           label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
-          subtitle:currentLocale === 'en' ? 'Configured, active and dynamic resolvers' : 'Настроенные, активные и динамические резолверы',
+          subtitle:currentLocale === 'en' ? 'Configured, active and dynamic resolvers' : rfUi('Настроенные, активные и динамические резолверы',"Configured, active, and dynamic resolvers"),
           preset:false,
           resolvers:custom
         }]
@@ -741,7 +742,7 @@
       sections.push({
         key:'public-presets',
         label:currentLocale === 'en' ? 'Public DNS' : 'Публичные DNS',
-        subtitle:currentLocale === 'en' ? 'Public provider resolvers · built-in and disabled' : 'Публичные провайдеры · встроенные и отключённые',
+        subtitle:currentLocale === 'en' ? 'Public provider resolvers · built-in and disabled' : rfUi('Публичные провайдеры · встроенные и отключённые',"Public providers · built-in and disabled"),
         kind:'public',
         badge:'PUBLIC',
         total:publicRows.length,
@@ -754,7 +755,7 @@
       sections.push({
         key:'private-presets',
         label:currentLocale === 'en' ? 'Private DNS' : 'Частные DNS',
-        subtitle:currentLocale === 'en' ? 'Private provider resolvers · built-in and disabled' : 'Частные провайдеры · встроенные и отключённые',
+        subtitle:currentLocale === 'en' ? 'Private provider resolvers · built-in and disabled' : rfUi('Частные провайдеры · встроенные и отключённые',"Private providers · built-in and disabled"),
         kind:'private',
         badge:'PRIVATE',
         total:privateRows.length,
@@ -1648,7 +1649,7 @@
 
     <section class="metric-grid four">
       <div class="metric-card">
-        <span class="metric-label-help">DNS-СЕРВЕРЫ <button class="health-help" type="button" aria-label={locale === 'en' ? 'Explain DNS server health' : 'Объяснить состояние DNS-серверов'} onmouseenter={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')}>?</button></span>
+        <span class="metric-label-help">{rfUi("DNS-СЕРВЕРЫ","DNS SERVERS")} <button class="health-help" type="button" aria-label={locale === 'en' ? 'Explain DNS server health' : 'Объяснить состояние DNS-серверов'} onmouseenter={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')}>?</button></span>
         <strong>{healthyCount}/{serverCount}</strong>
         <small>{activeCount} {locale === 'en' ? 'active' : 'активны'} · DOWN {downCount} · DEGRADED {degradedCount}</small>
       </div>
@@ -1693,7 +1694,7 @@
 
     {#if filteredProtected.length}
       <section class="panel table-panel">
-        <div class="panel-head"><div><strong>{L.protectedDns}</strong><span>System DoT/DoH runtime · без policy-дублей</span></div><span class="state-pill info">{filteredProtected.length}</span></div>
+        <div class="panel-head"><div><strong>{L.protectedDns}</strong><span>{rfUi("System DoT/DoH runtime · без policy-дублей","System DoT/DoH activity · no duplicate policy entries")}</span></div><span class="state-pill info">{filteredProtected.length}</span></div>
         <div class="table-wrap"><table><thead><tr><th>DNS</th><th>{L.type}</th><th>{L.status}</th><th>{L.requests}</th><th><span class="th-help">{L.latency}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain p95 latency' : 'Что означает p95'} onmouseenter={(e) => showHealthHelp(e, latencyTooltip(), 'p95')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, latencyTooltip(), 'p95')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, latencyTooltip(), 'p95')}>?</button></span></th><th><span class="th-help">{L.problems}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain DNS problems' : 'Что считается проблемой'} onmouseenter={(e) => showHealthHelp(e, problemsTooltip(), L.problems)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, problemsTooltip(), L.problems)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, problemsTooltip(), L.problems)}>?</button></span></th><th>{L.fallback}</th><th><span class="th-help">{L.quality}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain DNS quality' : 'Что означает качество DNS'} onmouseenter={(e) => showHealthHelp(e, qualityTooltip(), L.quality)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, qualityTooltip(), L.quality)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, qualityTooltip(), L.quality)}>?</button></span></th><th>{L.port}</th></tr></thead><tbody>
           {#each filteredProtected as u (u.port)}
             <tr>
@@ -1905,7 +1906,7 @@
           {#if selectedResolver.dynamic}<div class="resolver-dynamic-banner"><span class="state-pill neutral">READ ONLY</span><span>{L.readOnly}{selectedResolver.service ? ` · ${selectedResolver.service}` : ''}</span></div>{/if}
           <div class="resolver-detail-metrics">
             <div><strong>{fmtInt(selectedRuntime?.summary?.requests || 0)}</strong><span>{L.requests}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
-            <div><strong>{num(selectedRuntime?.summary?.p95_latency_ms) ? fmtMs(selectedRuntime.summary.p95_latency_ms) : '—'}</strong><span>P95 latency{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+            <div><strong>{num(selectedRuntime?.summary?.p95_latency_ms) ? fmtMs(selectedRuntime.summary.p95_latency_ms) : '—'}</strong><span>{locale === 'en' ? 'p95 latency' : 'Задержка p95'}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
             <div><strong>{fmtPct(selectedRuntime?.summary?.fallback_pct || 0, 2)}</strong><span>{L.fallback}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
             <div><strong class={selectedRuntime?.rows?.length ? qualityClass(selectedRuntime?.summary || {}) : ''}>{selectedRuntime?.rows?.length ? fmtPct(selectedRuntime?.summary?.quality_pct ?? 100, 1) : '—'}</strong><span>{L.quality}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
           </div>
@@ -1980,7 +1981,7 @@
   {:else if tab === 'rules'}
     <div class="toolbar parity-toolbar">
       <select bind:value={rulesProfile}><option value="all">{L.allProfiles}</option>{#each profiles as p}<option value={p}>{p}</option>{/each}</select>
-      <div class="segmented"><button class:active={rulesMinutes === 5} type="button" onclick={() => selectRulesMinutes(5)}>5 мин</button><button class:active={rulesMinutes === 60} type="button" onclick={() => selectRulesMinutes(60)}>1 ч</button><button class:active={rulesMinutes === 1440} type="button" onclick={() => selectRulesMinutes(1440)}>24 ч</button></div>
+      <div class="segmented"><button class:active={rulesMinutes === 5} type="button" onclick={() => selectRulesMinutes(5)}>{rfUi("5 мин","5 min")}</button><button class:active={rulesMinutes === 60} type="button" onclick={() => selectRulesMinutes(60)}>{rfUi("1 ч","1 h")}</button><button class:active={rulesMinutes === 1440} type="button" onclick={() => selectRulesMinutes(1440)}>{rfUi("24 ч","24 h")}</button></div>
       <div class="toolbar-spacer"></div><span class="panel-meta">{fmtInt(ruleEdgeCount)} fallback</span>
     </div>
 
@@ -2026,7 +2027,7 @@
     </div>
 
     {#if trafficTab === 'traffic'}
-      <div class="toolbar parity-toolbar"><div class="toolbar-spacer"></div><div class="segmented"><button class:active={historyMinutes === 5} type="button" onclick={() => selectHistory(5)}>5 мин</button><button class:active={historyMinutes === 60} type="button" onclick={() => selectHistory(60)}>1 ч</button><button class:active={historyMinutes === 180} type="button" onclick={() => selectHistory(180)}>3 ч</button><button class:active={historyMinutes === 1440} type="button" onclick={() => selectHistory(1440)}>24 ч</button></div></div>
+      <div class="toolbar parity-toolbar"><div class="toolbar-spacer"></div><div class="segmented"><button class:active={historyMinutes === 5} type="button" onclick={() => selectHistory(5)}>{rfUi("5 мин","5 min")}</button><button class:active={historyMinutes === 60} type="button" onclick={() => selectHistory(60)}>{rfUi("1 ч","1 h")}</button><button class:active={historyMinutes === 180} type="button" onclick={() => selectHistory(180)}>{rfUi("3 ч","3 h")}</button><button class:active={historyMinutes === 1440} type="button" onclick={() => selectHistory(1440)}>{rfUi("24 ч","24 h")}</button></div></div>
       <section class="panel">
         <div class="panel-head"><div><strong>{L.trafficGraph}</strong><span>{historyPoints.length} {L.buckets}</span></div><div class="legend"><span><i class="legend-dot requests-dot"></i>{L.requests}</span><span><i class="legend-dot fallback-dot"></i>{L.fallback}</span><span><i class="legend-dot error-dot"></i>{L.errors}</span></div></div>
         {#if historyPoints.length}
@@ -2094,7 +2095,7 @@
     </div>
 
     {#if diagnosticsTab === 'journal'}
-      <div class="toolbar parity-toolbar"><span class="live-chip {diagPaused ? 'paused' : 'running'}">{diagPaused ? L.frozen : L.live}</span><button class="action" type="button" onclick={toggleDiagPause}>{diagPaused ? L.continue : L.pause}</button>{#each ['all','SERVFAIL','TIMEOUT','DOWN','RECOVERED'] as value}<button class="action" class:active={diagKind === value} type="button" onclick={() => diagKind = value}>{value === 'all' ? L.all.toUpperCase() : value}</button>{/each}<div class="search-control flex"><span>⌕</span><input bind:value={diagSearch} placeholder={L.searchDns}/></div><div class="segmented"><button class:active={diagMinutes === 5} type="button" onclick={() => selectDiagMinutes(5)}>5м</button><button class:active={diagMinutes === 60} type="button" onclick={() => selectDiagMinutes(60)}>1ч</button><button class:active={diagMinutes === 1440} type="button" onclick={() => selectDiagMinutes(1440)}>24ч</button></div></div>
+      <div class="toolbar parity-toolbar"><span class="live-chip {diagPaused ? 'paused' : 'running'}">{diagPaused ? L.frozen : L.live}</span><button class="action" type="button" onclick={toggleDiagPause}>{diagPaused ? L.continue : L.pause}</button>{#each ['all','SERVFAIL','TIMEOUT','DOWN','RECOVERED'] as value}<button class="action" class:active={diagKind === value} type="button" onclick={() => diagKind = value}>{value === 'all' ? L.all.toUpperCase() : value}</button>{/each}<div class="search-control flex"><span>⌕</span><input bind:value={diagSearch} placeholder={L.searchDns}/></div><div class="segmented"><button class:active={diagMinutes === 5} type="button" onclick={() => selectDiagMinutes(5)}>{rfUi("5м","5m")}</button><button class:active={diagMinutes === 60} type="button" onclick={() => selectDiagMinutes(60)}>{rfUi("1ч","1h")}</button><button class:active={diagMinutes === 1440} type="button" onclick={() => selectDiagMinutes(1440)}>{rfUi("24ч","24h")}</button></div></div>
       {#if diagBursts.length}<section class="panel table-panel"><div class="panel-head"><div><strong>{L.errorSummary}</strong><span>{diagBursts.length} burst buckets</span></div></div><div class="table-wrap"><table><thead><tr><th>{locale === 'en' ? 'Time' : 'Время'}</th><th>DNS</th><th>{L.type}</th><th>{locale === 'en' ? 'Count' : 'Кол-во'}</th><th>{L.examples}</th></tr></thead><tbody>{#each diagBursts as b, i}<tr><td class="mono">{timeOnly(b.minute)}</td><td>{b.profile} · <strong>{b.upstream}</strong></td><td><span class="pill {b.kind === 'TIMEOUT' ? 'warn' : 'error'}">{b.kind}</span></td><td class="bad-text">{fmtInt(b.count)}</td><td class="cell-sub">{(b.domains || []).join(', ') || '—'}</td></tr>{/each}</tbody></table></div></section>{/if}
       <section class="panel"><div class="log-shell">{#if diagRows.length}{#each diagRows as row, i}<div class="log-row"><span class="mono muted">{timeOnly(row.time)}</span><span class="log-kind {row.kind}">{row.kind}</span><span>{row.profile || ''} · {row.upstream || ''} · {row.domain || ''} — {row.message || ''}</span></div>{/each}{:else}<div class="empty-box small">{L.noData}</div>{/if}</div></section>
 

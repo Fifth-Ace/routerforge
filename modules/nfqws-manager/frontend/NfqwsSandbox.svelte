@@ -1,10 +1,11 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount} from 'svelte';
   import {sandboxPath,sandboxTargetBody,sandboxSafeTargets,sandboxBenchBody,sandboxSaveBody,sandboxResult,sandboxArgsText} from './NfqwsSandboxModel.js';
   let {active=false,seed={seq:0},serviceBusy=false,onRequest=async()=>{},onRefreshLibrary=async()=>{},onHistory=()=>{},onNotice=()=>{}}=$props();
   let mounted=$state(false), loaded=$state(false),attempted=$state(false),loading=$state(false),saving=$state(false),running=$state(false);
-  let state=$state('ОЖИДАНИЕ'),error=$state(''),results=$state([]),targetSources=$state([]),profiles=$state([]),library=$state([]),server=$state(null);
-  let targetSource=$state('manual'),listName=$state(''),targetsText=$state(''),candidateSource=$state('production'),profileIndex=$state(''),libraryId=$state(''),argsText=$state(''),attempts=$state('2'),saveName=$state(''),seedMeta=$state('выберите источник');
+  let state=$state(rfUi('ОЖИДАНИЕ',"WAITING")),error=$state(''),results=$state([]),targetSources=$state([]),profiles=$state([]),library=$state([]),server=$state(null);
+  let targetSource=$state('manual'),listName=$state(''),targetsText=$state(''),candidateSource=$state('production'),profileIndex=$state(''),libraryId=$state(''),argsText=$state(''),attempts=$state('2'),saveName=$state(''),seedMeta=$state(rfUi('выберите источник',"select source"));
   let alive=false,epoch=0,runAbort=null,saveAbort=null,lastSeed=0;
   const locked=$derived(serviceBusy||loading||running||saving);
   const selected=$derived(candidateSource==='production'?profiles.find(p=>String(p.index)===String(profileIndex)):candidateSource==='library'?library.find(x=>x.id===libraryId):null);
@@ -29,14 +30,14 @@
       if(!targetSources.some(x=>x.name===listName))listName=targetSources[0]?.name||'';
       if(!profiles.some(x=>String(x.index)===String(profileIndex)))profileIndex=String(profiles[0]?.index??'');
       if(!library.some(x=>x.id===libraryId))libraryId=library[0]?.id||'';
-    }catch(e){if(alive&&n===epoch){error=safeError(e);state='ОШИБКА';notify(error,'error');}}
+    }catch(e){if(alive&&n===epoch){error=safeError(e);state=rfUi('ОШИБКА',"ERROR");notify(error,'error');}}
     finally{if(alive&&n===epoch)loading=false;}
   }
   function acceptSeed(){
     if(!seed?.seq||seed.seq===lastSeed)return;
     lastSeed=seed.seq;
     if(seed.kind==='target'){
-      targetSource='manual';targetsText=String(seed.target||'');seedMeta='Цель передана из наблюдений';
+      targetSource='manual';targetsText=String(seed.target||'');seedMeta=rfUi('Цель передана из наблюдений',"Target obtained from observations");
     }else if(seed.kind==='candidate'){
       candidateSource='custom';argsText=String(seed.args||'');saveName=String(seed.name||'');seedMeta=`${String(seed.source||'custom')} · импортировано в Sandbox`;
     }
@@ -71,9 +72,9 @@
       state=failures?'PARTIAL':'DONE';
       const successes=results.filter(x=>x.data?.result?.success_rate>0).length;
       onHistory('v2-sandbox',{targets:results.length,success_ratio:results.length?successes/results.length:0},results.map(({target,data,error})=>({target,...(data?{data}:{error})})));
-      notify(`Sandbox: завершено ${results.length}/${targets.length}; ошибок ${failures}. Production не менялся.`,failures?'error':'good');
-    }catch(e){if(alive&&n===epoch&&!controller.signal.aborted){error=safeError(e);state='ОШИБКА';notify(error,'error');}}
-    finally{if(runAbort===controller)runAbort=null;if(alive&&n===epoch){running=false;if(controller.signal.aborted)state='ОСТАНОВЛЕНО';}}
+      notify(rfUi(`Sandbox: завершено ${results.length}/${targets.length}; ошибок ${failures}. Production не менялся.`,`Sandbox: completed ${results.length}/${targets.length}; failures: ${failures}. Active settings were not changed.`),failures?'error':'good');
+    }catch(e){if(alive&&n===epoch&&!controller.signal.aborted){error=safeError(e);state=rfUi('ОШИБКА',"ERROR");notify(error,'error');}}
+    finally{if(runAbort===controller)runAbort=null;if(alive&&n===epoch){running=false;if(controller.signal.aborted)state=rfUi('ОСТАНОВЛЕНО',"STOPPED");}}
   }
   async function save(){
     if(!alive||!active||locked)return;
@@ -99,21 +100,21 @@
   $effect(()=>{if(mounted&&!active&&runAbort)stop();});
 </script>
 <div class="v2-shell" data-svelte-owned="nfqws-sandbox-v2">
-  <div class="v2-hero"><div><h2>Песочница стратегий</h2><div class="section-kicker">изолированная проверка без изменения рабочей конфигурации</div></div><span id="v2SandboxState" class="config-badge">{state}</span></div>
-  <div class="toolbar"><button type="button" disabled={locked} onclick={load}>Обновить источники</button><span class="section-kicker">{loading?'Загрузка…':seedMeta}</span></div>
+  <div class="v2-hero"><div><h2>{rfUi("Песочница стратегий","Strategy sandbox")}</h2><div class="section-kicker">{rfUi("изолированная проверка без изменения рабочей конфигурации","isolated testing without changing the active configuration")}</div></div><span id="v2SandboxState" class="config-badge">{state}</span></div>
+  <div class="toolbar"><button type="button" disabled={locked} onclick={load}>{rfUi("Обновить источники","Refresh sources")}</button><span class="section-kicker">{loading?'Загрузка…':seedMeta}</span></div>
   <div class="v2-two">
     <article class="panel">
-      <div class="panel-head"><div><h2>Цели проверки</h2><div class="section-kicker">ручной ввод или список доменов</div></div></div>
-      <label class="v2-label">Источник целей<select id="v2SandboxTargetSource" class="search" bind:value={targetSource} disabled={locked}><option value="manual">Ручной ввод</option><option value="list">Список</option></select></label>
-      <label class="v2-label">Список<select id="v2SandboxTargetList" class="search" bind:value={listName} disabled={locked||targetSource!=='list'}>{#each targetSources as entry (entry.name)}<option value={entry.name}>{entry.name} · {entry.count||0}</option>{:else}<option value="">Нет списков</option>{/each}</select></label>
-      <label class="v2-label">Цели<textarea id="v2SandboxTargets" class="v2-textarea compact" placeholder="youtube.com" bind:value={targetsText} disabled={locked||targetSource==='list'}></textarea></label>
-      <div class="panel-head" style="margin-top:12px"><div><h2>Стратегия</h2><div id="v2SandboxSeedMeta" class="section-kicker">{seedMeta}</div></div></div>
-      <label class="v2-label">Источник стратегии<select id="v2SandboxCandidateSource" class="search" value={candidateSource} onchange={e=>selectSource(e.currentTarget.value)} disabled={locked}><option value="production">Профиль nfqws2</option><option value="library">Библиотека стратегий</option><option value="custom">Свои аргументы</option></select></label>
-      <label class="v2-label">Профиль nfqws2<select id="v2SandboxProfile" class="search" bind:value={profileIndex} disabled={locked||candidateSource!=='production'}>{#each profiles as profile (profile.index)}<option value={String(profile.index)}>Profile {profile.index}{profile.strategy_tags?.length?` · tags ${profile.strategy_tags.join(',')}`:''}</option>{:else}<option value="">Нет допустимых профилей</option>{/each}</select></label>
-      <label class="v2-label">Сохранённая стратегия<select id="v2SandboxLibrary" class="search" bind:value={libraryId} disabled={locked||candidateSource!=='library'}>{#each library as candidate (candidate.id)}<option value={candidate.id}>{candidate.name} · {candidate.source}</option>{:else}<option value="">Library пуста</option>{/each}</select></label>
-      <label class="v2-label">Аргументы<textarea id="v2SandboxArgs" class="v2-textarea compact" placeholder="Аргументы nfqws2 для проверки" value={visibleArgs} oninput={e=>{if(candidateSource==='custom')argsText=e.currentTarget.value;}} disabled={locked||candidateSource!=='custom'}></textarea></label>
-      <div class="v2-inline"><label>Попытки<select id="v2SandboxAttempts" class="search" bind:value={attempts} disabled={locked}><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select></label><label>Название<input id="v2SandboxSaveName" class="search" placeholder="Моя стратегия" bind:value={saveName} disabled={locked}></label></div>
-      <div class="toolbar"><button id="v2SandboxRun" class="primary" type="button" disabled={locked||!loaded} onclick={run}>Запустить проверку</button><button id="v2SandboxStop" type="button" disabled={!running} onclick={stop}>Стоп</button><button id="v2SandboxSave" type="button" disabled={locked||!loaded} onclick={save}>Сохранить стратегию</button></div>
+      <div class="panel-head"><div><h2>{rfUi("Цели проверки","Check targets")}</h2><div class="section-kicker">{rfUi("ручной ввод или список доменов","manual entry or domain list")}</div></div></div>
+      <label class="v2-label">{rfUi("Источник целей","Target source")}<select id="v2SandboxTargetSource" class="search" bind:value={targetSource} disabled={locked}><option value="manual">{rfUi("Ручной ввод","Manual entry")}</option><option value="list">{rfUi("Список","List")}</option></select></label>
+      <label class="v2-label">{rfUi("Список","List")}<select id="v2SandboxTargetList" class="search" bind:value={listName} disabled={locked||targetSource!=='list'}>{#each targetSources as entry (entry.name)}<option value={entry.name}>{entry.name} · {entry.count||0}</option>{:else}<option value="">{rfUi("Нет списков","No lists")}</option>{/each}</select></label>
+      <label class="v2-label">{rfUi("Цели","Targets")}<textarea id="v2SandboxTargets" class="v2-textarea compact" placeholder="youtube.com" bind:value={targetsText} disabled={locked||targetSource==='list'}></textarea></label>
+      <div class="panel-head" style="margin-top:12px"><div><h2>{rfUi("Стратегия","Strategy")}</h2><div id="v2SandboxSeedMeta" class="section-kicker">{seedMeta}</div></div></div>
+      <label class="v2-label">{rfUi("Источник стратегии","Strategy source")}<select id="v2SandboxCandidateSource" class="search" value={candidateSource} onchange={e=>selectSource(e.currentTarget.value)} disabled={locked}><option value="production">{rfUi("Профиль nfqws2","nfqws2 profile")}</option><option value="library">{rfUi("Библиотека стратегий","Strategy library")}</option><option value="custom">{rfUi("Свои аргументы","Custom arguments")}</option></select></label>
+      <label class="v2-label">{rfUi("Профиль nfqws2","nfqws2 profile")}<select id="v2SandboxProfile" class="search" bind:value={profileIndex} disabled={locked||candidateSource!=='production'}>{#each profiles as profile (profile.index)}<option value={String(profile.index)}>Profile {profile.index}{profile.strategy_tags?.length?` · tags ${profile.strategy_tags.join(',')}`:''}</option>{:else}<option value="">{rfUi("Нет допустимых профилей","No eligible profiles")}</option>{/each}</select></label>
+      <label class="v2-label">{rfUi("Сохранённая стратегия","Saved strategy")}<select id="v2SandboxLibrary" class="search" bind:value={libraryId} disabled={locked||candidateSource!=='library'}>{#each library as candidate (candidate.id)}<option value={candidate.id}>{candidate.name} · {candidate.source}</option>{:else}<option value="">{rfUi("Library пуста","Library is empty")}</option>{/each}</select></label>
+      <label class="v2-label">{rfUi("Аргументы","Arguments")}<textarea id="v2SandboxArgs" class="v2-textarea compact" placeholder={rfUi("Аргументы nfqws2 для проверки","nfqws2 arguments to test")} value={visibleArgs} oninput={e=>{if(candidateSource==='custom')argsText=e.currentTarget.value;}} disabled={locked||candidateSource!=='custom'}></textarea></label>
+      <div class="v2-inline"><label>{rfUi("Попытки","Attempts")}<select id="v2SandboxAttempts" class="search" bind:value={attempts} disabled={locked}><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select></label><label>{rfUi("Название","Name")}<input id="v2SandboxSaveName" class="search" placeholder={rfUi("Моя стратегия","My strategy")} bind:value={saveName} disabled={locked}></label></div>
+      <div class="toolbar"><button id="v2SandboxRun" class="primary" type="button" disabled={locked||!loaded} onclick={run}>{rfUi("Запустить проверку","Run check")}</button><button id="v2SandboxStop" type="button" disabled={!running} onclick={stop}>{rfUi("Стоп","Stop")}</button><button id="v2SandboxSave" type="button" disabled={locked||!loaded} onclick={save}>{rfUi("Сохранить стратегию","Save strategy")}</button></div>
     </article>
     <article class="panel"><div id="v2SandboxResults" class="v2-list">
       {#each results as item, i (i)}
@@ -123,5 +124,5 @@
     </div></article>
   </div>
   {#if error}<div class="setup-note bad-text" role="alert">{error}</div>{/if}
-  <div class="v2-boundary">Bench проверяет кандидат через изолированный механизм. Работающий nfqws2.conf не изменяется. Сохранение candidate выполняется отдельно, по кнопке.</div>
+  <div class="v2-boundary">{rfUi("Bench проверяет кандидат через изолированный механизм. Работающий nfqws2.conf не изменяется. Сохранение candidate выполняется отдельно, по кнопке.","The isolated test evaluates a candidate. Active nfqws2.conf is unchanged. Saving the candidate is a separate manual action.")}</div>
 </div>

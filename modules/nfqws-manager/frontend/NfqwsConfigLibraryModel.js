@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Pure Config Library policy: preserve existing backend confirm contracts.
 // The backend has NO atomic If-Match on these endpoints. SHA preflight guards
 // stale UIs but does not pretend to be server-side CAS.
@@ -32,7 +33,7 @@ export function requireUnchangedLibraryFile(reference, current) {
   if(!reference || !current || !fullSHA.test(String(reference.sha256||'')) ||
      !fullSHA.test(String(current.sha256||'')) ||
      reference.name !== current.name || reference.sha256.toLowerCase()!==current.sha256.toLowerCase())
-    throw new Error('CONFIG_LIBRARY_STALE_SHA: файл изменён; перечитай конфиг. Запись запрещена');
+    throw new Error(rfUi('CONFIG_LIBRARY_STALE_SHA: файл изменён; перечитай конфиг. Запись запрещена',"Configuration file changed. Reload it before saving; writing is blocked."));
   return true;
 }
 const routes={

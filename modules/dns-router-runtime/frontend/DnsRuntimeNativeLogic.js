@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 /* R07: Keenetic Native inventory and explicit ONE-query probe.
  * GET only; no automatic HTTP requests, no Keenetic configuration commands, no DNS runtime mutation.
  * DNS draft mutations remain under R05 createDraftEditor + CAS.
@@ -19,12 +20,12 @@ export function parseNativeSelector(selector){
 
 function policyPresentation(name,policies){
   const found=policies.find(p=>p.name===name);
-  if(name==='System')return {label:'Системная (System)',route:'системный DNS; маршрут не проверен'};
+  if(name==='System')return {label:rfUi('Системная (System)',"System (default)"),route:rfUi('системный DNS; маршрут не проверен',"system DNS; route not verified")};
   const label=found&&typeof found.description==='string'&&found.description.trim()?
-    found.description.trim()+' ('+name+')':name+' (имя неизвестно)';
-  let route='маршрут неизвестен';
-  if(found?.ipv4_route_status==='default_present')route='default route есть (не DNS-проверка)';
-  if(found?.ipv4_route_status==='default_absent')route='нет default route';
+    found.description.trim()+' ('+name+')':name+rfUi(' (имя неизвестно)',"(name unknown)");
+  let route=rfUi('маршрут неизвестен',"route unknown");
+  if(found?.ipv4_route_status==='default_present')route=rfUi('default route есть (не DNS-проверка)',"Default route exists (not a DNS check)");
+  if(found?.ipv4_route_status==='default_absent')route=rfUi('нет default route',"no default route");
   return {label,route};
 }
 
@@ -33,7 +34,7 @@ export function catalogNativeInventory(inventory,catalog){
   const instances=Array.isArray(inventory?.instances)?inventory.instances:[];
   const summary=instances.filter(x=>x.valid && VALID_POLICY.test(String(x.name||'')))
     .map(x=>{const n=policyPresentation(x.name,policies);return n.label+' — '+n.route;})
-    .join(' | ')+(catalog?.available?' · NDMC RO':' · имена/маршруты NDMC недоступны');
+    .join(' | ')+(catalog?.available?' · NDMC RO':rfUi(' · имена/маршруты NDMC недоступны',"· NDMC names/routes unavailable"));
   if(!inventory?.available || !instances.length)return {choices:[],summary,available:false};
   const choices=[],seen=new Set(),duplicate=new Set();
   for(const inst of instances){
@@ -50,8 +51,8 @@ export function catalogNativeInventory(inventory,catalog){
       if(seen.has(selector)){duplicate.add(selector);continue;}
       seen.add(selector);
       choices.push({selector,instance:inst.name,zone,hint,
-        label:p.label+' / '+zone+' / '+String(ep?.upstream_hint||'без подписи')+' — '+p.route+
-          ' (текущий '+String(ep?.address||'неизвестен')+')'});
+        label:p.label+' / '+zone+' / '+String(ep?.upstream_hint||rfUi('без подписи',"unlabeled"))+' — '+p.route+
+          ' (текущий '+String(ep?.address||rfUi('неизвестен',"unknown"))+')'});
     }
   }
   return {choices:choices.filter(x=>!duplicate.has(x.selector)),summary,available:true};
@@ -69,7 +70,7 @@ export function createNativeReader({get}){
   async function probe(selector){
     // Never probe during scan; only root-zone upstreams can be probed.
     const parsed=parseNativeSelector(selector);
-    if(!parsed||parsed.zone!=='.')fail('Для DNS-проверки требуется upstream корневой зоны «.»');
+    if(!parsed||parsed.zone!=='.')fail(rfUi('Для DNS-проверки требуется upstream корневой зоны «.»',"A resolver for the root zone “.” is required for this DNS check"));
     const qs=new URLSearchParams({instance:parsed.instance,hint:parsed.hint});
     return get('keenetic/native-dns/probe?'+qs.toString());
   }

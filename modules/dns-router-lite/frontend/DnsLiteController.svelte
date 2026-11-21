@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount, setContext} from 'svelte';
   import {startDnsLiteController} from './DnsLiteControllerLogic.js';
   import DnsLiteCards from './DnsLiteCards.svelte';
@@ -22,28 +23,28 @@
     editorView:{opened:false,generation:0}, modeView:'basic', statusView:null,
     logView:{rows:[],upstreams:[],paused:false,updated:'',error:'',filter:'',type:'',errorsOnly:false},
     logCriteria:{filter:'',type:'',errorsOnly:false},
-    dnsForm:{opened:false,title:'Добавить DNS',button:'Добавить DNS',protocol:'doh',address:'',http3Mode:'off',bootstrapIPs:'',
-      ready:false,checks:{},error:'',certificateInfo:'Проверка ещё не выполнялась.',certificateText:'',certificateVisible:false},
+    dnsForm:{opened:false,title:rfUi('Добавить DNS',"Add DNS"),button:rfUi('Добавить DNS',"Add DNS"),protocol:'doh',address:'',http3Mode:'off',bootstrapIPs:'',
+      ready:false,checks:{},error:'',certificateInfo:rfUi('Проверка ещё не выполнялась.',"No test has been run yet."),certificateText:'',certificateVisible:false},
 
     initialized:false, p21Rows:{devices:[],groups:[],rules:[]}, p21Section:'devices',
     p21Model:{rows:{devices:[],groups:[],rules:[]},targets:[],groups:[],inventory:[],cache:'',discoveryStatus:''},
     p21Selection:null, p21SelectionSeq:0, p21Route:null, p21ProbeMAC:'',
     controlView:{gateEnableDisabled:true,gateDisableDisabled:true,preflightDisabled:true,
       stopDisabled:true,connectDisabled:true,disconnectDisabled:true,
-      preflightLabel:'Проверить готовность'}
+      preflightLabel:rfUi('Проверить готовность',"Check readiness")}
   });
   // Reactive, read-only presentation. API/CAS/Gate operations stay in the
   // controller; status fields no longer depend on imperative DOM writes.
   let presentation = $state({
-    serviceBadge:'Проверяем…',serviceTone:'',healthUpdated:'Нет измерений',
+    serviceBadge:rfUi('Проверяем…',"Checking…"),serviceTone:'',healthUpdated:rfUi('Нет измерений',"No measurements"),
     healthGate:'—',healthServers:'—',healthRequests:'—',healthP95:'—',
-    nativeDNSHealth:'Проверяем модуль DNS…',gateBadge:'Выключен',gateTone:'',gatePanelState:'stock',
-    listenerSummary:'—',connectionSummary:'Для LAN-режима отдельное тестовое устройство не требуется.',
-    gateAdvice:'Системный DNS выключен. Сейчас запросы обрабатывает Keenetic.',
-    runStatus:'Состояние DNS-сервиса загружается…',routeAdvice:'Проверяем, доходят ли запросы до DNS Router…',
-    routeTone:'',clientState:'Не подключён',liveBadge:'LIVE · ожидание',liveTone:'',
-    logUpdated:'Ждём запросов',metricRequests:0,metricCache:0,metricErrors:0,metricRunning:'—',
-    logCounter:0,logVisible:'0 / 0', feedbackText:'Загружаем настройки…',feedbackTone:''
+    nativeDNSHealth:rfUi('Проверяем модуль DNS…',"Checking DNS module…"),gateBadge:rfUi('Выключен',"Disabled"),gateTone:'',gatePanelState:'stock',
+    listenerSummary:'—',connectionSummary:rfUi('Для LAN-режима отдельное тестовое устройство не требуется.',"LAN mode does not require a separate test device."),
+    gateAdvice:rfUi('Системный DNS выключен. Сейчас запросы обрабатывает Keenetic.',"System DNS disabled. Keenetic is currently handling requests."),
+    runStatus:rfUi('Состояние DNS-сервиса загружается…',"Loading DNS service status…"),routeAdvice:rfUi('Проверяем, доходят ли запросы до DNS Router…',"Checking whether queries reach DNS Router…"),
+    routeTone:'',clientState:rfUi('Не подключён',"Not connected"),liveBadge:'LIVE · ожидание',liveTone:'',
+    logUpdated:rfUi('Ждём запросов',"Waiting for requests"),metricRequests:0,metricCache:0,metricErrors:0,metricRunning:'—',
+    logCounter:0,logVisible:'0 / 0', feedbackText:rfUi('Загружаем настройки…',"Loading settings…"),feedbackTone:''
   });
   const settingsFields = $state(createLiteSettingsFields());
   const settingsHooks = {fields:settingsFields, change:() => {}, render:() => {}};

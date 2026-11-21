@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount} from 'svelte';
   import {createP10Flow} from './DnsRuntimeP10Logic.js';
   import {p10Runtime} from './DnsRuntimeCommands.js';
@@ -18,7 +19,7 @@
   async function request(path,options={}){
     const response=await fetch('../'+path,{cache:'no-store',credentials:'same-origin',...options});
     let body;
-    try{body=await response.json();}catch{throw Error('Некорректный ответ '+path);}
+    try{body=await response.json();}catch{throw Error(rfUi('Некорректный ответ ',"Invalid response")+path);}
     if(!response.ok)throw Error('HTTP '+response.status+': '+(body?.error||'unknown error'));
     return body;
   }
@@ -52,9 +53,9 @@
         nativeBadge(state);
         active=state.active;
         known=state.active||state.ownership.state==='disabled';
-        const message=state.active?'DNS ACTIVE · '+(state.ownership.owned_zones||[]).length+' зон · '+(state.shadow.lifecycle?.listen||''):
-          state.ownership.state==='disabled'?'DNS Router не подключён к DNS Keenetic':
-          'Состояние '+state.ownership.state+' · проверь ownership и восстановление';
+        const message=state.active?'DNS ACTIVE · '+(state.ownership.owned_zones||[]).length+rfUi(' зон · ',"zones ·")+(state.shadow.lifecycle?.listen||''):
+          state.ownership.state==='disabled'?rfUi('DNS Router не подключён к DNS Keenetic',"DNS Router is not connected to Keenetic DNS"):
+          rfUi('Состояние ',"Status")+state.ownership.state+' · проверь ownership и восстановление';
         emit(message,!known);
       }
     }catch(error){if(!stopped&&seq===generation){known=false;emit('Статус DNS недоступен: '+String(error?.message||error),true);}}
@@ -69,11 +70,11 @@
         if(kind==='activate')await b.applyLite();else await b.stopLite();
       }else if(kind==='activate')await flow.activate();
       else await flow.disable();
-    }catch(error){emit('P10: '+String(error?.message||error)+' · проверь состояние перед повтором',true);}
+    }catch(error){emit(rfUi('Ошибка настройки DNS: ','DNS configuration error: ')+String(error?.message||error)+rfUi(' · проверь состояние перед повтором',' · check status before retrying'),true);}
     finally{if(!stopped){busy=false;await refresh();}}
   }
   onMount(()=>{void refresh();return ()=>{stopped=true;++generation;};});
 </script>
-<button id="drP92Apply" type="button" class="button primary" disabled={busy||!known||(active&&!liteMode)} onclick={()=>operation('activate')}>▶ Применить DNS</button>
-<button id="drP10Disable" type="button" class="button" disabled={busy||!known||!active} onclick={()=>operation('disable')}>■ Отключить DNS</button>
+<button id="drP92Apply" type="button" class="button primary" disabled={busy||!known||(active&&!liteMode)} onclick={()=>operation('activate')}>{rfUi("▶ Применить DNS","▶ Apply DNS")}</button>
+<button id="drP10Disable" type="button" class="button" disabled={busy||!known||!active} onclick={()=>operation('disable')}>{rfUi("■ Отключить DNS","■ Disable DNS")}</button>
 {#if failed}<span class="dr-p10-error" role="alert">{failed}</span>{/if}

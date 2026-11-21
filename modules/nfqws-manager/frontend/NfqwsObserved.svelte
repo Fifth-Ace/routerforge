@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount} from 'svelte';
   import {observedPath,observedProject,observedScanBody,observedIgnoreBody,observedAppendUserList} from './NfqwsObservedModel.js';
   let {active=false,serviceBusy=false,onRequest=async()=>{},onTarget=()=>{},onNotice=()=>{}}=$props();
@@ -61,13 +62,13 @@
         if(!alive||n!==epoch||c.signal.aborted)return;
         const body=observedAppendUserList(original,row);
         if(body)await request('/list/save','POST',body,c.signal);
-        else notice(`${row.domain} уже присутствует в user.list.`,'good');
+        else notice(rfUi(`${row.domain} уже присутствует в user.list.`,`${row.domain} is already in user.list.`),'good');
       }else throw Error('NFQWS_OBSERVED_ACTION_UNKNOWN');
       if(!alive||n!==epoch||c.signal.aborted)return;
       const updated=await request('/v2/observed-targets','GET',undefined,c.signal);
       if(!alive||n!==epoch||c.signal.aborted)return;
       snapshot=observedProject(updated);phase='READY';
-      notice(action==='ignore'?`${row.target} скрыт.`:`${row.domain} обработан через CAS user.list.`,'good');
+      notice(action==='ignore'?rfUi(`${row.target} скрыт.`,`${row.target} hidden.`):rfUi(`${row.domain} обработан через CAS user.list.`,`${row.domain} processed in user.list with a concurrency check.`),'good');
     }catch(e){if(alive&&n===epoch&&!c.signal.aborted){error=message(e);phase='ERROR';notice(error,'error');}}
     finally{if(controller===c)controller=null;if(alive&&n===epoch)working=false;}
   }
@@ -76,29 +77,29 @@
   $effect(()=>{if(mounted&&!active&&controller)cancel();});
 </script>
 <div class="v2-shell" data-svelte-owned="nfqws-observed-targets">
-  <div class="v2-hero"><div><h2>Проблемные адреса</h2><div class="section-kicker">повторные подозрительные сетевые сбои, не доказанная блокировка</div></div><span id="v2ObservedState" class="config-badge">{phase}</span></div>
+  <div class="v2-hero"><div><h2>{rfUi("Проблемные адреса","Affected addresses")}</h2><div class="section-kicker">{rfUi("повторные подозрительные сетевые сбои, не доказанная блокировка","repeated suspicious network failures, not confirmed blocking")}</div></div><span id="v2ObservedState" class="config-badge">{phase}</span></div>
   <article class="panel">
-    <div class="panel-head"><div><h2>Найденные проблемы в локальной сети</h2><div class="section-kicker">показываются после повторного независимого failure signal</div></div>
-      <div class="toolbar"><button id="v2ObservedLoad" disabled={locked} onclick={load}>Обновить</button><button id="v2ObservedScan" class="primary" disabled={locked} onclick={scan}>Проверить сетевые соединения</button></div>
+    <div class="panel-head"><div><h2>{rfUi("Найденные проблемы в локальной сети","Detected issues on the local network")}</h2><div class="section-kicker">{rfUi("показываются после повторного независимого failure signal","shown after repeated independent failures")}</div></div>
+      <div class="toolbar"><button id="v2ObservedLoad" disabled={locked} onclick={load}>{rfUi("Обновить","Refresh")}</button><button id="v2ObservedScan" class="primary" disabled={locked} onclick={scan}>{rfUi("Проверить сетевые соединения","Check network connections")}</button></div>
     </div>
     <div id="v2ObservedMeta" class="v2-boundary">visible={snapshot.rows.length} · suppressed={snapshot.suppressed} · ignored={snapshot.ignored} · min events={snapshot.minEvents} · source={snapshot.flowSource}</div>
     <div id="v2ObservedList" class="v2-list">
       {#each snapshot.rows as row,i (`${row.target}:${row.device}:${i}`)}
         <div class={`v2-row ${row.active?'warn':'info'}`}>
           <div><div class="v2-result-title">{row.target||'—'}</div><div class="meta">device={row.device} · {row.protocol}/{row.port} · {row.reason} · count={row.count} · last={row.lastSeen}</div></div>
-          <div class="toolbar"><button disabled={locked||!row.domain} onclick={()=>select('setup',row)}>Auto Setup</button><button disabled={locked||!row.domain} onclick={()=>select('diagnose',row)}>Diagnose</button><button disabled={locked||!row.domain} onclick={()=>select('sandbox',row)}>Песочница</button><button disabled={locked||!row.domain} onclick={()=>select('selector',row)}>Auto Select</button><button disabled={locked||!row.domain} onclick={()=>select('list',row)}>В user.list</button><button disabled={locked} onclick={()=>select('ignore',row)}>Ignore</button></div>
+          <div class="toolbar"><button disabled={locked||!row.domain} onclick={()=>select('setup',row)}>Auto Setup</button><button disabled={locked||!row.domain} onclick={()=>select('diagnose',row)}>Diagnose</button><button disabled={locked||!row.domain} onclick={()=>select('sandbox',row)}>{rfUi("Песочница","Sandbox")}</button><button disabled={locked||!row.domain} onclick={()=>select('selector',row)}>Auto Select</button><button disabled={locked||!row.domain} onclick={()=>select('list',row)}>{rfUi("В user.list","In user.list")}</button><button disabled={locked} onclick={()=>select('ignore',row)}>Ignore</button></div>
           <span class={`v2-pill ${row.active?'warn':'info'}`}>{row.active?'ACTIVE':'SEEN'}</span>
         </div>
-      {:else}<div class="analysis-empty">Повторных suspected failures пока нет. Первый шумовой сигнал не показывается.</div>{/each}
+      {:else}<div class="analysis-empty">{rfUi("Повторных suspected failures пока нет. Первый шумовой сигнал не показывается.","No recurring suspected failures yet. One-off events are filtered out.")}</div>{/each}
     </div>
     {#if pending}
-      <div class="setup-note" role="group" aria-label="Подтверждение действия">
+      <div class="setup-note" role="group" aria-label={rfUi("Подтверждение действия","Confirm action")}>
         <strong>{pending.action==='ignore'?'Скрыть обнаруженную цель?':'Добавить домен в user.list?'}</strong>
         <div>{pending.action==='ignore'?pending.row.target:pending.row.domain}</div>
-        <div class="toolbar"><button disabled={locked} onclick={()=>pending=null}>Отмена</button><button class="primary" disabled={locked} onclick={confirmAction}>Подтвердить</button></div>
+        <div class="toolbar"><button disabled={locked} onclick={()=>pending=null}>{rfUi("Отмена","Cancel")}</button><button class="primary" disabled={locked} onclick={confirmAction}>{rfUi("Подтвердить","Confirm")}</button></div>
       </div>
     {/if}
     {#if error}<div class="notice error" role="alert">{error}</div>{/if}
   </article>
-  <div class="v2-boundary">Открытие страницы ничего не изменяет. Сканирование — только по кнопке. Ignore и запись в user.list требуют отдельного подтверждения.</div>
+  <div class="v2-boundary">{rfUi("Открытие страницы ничего не изменяет. Сканирование — только по кнопке. Ignore и запись в user.list требуют отдельного подтверждения.","Opening this page does not change anything. Scanning is manual. Ignoring an entry or writing to user.list requires separate confirmation.")}</div>
 </div>

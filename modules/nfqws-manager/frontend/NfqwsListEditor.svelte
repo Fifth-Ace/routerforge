@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {workspaceHeight} from './NfqwsUIActions.js';
   import {onMount,tick} from 'svelte';
   import {safeListName,newListName,renameListName,listGroup,sortedListInventory,groupListInventory,normalizeListEntries,listStatistics,listHTMLHighlight,validLoadedList,listMutation,checkedRenamePreview,listRenameApply,listSafeAPIPath} from './NfqwsListEditorModel.js';
@@ -63,7 +64,7 @@
       if(!result?.status)throw Error('NFQWS_LIST_SAVE_MISSING_AUTHORITATIVE_STATUS');
       onStatus(result.status);
       await selectAfterMutation(name);
-      notice(`Список ${name} сохранён. Backup: ${String(result.backup||'—')}`,'good');
+      notice(rfUi(`Список ${name} сохранён. Backup: ${String(result.backup||'—')}`,`List ${name} saved. Backup: ${String(result.backup||'—')}`),'good');
     }catch(e){if(alive&&seq===sequence)fail(e);}
     finally{if(alive&&seq===sequence)busy=false;}
   }
@@ -82,21 +83,21 @@
       if(!alive||seq!==sequence)return;
       if(!result?.status)throw Error('NFQWS_LIST_DELETE_MISSING_STATUS');
       selected='';baseline=null;original='';value='';publish();onStatus(result.status);
-      notice(`Список удалён. Backup: ${String(result.backup||'—')}`,'good');
+      notice(rfUi(`Список удалён. Backup: ${String(result.backup||'—')}`,`List deleted. Backup: ${String(result.backup||'—')}`),'good');
     }catch(e){if(alive&&seq===sequence)fail(e);}
     finally{if(alive&&seq===sequence)busy=false;}
   }
   async function create(){
     if(!active||busy||serviceBusy)return;
     createError='';if(dirty&&!window.confirm(`Несохранённые изменения в ${selected}. Создать новый список и отбросить черновик?`))return;let name,cmd;
-    try{name=newListName(stem);cmd=listMutation('create',null,stem);if(available.some(item=>item.name===name))throw Error('Такой список уже существует');}catch(e){createError=String(e.message||e);return;}
+    try{name=newListName(stem);cmd=listMutation('create',null,stem);if(available.some(item=>item.name===name))throw Error(rfUi('Такой список уже существует',"A list with this name already exists"));}catch(e){createError=String(e.message||e);return;}
     busy=true;const seq=++sequence;
     try{
       const result=await request(cmd.path,cmd.body);
       if(!alive||seq!==sequence)return;
       if(!result?.status)throw Error('NFQWS_LIST_CREATE_MISSING_STATUS');
       createOpen=false;onStatus(result.status);await selectAfterMutation(name);
-      notice(`Создан ${name}`,'good');
+      notice(rfUi(`Создан ${name}`,`Created ${name}`),'good');
     }catch(e){if(alive&&seq===sequence)createError=String(e.message||e);}
     finally{if(alive&&seq===sequence)busy=false;}
   }
@@ -105,7 +106,7 @@
     const initial=selected.replace(/\.list$/i,'')+'-renamed.list',answer=window.prompt('Новое имя списка:',initial);
     if(answer===null)return;
     let next;try{next=renameListName(answer);}catch(e){fail(e);return;}
-    renamePlan=null;renameText='Проверяю список и связанные конфигурации…';renameError='';renameOpen=true;busy=true;
+    renamePlan=null;renameText=rfUi('Проверяю список и связанные конфигурации…',"Checking list and related configurations…");renameError='';renameOpen=true;busy=true;
     const ref={...baseline},seq=++sequence;
     try{
       const query=new URLSearchParams({old_name:ref.name,new_name:next,expected_sha256:ref.sha256});
@@ -115,8 +116,8 @@
       if(selected!==ref.name||baseline?.sha256!==ref.sha256||dirty)throw Error('NFQWS_LIST_RENAME_PREVIEW_STALE');
       renamePlan=verified;
       const impacts=verified.config_changes.map(x=>`${x.reference} · селекторов: ${x.selectors}\n  before ${x.before_sha256}\n  after  ${x.after_sha256}`);
-      renameText=[`Список: ${verified.old_name} → ${verified.new_name}`,`SHA списка: ${verified.old_list_sha256}`,`Новое имя свободно: ДА`,`Ссылок для замены: ${verified.reference_count}`,`Затронутых конфигов: ${verified.config_changes.length}`,'',...(impacts.length?impacts:['Нет ссылок в конфигурациях.']),'','PREVIEW ONLY — ничего не записано.'].join('\n');
-    }catch(e){if(alive&&seq===sequence){renameError=String(e.message||e);renameText='Preview заблокирован: '+renameError;}}
+      renameText=[`Список: ${verified.old_name} → ${verified.new_name}`,`SHA списка: ${verified.old_list_sha256}`,rfUi(`Новое имя свободно: ДА`,`New name available: YES`),`Ссылок для замены: ${verified.reference_count}`,`Затронутых конфигов: ${verified.config_changes.length}`,'',...(impacts.length?impacts:[rfUi('Нет ссылок в конфигурациях.',"No references found in configurations.")]),'',rfUi('PREVIEW ONLY — ничего не записано.',"PREVIEW ONLY — no changes written.")].join('\n');
+    }catch(e){if(alive&&seq===sequence){renameError=String(e.message||e);renameText=rfUi('Preview заблокирован: ',"Preview blocked:")+renameError;}}
     finally{if(alive&&seq===sequence)busy=false;}
   }
   function closeRename(){renameOpen=false;renamePlan=null;renameText='';renameError='';}
@@ -133,8 +134,8 @@
       const status=result.status||await request('/status');
       if(!status)throw Error('NFQWS_LIST_RENAME_MISSING_STATUS');
       onStatus(status);await selectAfterMutation(plan.new_name);closeRename();
-      notice(`Список ${plan.old_name} → ${plan.new_name}. Backup: ${Array.isArray(result.backups)?result.backups.length:0}`,'good');
-    }catch(e){if(alive&&seq===sequence){renameError=String(e.message||e);renameText='Операция заблокирована или откатилась: '+renameError+'\nОткрой Preview заново.';}}
+      notice(rfUi(`Список ${plan.old_name} → ${plan.new_name}. Backup: ${Array.isArray(result.backups)?result.backups.length:0}`,`List ${plan.old_name} → ${plan.new_name}. Backup: ${Array.isArray(result.backups)?result.backups.length:0}`),'good');
+    }catch(e){if(alive&&seq===sequence){renameError=String(e.message||e);renameText=rfUi('Операция заблокирована или откатилась: ',"Operation blocked or rolled back:")+renameError+rfUi('\nОткрой Preview заново.',"\\nOpen Preview again.");}}
     finally{if(alive&&seq===sequence)busy=false;}
   }
   function scrollEditor(e){if(gutter)gutter.scrollTop=e.currentTarget.scrollTop;if(highlight){highlight.scrollTop=e.currentTarget.scrollTop;highlight.scrollLeft=e.currentTarget.scrollLeft;}}
@@ -159,8 +160,8 @@
 </script>
 <div id="listWorkspace" class="list-grid rf-workspace" use:workspaceHeight data-svelte-owned="nfqws-list-editor">
   <article class="panel">
-    <div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">Системные · Пользовательские · OPKG</div></div><button id="newList" class="primary" type="button" disabled={busy||serviceBusy} onclick={()=>{stem='';createError='';createOpen=true;}}>+ Новый</button></div>
-    <input id="listSearch" class="search" placeholder="Поиск списка…" aria-label="Поиск списка" bind:value={search}>
+    <div class="panel-head"><div><h2>{rfUi("Списки","Lists")}</h2><div class="section-kicker">{rfUi("Системные · Пользовательские · OPKG","System · User · OPKG")}</div></div><button id="newList" class="primary" type="button" disabled={busy||serviceBusy} onclick={()=>{stem='';createError='';createOpen=true;}}>{rfUi("+ Новый","+ New")}</button></div>
+    <input id="listSearch" class="search" placeholder={rfUi("Поиск списка…","Search list…")} aria-label={rfUi("Поиск списка","Search list")} bind:value={search}>
     <div id="fileList" class="file-list">
       {#each groups as group (group.key)}
         <section class={`file-group ${group.key}${!search&&collapsed[group.key]?' collapsed':''}`}>
@@ -174,27 +175,27 @@
             {/each}
           </div>{/if}
         </section>
-      {:else}<div class="empty">Списки не найдены.</div>{/each}
+      {:else}<div class="empty">{rfUi("Списки не найдены.","No lists found.")}</div>{/each}
     </div>
   </article>
   <article id="listEditorPanel" class="panel" class:full-editor={full}>
     <div class="panel-head"><div><h2 id="selectedListTitle">{selected||'Выберите список'}</h2><div id="selectedListMeta" class="section-kicker mono">{loading?'Loading…':baseline?`${baseline.path||selected} · ${stats.bytes} B${baseline.protected?' · protected':''}`:'—'}</div></div>
       <div class="toolbar">
-        <button id="inspectListEntry" type="button" disabled={!ready||!tools.inspect} onclick={()=>onTool('inspect')}>Инспектор</button>
-        <button id="staticPathEntry" type="button" disabled={!ready||!tools.path} onclick={()=>onTool('path')}>Путь</button>
-        <button id="analyzeLists" type="button" disabled={!ready||!tools.analysis} onclick={()=>onTool('analysis')}>Пересечения</button>
-        <button id="checkList" type="button" disabled={!ready} onclick={()=>onTool('check')}>Проверить</button>
-        <button id="normalizeList" type="button" disabled={!ready} onclick={normalize}>Очистить дубли</button>
+        <button id="inspectListEntry" type="button" disabled={!ready||!tools.inspect} onclick={()=>onTool('inspect')}>{rfUi("Инспектор","Inspector")}</button>
+        <button id="staticPathEntry" type="button" disabled={!ready||!tools.path} onclick={()=>onTool('path')}>{rfUi("Путь","Path")}</button>
+        <button id="analyzeLists" type="button" disabled={!ready||!tools.analysis} onclick={()=>onTool('analysis')}>{rfUi("Пересечения","Overlaps")}</button>
+        <button id="checkList" type="button" disabled={!ready} onclick={()=>onTool('check')}>{rfUi("Проверить","Check")}</button>
+        <button id="normalizeList" type="button" disabled={!ready} onclick={normalize}>{rfUi("Очистить дубли","Remove duplicates")}</button>
         <button id="fullscreenList" type="button" disabled={!baseline} onclick={toggleFull}>{full?'Закрыть fullscreen':'На весь экран'}</button>
-        <button id="undoList" type="button" disabled={!dirty||busy} onclick={revert}>Отменить</button>
-        <button id="saveList" class="primary" type="button" disabled={!canWrite||!dirty} onclick={save}>Сохранить</button>
-        <button id="previewRenameList" type="button" disabled={!canManage||dirty} onclick={renamePreview}>Переименовать · Preview</button>
-        <button id="deleteList" class="danger" type="button" disabled={!canManage||dirty} onclick={remove}>Удалить</button>
+        <button id="undoList" type="button" disabled={!dirty||busy} onclick={revert}>{rfUi("Отменить","Cancel")}</button>
+        <button id="saveList" class="primary" type="button" disabled={!canWrite||!dirty} onclick={save}>{rfUi("Сохранить","Save")}</button>
+        <button id="previewRenameList" type="button" disabled={!canManage||dirty} onclick={renamePreview}>{rfUi("Переименовать · Preview","Rename · Preview")}</button>
+        <button id="deleteList" class="danger" type="button" disabled={!canManage||dirty} onclick={remove}>{rfUi("Удалить","Delete")}</button>
       </div>
     </div>
     <div class="list-editor-main"><pre id="listGutter" class="list-line-gutter" aria-hidden="true" bind:this={gutter}>{Array.from({length:Math.min(stats.lines,10000)},(_,i)=>i+1).join('\n')}</pre>
       <div class="list-editor-body"><pre id="listHighlight" class="list-editor-highlight" aria-hidden="true" bind:this={highlight}>{@html listHTMLHighlight(value)}</pre>
-        <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder="Выберите список слева." bind:this={editor} {value} disabled={!baseline||busy||serviceBusy} oninput={edit} onclick={()=>onTool('cursor')} onkeyup={()=>onTool('cursor')} onscroll={scrollEditor} onkeydown={keyEditor}></textarea>
+        <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder={rfUi("Выберите список слева.","Select a list on the left.")} bind:this={editor} {value} disabled={!baseline||busy||serviceBusy} oninput={edit} onclick={()=>onTool('cursor')} onkeyup={()=>onTool('cursor')} onscroll={scrollEditor} onkeydown={keyEditor}></textarea>
       </div>
     </div>
     <div class="editor-foot"><div id="listStats" class="list-stats">{baseline?`${stats.lines} lines · ${stats.entries} entries · ${stats.bytes} B${dirty?' · UNSAVED':''}`:'—'}</div><span>save → safety backup → atomic write</span></div>
@@ -203,15 +204,15 @@
 </div>
 {#if createOpen}
   <div id="createModal" class="modal open" role="presentation"><form class="dialog small-dialog" onsubmit={e=>{e.preventDefault();void create();}}>
-    <div class="dialog-head"><strong>Новый список</strong><button id="closeCreate" type="button" disabled={busy} onclick={()=>createOpen=false}>Закрыть</button></div>
-    <div class="dialog-body"><label for="newListName" class="muted small">Имя файла</label><div style="display:flex;align-items:center;gap:7px;margin-top:6px"><input id="newListName" class="search" style="flex:1;max-width:none" bind:value={stem} placeholder="youtube" disabled={busy}><span class="mono muted">.list</span></div><div id="createError" class="bad-text small" role="alert">{createError}</div></div>
-    <div class="dialog-foot"><button id="createCancel" type="button" disabled={busy} onclick={()=>createOpen=false}>Отмена</button><button id="createConfirm" class="primary" type="submit" disabled={busy}>Создать</button></div>
+    <div class="dialog-head"><strong>{rfUi("Новый список","New list")}</strong><button id="closeCreate" type="button" disabled={busy} onclick={()=>createOpen=false}>{rfUi("Закрыть","Close")}</button></div>
+    <div class="dialog-body"><label for="newListName" class="muted small">{rfUi("Имя файла","File name")}</label><div style="display:flex;align-items:center;gap:7px;margin-top:6px"><input id="newListName" class="search" style="flex:1;max-width:none" bind:value={stem} placeholder="youtube" disabled={busy}><span class="mono muted">.list</span></div><div id="createError" class="bad-text small" role="alert">{createError}</div></div>
+    <div class="dialog-foot"><button id="createCancel" type="button" disabled={busy} onclick={()=>createOpen=false}>{rfUi("Отмена","Cancel")}</button><button id="createConfirm" class="primary" type="submit" disabled={busy}>{rfUi("Создать","Create")}</button></div>
   </form></div>
 {/if}
 {#if renameOpen}
   <div id="renamePreviewModal" class="modal open" role="presentation"><div class="dialog">
-    <div class="dialog-head"><div><strong>Переименование списка · Preview</strong><div class="section-kicker">Только просмотр · без изменения файлов</div></div><button id="closeRenamePreview" type="button" disabled={busy} onclick={closeRename}>Закрыть</button></div>
+    <div class="dialog-head"><div><strong>{rfUi("Переименование списка · Preview","Rename list · Preview")}</strong><div class="section-kicker">{rfUi("Только просмотр · без изменения файлов","Read only · files will not be changed")}</div></div><button id="closeRenamePreview" type="button" disabled={busy} onclick={closeRename}>{rfUi("Закрыть","Close")}</button></div>
     <div class="dialog-body"><pre id="renamePreviewBody" class="diff">{renameText}</pre>{#if renameError}<div class="bad-text" role="alert">{renameError}</div>{/if}</div>
-    <div class="dialog-foot"><span class="muted small">Запись только после явного подтверждения и проверки SHA.</span><button id="applyRenameList" class="primary" type="button" disabled={busy||!renamePlan||dirty} onclick={renameApply}>Применить</button><button id="renamePreviewClose" type="button" disabled={busy} onclick={closeRename}>Закрыть</button></div>
+    <div class="dialog-foot"><span class="muted small">{rfUi("Запись только после явного подтверждения и проверки SHA.","Changes are written only after explicit confirmation and SHA verification.")}</span><button id="applyRenameList" class="primary" type="button" disabled={busy||!renamePlan||dirty} onclick={renameApply}>{rfUi("Применить","Apply")}</button><button id="renamePreviewClose" type="button" disabled={busy} onclick={closeRename}>{rfUi("Закрыть","Close")}</button></div>
   </div></div>
 {/if}

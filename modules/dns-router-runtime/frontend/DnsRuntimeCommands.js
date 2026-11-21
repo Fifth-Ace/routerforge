@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Explicit Runtime commands. UI components import these functions directly;
 // no window bridge, background activation or DOM click indirection.
 import {createConfigFlow} from './DnsRuntimeConfigLogic.js';
@@ -22,7 +23,7 @@ export async function scanNative(signal){
   const onAbort=()=>controller.abort();
   if(signal)signal.addEventListener('abort',onAbort,{once:true});
   activeNativeScan=controller;
-  simple.status='Читаю DNS и политики Keenetic (только чтение)…';
+  simple.status=rfUi('Читаю DNS и политики Keenetic (только чтение)…',"Reading DNS and Keenetic policies (read-only)…");
   try{
     const [inventory,catalog]=await Promise.all([
       apiRequest('keenetic/native-dns',{signal:controller.signal}),
@@ -31,7 +32,7 @@ export async function scanNative(signal){
     if(seq===nativeScanSequence&&!controller.signal.aborted)acceptScan(inventory,catalog);
   }catch(error){
     if(seq===nativeScanSequence&&!controller.signal.aborted)
-      scanError('Не удалось прочитать Keenetic: '+String(error?.message||error));
+      scanError(rfUi('Не удалось прочитать Keenetic: ',"Could not read Keenetic:")+String(error?.message||error));
   }finally{
     if(signal)signal.removeEventListener('abort',onAbort);
     if(activeNativeScan===controller)activeNativeScan=null;
@@ -49,7 +50,7 @@ export const p10Runtime={
   readDraft,commit:commitDraft,
   simple:()=>({policy:simple.policy,pending:Boolean(simple.domains.trim()),summary:summary()}),
   stagePending:()=>{if(simple.domains.trim()&&!stageDomains(message=>window.confirm(message)))
-    throw Error('Не удалось добавить домены: '+simple.status);},
+    throw Error(rfUi('Не удалось добавить домены: ',"Could not add domains:")+simple.status);},
   isLite:()=>getLite().detect(),
   refreshLite:()=>getLite().refresh(),
   applyLite:()=>getLite().apply(),

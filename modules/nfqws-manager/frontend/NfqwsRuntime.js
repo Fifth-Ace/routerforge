@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 import {nfqwsOverview} from './NfqwsOverviewModel.js';
 import {verifiedBlobManifest} from './NfqwsCatalogBlobModel.js';
 import {measuredAutoPickEligible,recoveryRegression} from './NfqwsRunHistoryModel.js';
@@ -153,7 +154,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     if((current?.lists||[]).some(x=>x.name===name))selectList(name);else notice(`Список ${name} не найден на роутере.`,'error');
   }
   function processingOverviewData(){
-    const mode=currentMode(),policy=policyMode==='none'?'весь трафик':policyMode==='include'?`только ${flowValues.POLICY_NAME||'политика'}`:`кроме ${flowValues.POLICY_NAME||'политики'}`;
+    const mode=currentMode(),policy=policyMode==='none'?rfUi('весь трафик',"all traffic"):policyMode==='include'?`только ${flowValues.POLICY_NAME||'политика'}`:`кроме ${flowValues.POLICY_NAME||'политики'}`;
     return[['TCP',flowValues.TCP_PORTS||'выкл'],['UDP',flowValues.UDP_PORTS||'выкл'],['Домены',mode==='MODE_LIST'?'user.list':mode==='MODE_ALL'?'всё кроме exclude':mode==='MODE_AUTO'?'user + auto':'не определено'],['IPv6',/^(1|true|yes)$/i.test(flowValues.IPV6_ENABLED||'')?'включён':'выключен'],['Политика',policy]];
   }
   function referencedListNames(){
@@ -164,26 +165,26 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   function diagnostics(){
     const out=[],known=new Set((current?.lists||[]).map(x=>x.name)),tcp=parsePorts(flowValues.TCP_PORTS),udp=parsePorts(flowValues.UDP_PORTS);
-    if(!tcp.length)out.push(['warn','TCP_PORTS пуст — TCP-трафик не будет отправляться в NFQUEUE.']);else if(tcp.some(x=>!validPortToken(x)))out.push(['bad','В TCP_PORTS есть некорректный порт или диапазон.']);else out.push(['good',`TCP: ${tcp.join(', ')}`]);
-    if(!udp.length)out.push(['warn','UDP_PORTS пуст — UDP/QUIC не будет обрабатываться.']);else if(udp.some(x=>!validPortToken(x)))out.push(['bad','В UDP_PORTS есть некорректный порт или диапазон.']);else out.push(['good',`UDP: ${udp.join(', ')}`]);
-    if(udp.includes('443')&&!String(flowValues.NFQWS_ARGS_QUIC||'').trim())out.push(['warn','UDP 443 включён, но NFQWS_ARGS_QUIC пустой.']);
+    if(!tcp.length)out.push(['warn',rfUi('TCP_PORTS пуст — TCP-трафик не будет отправляться в NFQUEUE.',"TCP_PORTS is empty — TCP traffic will not be sent to NFQUEUE.")]);else if(tcp.some(x=>!validPortToken(x)))out.push(['bad',rfUi('В TCP_PORTS есть некорректный порт или диапазон.',"TCP_PORTS contains an invalid port or range.")]);else out.push(['good',`TCP: ${tcp.join(', ')}`]);
+    if(!udp.length)out.push(['warn',rfUi('UDP_PORTS пуст — UDP/QUIC не будет обрабатываться.',"UDP_PORTS is empty — UDP/QUIC will not be processed.")]);else if(udp.some(x=>!validPortToken(x)))out.push(['bad',rfUi('В UDP_PORTS есть некорректный порт или диапазон.',"UDP_PORTS contains an invalid port or range.")]);else out.push(['good',`UDP: ${udp.join(', ')}`]);
+    if(udp.includes('443')&&!String(flowValues.NFQWS_ARGS_QUIC||'').trim())out.push(['warn',rfUi('UDP 443 включён, но NFQWS_ARGS_QUIC пустой.',"UDP 443 is enabled, but NFQWS_ARGS_QUIC is empty.")]);
     for(const [key,val] of [['NFQWS_BASE_ARGS',flowValues.NFQWS_BASE_ARGS],['NFQWS_ARGS',flowValues.NFQWS_ARGS],['NFQWS_ARGS_QUIC',flowValues.NFQWS_ARGS_QUIC],['NFQWS_ARGS_UDP',flowValues.NFQWS_ARGS_UDP],['NFQWS_ARGS_IPSET',flowValues.NFQWS_ARGS_IPSET]])if(/\s--new(?:\s|$)/.test(String(val||'')))out.push(['bad',`${key}: найден --new. Upstream разрешает --new только в NFQWS_ARGS_CUSTOM.`]);
-    for(const name of referencedListNames())out.push([known.has(name)?'good':'warn',known.has(name)?`Связанный список ${name} найден.`:`Стратегия ссылается на ${name}, но файл не найден.`]);
-    if(policyMode!=='none'&&!String(flowValues.POLICY_NAME||'').trim())out.push(['bad','Выбран режим политики, но POLICY_NAME пуст.']);
-    if(currentMode()==='MODE_LIST'&&!known.has('user.list'))out.push(['warn','MODE_LIST выбран, но user.list не найден.']);
+    for(const name of referencedListNames())out.push([known.has(name)?'good':'warn',known.has(name)?rfUi(`Связанный список ${name} найден.`,`Linked list ${name} found.`):`Стратегия ссылается на ${name}, но файл не найден.`]);
+    if(policyMode!=='none'&&!String(flowValues.POLICY_NAME||'').trim())out.push(['bad',rfUi('Выбран режим политики, но POLICY_NAME пуст.',"A policy mode is selected, but POLICY_NAME is empty.")]);
+    if(currentMode()==='MODE_LIST'&&!known.has('user.list'))out.push(['warn',rfUi('MODE_LIST выбран, но user.list не найден.',"MODE_LIST selected, but user.list was not found.")]);
     const seenCustom=new Map();customBlocks().forEach((value,i)=>{
       const name=normalizeCustomLabel(customLabels()[i])||`#${i+1}`,raw=String(value||'').trim(),normalized=raw.replace(/\s+/g,' ');
       if(!raw)out.push(['bad',`Custom ${name}: блок пуст.`]);
       if(/(^|\s)--new(?:\s|$)/.test(raw))out.push(['bad',`Custom ${name}: --new внутри одного UI-блока запрещён. Используй отдельные блоки.`]);
       if(normalized){if(seenCustom.has(normalized))out.push(['warn',`Custom ${name}: полный дубль блока ${seenCustom.get(normalized)}.`]);else seenCustom.set(normalized,name)}
     });
-    if(!out.some(x=>x[0]==='bad'))out.push(['good','Критических противоречий перед сохранением не найдено.']);
+    if(!out.some(x=>x[0]==='bad'))out.push(['good',rfUi('Критических противоречий перед сохранением не найдено.',"No critical conflicts found before saving.")]);
     return out;
   }
   function diagnosticsData(){
     const items=diagnostics(),bad=items.filter(x=>x[0]==='bad').length,warn=items.filter(x=>x[0]==='warn').length,good=items.filter(x=>x[0]==='good').length;
     return {items,bad,warn,good,state:bad?'BLOCKED':warn?'CHECK':'READY',stateClass:bad?'bad':warn?'warn':'good',
-      message:bad?`${bad} ошибок`:warn?`${warn} предупреждений`:'можно применять'};
+      message:bad?`${bad} ошибок`:warn?`${warn} предупреждений`:rfUi('можно применять',"can apply")};
   }
   function changedKeys(){const next=flowConfig(),out=[];for(const key of flowKeys)if(assignmentValue(flowOriginal,key)!==assignmentValue(next,key))out.push(key);const before=parseCustomLabelMetadata(flowOriginal).labels.map(normalizeCustomLabel),after=customLabels().map(normalizeCustomLabel);if(JSON.stringify(before)!==JSON.stringify(after))out.push('CUSTOM_LABELS');return out}
   // Changed keys are supplied directly to the Svelte setup feedback owner.
@@ -205,7 +206,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     const tokens=String(value||'').match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)||[],result=[];
     const take=(name,label,cls='')=>{const token=tokens.find(x=>x.startsWith(`--${name}=`));if(token)result.push({label:`${label} ${token.slice(name.length+3)}`,cls})};
     take('filter-tcp','TCP','good');take('filter-udp','UDP','good');take('filter-l7','L7');take('payload','payload');take('lua-desync','lua','warn');take('dpi-desync','desync','warn');take('hostlist','hostlist');take('ipset','ipset');
-    return result.length?result:[{label:'Без краткого summary',cls:''}];
+    return result.length?result:[{label:rfUi('Без краткого summary',"No short summary"),cls:''}];
   }
   function updateModeCards(){
     emit(onFlowModeHydrate,{domain:currentMode()});
@@ -240,7 +241,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   async function applyFlow(){
     updateFlowState();if(!flowDirty()||busy)return;const next=flowConfig();
-    if(!confirm('Сохранить настройки nfqws2.conf и выполнить безопасный reload?'))return;
+    if(!confirm(rfUi('Сохранить настройки nfqws2.conf и выполнить безопасный reload?',"Save nfqws2.conf settings and perform a safe reload?")))return;
     closeDiff();setBusy(true);
     try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:next,confirm:'NFQWS_CONFIG'})});clearLegacyCustomLabels();render(r.status);notice(`Настройки применены. Backup: ${r.backup}`,'good')}
     catch(e){notice(e.message,'error');setBusy(false)}
@@ -252,46 +253,46 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   function buildPreflight(){
     const out=[],known=new Set((current?.lists||[]).map(x=>String(x.name||''))),mode=currentMode(),tcp=parsePorts(flowValues.TCP_PORTS),udp=parsePorts(flowValues.UDP_PORTS),refs=referencedListNames();
     const add=(g,s,t,d,tab='')=>out.push(preflightItem(g,s,t,d,tab));
-    add('Runtime',current?.available?'good':'bad',current?.available?'nfqws2 target обнаружен':'nfqws2 target не найден',current?.available?`${current?.target_name||'nfqws2'} · ${current?.init_script||'init path unknown'}`:'Нужны init script и canonical config.','overview');
-    add('Runtime',current?.running?'good':'warn',current?.running?'Сервис запущен':'Сервис остановлен',current?.running?'Процесс nfqws2 найден в /proc.':'Конфиг можно анализировать, но обработка трафика сейчас не подтверждена.','overview');
-    add('Runtime',current?.mutation_ready?'good':'bad',current?.mutation_ready?'Safety mutation boundary готов':'Mutation boundary не готов',current?.mutation_ready?'Init script исполняемый; доступны backup + atomic write + guarded action.':'RouterForge не будет безопасно применять изменения при текущем состоянии.','overview');
-    add('Config',current?.config_exists?'good':'bad',current?.config_exists?'Canonical config читается':'Canonical config отсутствует',`${current?.config_path||'/opt/etc/nfqws2/nfqws2.conf'} · ${bytes(current?.config_size)}`,'config');
-    add('Config',current?.config_truncated?'bad':'good',current?.config_truncated?'Config превышает лимит анализа':'Config загружен полностью',current?.config_truncated?'Статический анализ неполон — редактор получил усечённый config.':`SHA256 ${(current?.config_sha256||'—').slice(0,20)}…`,'config');
+    add('Runtime',current?.available?'good':'bad',current?.available?rfUi('nfqws2 target обнаружен',"nfqws2 target found"):rfUi('nfqws2 target не найден',"nfqws2 target not found"),current?.available?`${current?.target_name||'nfqws2'} · ${current?.init_script||'init path unknown'}`:rfUi('Нужны init script и canonical config.',"Init script and canonical configuration are required."),'overview');
+    add('Runtime',current?.running?'good':'warn',current?.running?'Сервис запущен':rfUi('Сервис остановлен',"Service stopped"),current?.running?'Процесс nfqws2 найден в /proc.':'Конфиг можно анализировать, но обработка трафика сейчас не подтверждена.','overview');
+    add('Runtime',current?.mutation_ready?'good':'bad',current?.mutation_ready?rfUi('Safety mutation boundary готов',"Safe modification checks are ready"):rfUi('Mutation boundary не готов',"Safe modification checks are not ready"),current?.mutation_ready?rfUi('Init script исполняемый; доступны backup + atomic write + guarded action.',"Init script is executable; backup, atomic write and guarded actions are available."):rfUi('RouterForge не будет безопасно применять изменения при текущем состоянии.',"RouterForge cannot safely apply changes in the current state."),'overview');
+    add('Config',current?.config_exists?'good':'bad',current?.config_exists?rfUi('Canonical config читается',"Canonical configuration is readable"):rfUi('Canonical config отсутствует',"Active canonical configuration is missing"),`${current?.config_path||'/opt/etc/nfqws2/nfqws2.conf'} · ${bytes(current?.config_size)}`,'config');
+    add('Config',current?.config_truncated?'bad':'good',current?.config_truncated?rfUi('Config превышает лимит анализа',"Configuration exceeds the analysis limit"):rfUi('Config загружен полностью',"Configuration fully loaded"),current?.config_truncated?rfUi('Статический анализ неполон — редактор получил усечённый config.',"Static analysis incomplete — the editor received a truncated configuration."):`SHA256 ${(current?.config_sha256||'—').slice(0,20)}…`,'config');
     const dirty=flowDirty();
-    add('Config',dirty?'warn':'good',dirty?'Есть несохранённый setup draft':'Setup совпадает с active config',dirty?'Preflight ниже учитывает текущий draft из вкладки «Настройка».':'Проверяется активный canonical config.','strategies');
-    if(['MODE_LIST','MODE_AUTO','MODE_ALL'].includes(mode))add('Config','good',`Режим ${mode} распознан`,mode==='MODE_LIST'?'Статическая выборка опирается на user.list.':mode==='MODE_AUTO'?'Статическая выборка использует user.list + auto.list.':'Базовый режим — всё, с исключениями по exclude.','strategies');
-    else add('Config','bad','Режим доменов не распознан',`NFQWS_EXTRA_ARGS → ${mode||'пусто'}. Ожидался MODE_LIST / MODE_AUTO / MODE_ALL.`,'strategies');
+    add('Config',dirty?'warn':'good',dirty?rfUi('Есть несохранённые настройки','Unsaved settings exist'):rfUi('Настройки соответствуют активной конфигурации','Settings match the active configuration'),dirty?rfUi('Проверка учитывает несохранённые настройки из соответствующей вкладки.','The check includes unsaved changes from the configuration tab.'):rfUi('Проверяется активная конфигурация','Checking active configuration'),'strategies');
+    if(['MODE_LIST','MODE_AUTO','MODE_ALL'].includes(mode))add('Config','good',`Режим ${mode} распознан`,mode==='MODE_LIST'?rfUi('Статическая выборка опирается на user.list.',"Static selection uses user.list."):mode==='MODE_AUTO'?rfUi('Статическая выборка использует user.list + auto.list.',"Static selection uses user.list + auto.list."):rfUi('Базовый режим — всё, с исключениями по exclude.',"Default mode includes all traffic, with exclusions from exclude."),'strategies');
+    else add('Config','bad',rfUi('Режим доменов не распознан',"Domain mode not recognized"),`NFQWS_EXTRA_ARGS → ${mode||'пусто'}. Ожидался MODE_LIST / MODE_AUTO / MODE_ALL.`,'strategies');
     const iface=String(flowValues.ISP_INTERFACE||'').trim();
-    add('Traffic',iface?'good':'warn',iface?'ISP_INTERFACE задан':'ISP_INTERFACE пуст',iface||'Проверь WAN-интерфейс перед применением.','strategies');
+    add('Traffic',iface?'good':'warn',iface?rfUi('ISP_INTERFACE задан',"ISP_INTERFACE set"):rfUi('ISP_INTERFACE пуст',"ISP_INTERFACE empty"),iface||rfUi('Проверь WAN-интерфейс перед применением.',"Check the WAN interface before applying."),'strategies');
     const queue=assignmentValue(flowOriginal,'NFQUEUE_NUM');
-    add('Traffic',queue?'good':'warn',queue?'NFQUEUE_NUM задан':'NFQUEUE_NUM не найден',queue?`queue ${queue}`:'Preflight не может подтвердить номер очереди из canonical config.','strategies');
+    add('Traffic',queue?'good':'warn',queue?rfUi('NFQUEUE_NUM задан',"NFQUEUE_NUM set"):rfUi('NFQUEUE_NUM не найден',"NFQUEUE_NUM missing"),queue?`queue ${queue}`:rfUi('Preflight не может подтвердить номер очереди из canonical config.',"System check cannot verify the queue number from the active configuration."),'strategies');
     const user=assignmentValue(flowOriginal,'USER');
-    add('Traffic',user?'good':'warn',user?'Runtime USER задан':'USER не найден',user||'Проверь пользователя запуска nfqws2.','strategies');
-    if(!tcp.length)add('Traffic','warn','TCP_PORTS пуст','TCP-трафик не будет отправляться в NFQUEUE.','strategies');
-    else add('Traffic',tcp.some(x=>!validPortToken(x))?'bad':'good',tcp.some(x=>!validPortToken(x))?'TCP_PORTS содержит ошибку':'TCP ports валидны',tcp.join(', '),'strategies');
-    if(!udp.length)add('Traffic','warn','UDP_PORTS пуст','UDP/QUIC не будет отправляться в NFQUEUE.','strategies');
-    else add('Traffic',udp.some(x=>!validPortToken(x))?'bad':'good',udp.some(x=>!validPortToken(x))?'UDP_PORTS содержит ошибку':'UDP ports валидны',udp.join(', '),'strategies');
-    if(udp.includes('443')&&!String(flowValues.NFQWS_ARGS_QUIC||'').trim())add('Traffic','warn','UDP/443 есть, QUIC-стратегия пустая','UDP 443 включён, но NFQWS_ARGS_QUIC не задаёт обработку.','strategies');
+    add('Traffic',user?'good':'warn',user?rfUi('Runtime USER задан',"Runtime USER set"):rfUi('USER не найден',"USER not found"),user||rfUi('Проверь пользователя запуска nfqws2.',"Check the nfqws2 service user."),'strategies');
+    if(!tcp.length)add('Traffic','warn',rfUi('TCP_PORTS пуст',"TCP_PORTS empty"),rfUi('TCP-трафик не будет отправляться в NFQUEUE.',"TCP traffic will not be sent to NFQUEUE."),'strategies');
+    else add('Traffic',tcp.some(x=>!validPortToken(x))?'bad':'good',tcp.some(x=>!validPortToken(x))?rfUi('TCP_PORTS содержит ошибку',"TCP_PORTS contains an error"):rfUi('TCP ports валидны',"TCP ports valid"),tcp.join(', '),'strategies');
+    if(!udp.length)add('Traffic','warn',rfUi('UDP_PORTS пуст',"UDP_PORTS empty"),rfUi('UDP/QUIC не будет отправляться в NFQUEUE.',"UDP/QUIC will not be sent to NFQUEUE."),'strategies');
+    else add('Traffic',udp.some(x=>!validPortToken(x))?'bad':'good',udp.some(x=>!validPortToken(x))?rfUi('UDP_PORTS содержит ошибку',"UDP_PORTS contains an error"):rfUi('UDP ports валидны',"UDP ports valid"),udp.join(', '),'strategies');
+    if(udp.includes('443')&&!String(flowValues.NFQWS_ARGS_QUIC||'').trim())add('Traffic','warn',rfUi('UDP/443 есть, QUIC-стратегия пустая',"UDP/443 enabled, but QUIC strategy is empty"),rfUi('UDP 443 включён, но NFQWS_ARGS_QUIC не задаёт обработку.',"UDP 443 is enabled, but NFQWS_ARGS_QUIC does not define processing."),'strategies');
     const strategyValues=[['NFQWS_BASE_ARGS',flowValues.NFQWS_BASE_ARGS],['NFQWS_ARGS',flowValues.NFQWS_ARGS],['NFQWS_ARGS_QUIC',flowValues.NFQWS_ARGS_QUIC],['NFQWS_ARGS_UDP',flowValues.NFQWS_ARGS_UDP],['NFQWS_ARGS_IPSET',flowValues.NFQWS_ARGS_IPSET]];
     for(const [key,val] of strategyValues)if(/\s--new(?:\s|$)/.test(String(val||'')))add('Traffic','bad',`${key}: запрещён --new`,'Upstream допускает --new только между NFQWS_ARGS_CUSTOM блоками.','strategies');
     const anyStrategy=[flowValues.NFQWS_ARGS,flowValues.NFQWS_ARGS_QUIC,flowValues.NFQWS_ARGS_UDP,flowValues.NFQWS_ARGS_IPSET,...customBlocks()].some(x=>String(x||'').trim());
-    add('Traffic',anyStrategy?'good':'bad',anyStrategy?'Есть активные strategy args':'Все strategy args пусты',anyStrategy?`${3+customBlocks().length} UI strategy slots; пустые блоки могут быть допустимы по отдельности.`:'Нет ни одной стратегии, которую можно применить к трафику.','strategies');
-    if(policyMode!=='none'&&!String(flowValues.POLICY_NAME||'').trim())add('Traffic','bad','Policy mode без POLICY_NAME','Выбран policy include/exclude, но имя политики пустое.','strategies');
-    if(mode==='MODE_LIST')add('Lists',known.has('user.list')?'good':'bad',known.has('user.list')?'user.list найден':'user.list отсутствует','MODE_LIST требует user.list для основной выборки.','lists');
+    add('Traffic',anyStrategy?'good':'bad',anyStrategy?rfUi('Есть активные strategy args',"There are active strategy arguments"):'Все strategy args пусты',anyStrategy?`${3+customBlocks().length} UI strategy slots; пустые блоки могут быть допустимы по отдельности.`:rfUi('Нет ни одной стратегии, которую можно применить к трафику.',"No strategy can be applied to traffic."),'strategies');
+    if(policyMode!=='none'&&!String(flowValues.POLICY_NAME||'').trim())add('Traffic','bad',rfUi('Policy mode без POLICY_NAME',"Policy mode without POLICY_NAME"),rfUi('Выбран policy include/exclude, но имя политики пустое.',"An include/exclude policy was selected but its name is empty."),'strategies');
+    if(mode==='MODE_LIST')add('Lists',known.has('user.list')?'good':'bad',known.has('user.list')?rfUi('user.list найден',"user.list found"):rfUi('user.list отсутствует',"user.list missing"),rfUi('MODE_LIST требует user.list для основной выборки.',"MODE_LIST requires user.list for domain selection."),'lists');
     if(mode==='MODE_AUTO'){
-      add('Lists',known.has('user.list')?'good':'bad',known.has('user.list')?'user.list найден':'user.list отсутствует','MODE_AUTO использует пользовательский список.','lists');
-      add('Lists',known.has('auto.list')?'good':'warn',known.has('auto.list')?'auto.list найден':'auto.list отсутствует','Автоматически накопленные домены не будут доступны.','lists');
+      add('Lists',known.has('user.list')?'good':'bad',known.has('user.list')?rfUi('user.list найден',"user.list found"):rfUi('user.list отсутствует',"user.list missing"),rfUi('MODE_AUTO использует пользовательский список.',"MODE_AUTO uses the user list."),'lists');
+      add('Lists',known.has('auto.list')?'good':'warn',known.has('auto.list')?rfUi('auto.list найден',"auto.list found"):rfUi('auto.list отсутствует',"auto.list missing"),rfUi('Автоматически накопленные домены не будут доступны.',"Automatically collected domains will not be available."),'lists');
     }
-    if(mode==='MODE_ALL')add('Lists',known.has('exclude.list')?'good':'info',known.has('exclude.list')?'exclude.list найден':'exclude.list отсутствует','MODE_ALL работает и без exclude, но исключений не будет.','lists');
-    for(const name of refs)add('Lists',known.has(name)?'good':'bad',known.has(name)?`Ссылка ${name} разрешена`:`Ссылка ${name} не найдена`,known.has(name)?'Файл присутствует в runtime inventory.':'Strategy args ссылаются на отсутствующий list-файл.','lists');
+    if(mode==='MODE_ALL')add('Lists',known.has('exclude.list')?'good':'info',known.has('exclude.list')?rfUi('exclude.list найден',"exclude.list found"):rfUi('exclude.list отсутствует',"exclude.list missing"),rfUi('MODE_ALL работает и без exclude, но исключений не будет.',"MODE_ALL works without exclude, but no exclusions will apply."),'lists');
+    for(const name of refs)add('Lists',known.has(name)?'good':'bad',known.has(name)?`Ссылка ${name} разрешена`:`Ссылка ${name} не найдена`,known.has(name)?rfUi('Файл присутствует в runtime inventory.',"File exists in the current inventory."):rfUi('Strategy args ссылаются на отсутствующий list-файл.',"Strategy arguments reference a missing list file."),'lists');
     const listDirty=!!getListEditor()?.readContext?.()?.dirty;
-    if(listDirty)add('Lists','warn','Есть несохранённый list draft',`${selectedList}: preflight inventory отражает файл на роутере, а не этот draft.`,'lists');
+    if(listDirty)add('Lists','warn',rfUi('Есть несохранённый list draft',"There is an unsaved list draft"),`${selectedList}: preflight inventory отражает файл на роутере, а не этот draft.`,'lists');
     const logEnabled=/^(1|true|yes)$/i.test(flowValues.LOG_LEVEL||'');
-    if(logEnabled)add('Observability',String(current?.log_tail||'').trim()?'good':'warn',String(current?.log_tail||'').trim()?'Логирование даёт события':'Логирование включено, tail пуст',current?.log_path||flowValues.LOG_DEBUG_PATH||'/opt/var/log/nfqws2.log','logs');
-    else add('Observability','info','Debug logging выключен','Это нормально для production; live-причины будет сложнее разбирать без временного логирования.','logs');
-    add('Observability',current?.log_truncated?'warn':'good',current?.log_truncated?'Log tail усечён':'Log tail в лимите',current?.log_truncated?'UI показывает только хвост файла.':'Нет признака усечения текущего tail.','logs');
-    add('Safety','good','Safety backup policy активна',`${current?.backup_count||0} / 8 текущих safety backup.`,'backups');
-    add('Safety','info','Preflight read-only','Эта вкладка ничего не применяет, не перезапускает и не удаляет.','');
+    if(logEnabled)add('Observability',String(current?.log_tail||'').trim()?'good':'warn',String(current?.log_tail||'').trim()?rfUi('Логирование даёт события',"Logging produces events"):rfUi('Логирование включено, tail пуст',"Logging enabled, but no log entries yet"),current?.log_path||flowValues.LOG_DEBUG_PATH||'/opt/var/log/nfqws2.log','logs');
+    else add('Observability','info',rfUi('Debug logging выключен',"Debug logging disabled"),rfUi('Это нормально для production; live-причины будет сложнее разбирать без временного логирования.',"This can be normal in production; detailed causes are harder to inspect without temporary logging."),'logs');
+    add('Observability',current?.log_truncated?'warn':'good',current?.log_truncated?rfUi('Log tail усечён',"Log tail truncated"):rfUi('Log tail в лимите',"Log tail within size limit"),current?.log_truncated?rfUi('UI показывает только хвост файла.',"Only the end of the file is shown."):rfUi('Нет признака усечения текущего tail.',"No sign that the current log tail is truncated."),'logs');
+    add('Safety','good',rfUi('Safety backup policy активна',"Safety backup policy active"),`${current?.backup_count||0} / 8 текущих safety backup.`,'backups');
+    add('Safety','info','Preflight read-only',rfUi('Эта вкладка ничего не применяет, не перезапускает и не удаляет.',"This tab does not apply, restart or delete anything."),'');
     return out;
   }
   function renderPreflight(){
@@ -301,7 +302,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   async function refreshPreflightRuntime(){
     if(disposed||preflightBusy)return;preflightBusy=true;renderPreflight();
-    try{const s=await api('/status');if(disposed)return;current=s;renderPreflight();notice('Preflight runtime snapshot обновлён.','good');}
+    try{const s=await api('/status');if(disposed)return;current=s;renderPreflight();notice(rfUi('Текущее состояние обновлено.','Current status refreshed.'),'good');}
     catch(e){if(!disposed)notice(e.message,'error');}
     finally{preflightBusy=false;renderPreflight();}
   }
@@ -386,11 +387,11 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   async function runEntryInspector(){
     const record=entryRecordAtCaret();if(entryInspectorRunning||!record){updateListButtons();if(!record)notice('Поставь курсор на строку с доменом, IP или CIDR.','error');return;}
     const epoch=++inspectorEpoch;entryInspectorRunning=true;inspectorOpen=true;
-    entryInspectorRecord=record;entryInspectorFindings=[];inspectorError='';inspectorProgress='Читаю соседние списки…';emitInspection();updateListButtons();
+    entryInspectorRecord=record;entryInspectorFindings=[];inspectorError='';inspectorProgress=rfUi('Читаю соседние списки…',"Reading related lists…");emitInspection();updateListButtons();
     try{const loaded=await loadNeighborListContents('inspection');if(disposed||epoch!==inspectorEpoch)return;
       entryInspectorFindings=inspectEntryAgainstAll(record,loaded.contents);
       inspectorProgress=`Проверено ${Object.keys(loaded.contents).length} списков${loaded.errors.length?` · пропущено ${loaded.errors.length}`:''}`;}
-    catch(e){if(!disposed&&epoch===inspectorEpoch){inspectorError=String(e.message||e);inspectorProgress='Ошибка инспектора';}}
+    catch(e){if(!disposed&&epoch===inspectorEpoch){inspectorError=String(e.message||e);inspectorProgress=rfUi('Ошибка инспектора',"Inspector error");}}
     finally{if(!disposed&&epoch===inspectorEpoch){entryInspectorRunning=false;emitInspection();updateListButtons();}}
   }
   function closeEntryInspector(){inspectorOpen=false;++inspectorEpoch;entryInspectorRunning=false;emitInspection();updateListButtons();}
@@ -426,11 +427,11 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   function buildStaticPath(record,all){
     const mode=activeStaticMode(),refs=activeStaticRefs(),sourceRole=staticRoleForFile(record.file,refs),hits=[{file:record.file,line:record.line,value:record.value,relation:'SOURCE',role:sourceRole,effective:staticRoleEffective(sourceRole,mode)}];
     for(const f of staticMatchesForRecord(record,all)){const role=staticRoleForFile(f.b.file,refs);hits.push({file:f.b.file,line:f.b.line,value:f.b.value,relation:f.kind,detail:f.detail,role,effective:staticRoleEffective(role,mode)})}
-    const includes=hits.filter(x=>x.effective==='include'),excludes=hits.filter(x=>x.effective==='exclude');let verdict='NO STATIC MATCH',tone='neutral',reason='Активный конфиг не даёт однозначного статического include/exclude для этой записи.';
+    const includes=hits.filter(x=>x.effective==='include'),excludes=hits.filter(x=>x.effective==='exclude');let verdict='NO STATIC MATCH',tone='neutral',reason=rfUi('Активный конфиг не даёт однозначного статического include/exclude для этой записи.',"The active configuration does not provide an unambiguous static include/exclude match for this entry.");
     if(includes.length&&excludes.length){verdict='AMBIGUOUS';tone='warn';reason=`Есть одновременно include (${includes.length}) и exclude (${excludes.length}) совпадения. Порядок runtime-обработки здесь не угадываем.`}
     else if(excludes.length){verdict='EXCLUDED';tone='exclude';reason=`Найдено ${excludes.length} активных статических exclude-совпадений.`}
     else if(includes.length){verdict='INCLUDED';tone='include';reason=`Найдено ${includes.length} активных статических include-совпадений.`}
-    else if(mode==='MODE_ALL'){verdict='INCLUDED BY MODE';tone='include';reason='MODE_ALL включает трафик по умолчанию, активного статического exclude-совпадения не найдено.'}
+    else if(mode==='MODE_ALL'){verdict='INCLUDED BY MODE';tone='include';reason=rfUi('MODE_ALL включает трафик по умолчанию, активного статического exclude-совпадения не найдено.',"MODE_ALL includes traffic by default; no active static exclude match was found.")}
     return{mode,refs,sourceRole,hits,includes,excludes,verdict,tone,reason};
   }
   function renderStaticPath(){emitStaticPath();}
@@ -444,13 +445,13 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   async function runStaticPath(){
     const record=entryRecordAtCaret();if(staticPathRunning||!record){updateListButtons();if(!record)notice('Поставь курсор на строку с доменом, IP или CIDR.','error');return;}
     const epoch=++staticPathEpoch;staticPathRunning=true;staticPathOpen=true;staticPathRecord=record;staticPathResult=null;
-    staticPathError='';staticPathProgress='Сопоставляю active config и list-файлы…';emitStaticPath();updateListButtons();
+    staticPathError='';staticPathProgress=rfUi('Сопоставляю active config и list-файлы…',"Matching active configuration and list files…");emitStaticPath();updateListButtons();
     try{const loaded=await loadStaticPathContents();if(disposed||epoch!==staticPathEpoch)return;
       staticPathResult=buildStaticPath(record,loaded.contents);
       staticPathProgress=`Проверено ${Object.keys(loaded.contents).length} списков${loaded.errors.length?` · пропущено ${loaded.errors.length}`:''}`;
       if(loaded.errors.length){staticPathResult={...staticPathResult,verdict:'PARTIAL',tone:'warn',reason:`Не прочитаны ${loaded.errors.length} списков: полноценный static verdict недоступен.`};}
       renderStaticPath();
-    }catch(e){if(!disposed&&epoch===staticPathEpoch){staticPathError=String(e.message||e);staticPathProgress='Ошибка статического анализа';}}
+    }catch(e){if(!disposed&&epoch===staticPathEpoch){staticPathError=String(e.message||e);staticPathProgress=rfUi('Ошибка статического анализа',"Static analysis error");}}
     finally{if(!disposed&&epoch===staticPathEpoch){staticPathRunning=false;emitStaticPath();updateListButtons();}}
   }
   function closeStaticPath(){staticPathOpen=false;++staticPathEpoch;staticPathRunning=false;emitStaticPath();updateListButtons();}
@@ -484,8 +485,8 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     if(!['left','right'].includes(side)||!peer||projection.peer!==peer||!projection.pairTotal||analysisRunning)return;
     const target=side==='left'?selectedList:peer;
     const context=getListEditor()?.readContext?.();
-    if(side==='left'&&(analysisSelectedDirty||context?.dirty)){notice(`Сначала сохрани или отмени изменения в ${selectedList}.`,'error');return;}
-    if(context?.selected!==selectedList||!context.meta||context.value!==analysisDraftContent||analysisIncomplete){notice('Черновик или inventory изменились либо загрузка была неполной. Пересчитай анализ.','error');return;}
+    if(side==='left'&&(analysisSelectedDirty||context?.dirty)){notice(rfUi(`Сначала сохрани или отмени изменения в ${selectedList}.`,`Save or discard changes in ${selectedList} first.`),'error');return;}
+    if(context?.selected!==selectedList||!context.meta||context.value!==analysisDraftContent||analysisIncomplete){notice(rfUi('Черновик или inventory изменились либо загрузка была неполной. Пересчитай анализ.',"Draft or inventory changed, or loading was incomplete. Recalculate the analysis."),'error');return;}
     const records=side==='left'?projection.allLeft:projection.allRight,source=analysisSources[target],expected=analysisHashes[target];
     if(!records.length||typeof source!=='string'||!/^[a-f0-9]{64}$/i.test(String(expected||''))){notice('Исходные данные или SHA устарели. Пересчитай анализ.','error');return;}
     let next;try{next=removeIntersectingLines(source,records.map(x=>x.line));}catch(e){notice(String(e.message||e),'error');return;}
@@ -504,7 +505,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
       analysisSelectedDirty=!!getListEditor()?.readContext?.()?.dirty;
       analysisProgress=`Удалено ${records.length} строк из ${target} · backup: ${r.backup||'—'}${loaded.errors.length?` · пропущено ${loaded.errors.length}`:''}`;
       renderAnalysis();notice(`Пересечения очищены в ${target}. Backup: ${r.backup||'—'}`,'good');
-    }catch(e){if(!disposed&&epoch===analysisEpoch){analysisProgress='Ошибка очистки пересечений';analysisError=String(e.message||e);notice(analysisError,'error');}}
+    }catch(e){if(!disposed&&epoch===analysisEpoch){analysisProgress=rfUi('Ошибка очистки пересечений',"Error clearing overlaps");analysisError=String(e.message||e);notice(analysisError,'error');}}
     finally{if(!disposed&&epoch===analysisEpoch){analysisRunning=false;renderAnalysis();updateListButtons();}}
   }
   async function runListAnalysis(){
@@ -512,14 +513,14 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     if(analysisRunning||!context?.selected||!context?.meta)return;
     const epoch=++analysisEpoch;analysisRunning=true;analysisOpen=true;
     selectedList=context.selected;analysisSelectedDirty=!!context.dirty;
-    analysisFindings=[];analysisSources={};analysisHashes={};analysisIncomplete=false;analysisDraftContent=String(context.value||'');analysisError='';analysisProgress='Читаю списки и строю граф пересечений…';emitAnalysis();updateListButtons();
+    analysisFindings=[];analysisSources={};analysisHashes={};analysisIncomplete=false;analysisDraftContent=String(context.value||'');analysisError='';analysisProgress=rfUi('Читаю списки и строю граф пересечений…',"Reading lists and building overlap graph…");emitAnalysis();updateListButtons();
     try{const loaded=await loadNeighborListContents();if(disposed||epoch!==analysisEpoch)return;
       if(getListEditor()?.readContext?.()?.selected!==context.selected)throw Error('NFQWS_LIST_SELECTION_STALE');
       analysisSources=loaded.contents;analysisHashes=loaded.hashes;analysisIncomplete=loaded.errors.length>0;
       analysisFindings=analyzeCrossLists(analysisSources,context.selected);
       analysisProgress=`Проанализировано ${Object.keys(analysisSources).length} списков${loaded.errors.length?` · пропущено ${loaded.errors.length}`:''}`;
       renderAnalysis();}
-    catch(e){if(!disposed&&epoch===analysisEpoch){analysisProgress='Ошибка анализа';analysisError=String(e.message||e);}}
+    catch(e){if(!disposed&&epoch===analysisEpoch){analysisProgress=rfUi('Ошибка анализа',"Analysis error");analysisError=String(e.message||e);}}
     finally{if(!disposed&&epoch===analysisEpoch){analysisRunning=false;emitAnalysis();updateListButtons();}}
   }
   function closeAnalysis(){analysisOpen=false;++analysisEpoch;analysisRunning=false;emitAnalysis();updateListButtons();}
@@ -596,7 +597,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   async function deleteBackupCenter(){
     const e=backupCenterSelectedData?.entry;if(!e?.id)return;
     if(!confirm(`Удалить persistent backup ${e.label}?\n\nЭто удаляет только snapshot, runtime-файлы не меняются.`))return;
-    try{await api('/backups/delete',{method:'POST',body:JSON.stringify({id:e.id,confirm:'NFQWS_BACKUP_DELETE'})});backupCenterSelected='';backupCenterSelectedData=null;++backupCenterSeq;backupCenterLoaded=false;await loadBackupCenter(true);notice('Persistent backup удалён.','good')}
+    try{await api('/backups/delete',{method:'POST',body:JSON.stringify({id:e.id,confirm:'NFQWS_BACKUP_DELETE'})});backupCenterSelected='';backupCenterSelectedData=null;++backupCenterSeq;backupCenterLoaded=false;await loadBackupCenter(true);notice(rfUi('Persistent backup удалён.',"Persistent backup deleted."),'good')}
     catch(err){notice(err.message,'error')}
   }
 
@@ -605,7 +606,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     emit(onFlowLists,(s?.lists||[]).map(x=>String(x.name||'')));
     emit(onStatus,{available,running,mutationReady:!!s?.mutation_ready,
       target:String(s?.target_name||'nfqws'),configPath:String(s?.config_path||'target not detected'),backupCount:Number(s?.backup_count||0)});
-    if(!available)notice('NFQWS target не найден.','error');else if(!running)notice('NFQWS обнаружен, но сервис остановлен.','error');else notice('NFQWS runtime обнаружен. RouterForge управляет установленным внешним пакетом, не заменяя его lifecycle.','good');
+    if(!available)notice(rfUi('NFQWS target не найден.',"NFQWS target not found."),'error');else if(!running)notice(rfUi('NFQWS обнаружен, но сервис остановлен.',"NFQWS detected, but its service is stopped."),'error');else notice(rfUi('NFQWS runtime обнаружен. RouterForge управляет установленным внешним пакетом, не заменяя его lifecycle.',"NFQWS service detected. RouterForge manages the existing external package without replacing its lifecycle."),'good');
     original=s?.config||'';loadFlow(original);emit(onRawConfig,s);
     renderOverview();renderFlow();emit(onListInventory,(s?.lists||[]).slice());renderLog();setBusy(false);emit(onHeight,);
   }
@@ -625,15 +626,15 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   function listSourceLocalByName(name){return listSourceFiles.find(x=>String(x.name)===String(name))||null}
   async function listSourceFetch(url,timeout=10000){const c=new AbortController(),abort=()=>c.abort(),timer=setTimeout(abort,timeout);lifecycle.signal.addEventListener('abort',abort,{once:true});try{const r=await fetch(url,{cache:'no-store',signal:c.signal,headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r}finally{clearTimeout(timer);lifecycle.signal.removeEventListener('abort',abort)}}
-  async function listSourceSha256(buffer){if(!globalThis.crypto?.subtle)throw new Error('WebCrypto SHA-256 недоступен в этом браузере.');const d=await crypto.subtle.digest('SHA-256',buffer);return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,'0')).join('')}
+  async function listSourceSha256(buffer){if(!globalThis.crypto?.subtle)throw new Error(rfUi('WebCrypto SHA-256 недоступен в этом браузере.',"WebCrypto SHA-256 is unavailable in this browser."));const d=await crypto.subtle.digest('SHA-256',buffer);return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,'0')).join('')}
   function listSourceBase64(buffer){const bytes=new Uint8Array(buffer);let out='';for(let i=0;i<bytes.length;i+=0x8000)out+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));return btoa(out)}
   function listSourceStateFor(item){const local=listSourceLocalByName(item.name);if(!local)return'missing';return String(local.sha256||'').toLowerCase()===String(item.sha256||'').toLowerCase()?'ok':'update'}
   async function resolveListSourceUpstream(force=false){
     const resolved=await resolveNFQWSMenuRef(force);listSourceResolution=resolved;const sha=String(resolved?.sha||'').trim();
-    if(!/^[0-9a-f]{40}$/i.test(sha))throw new Error(resolved?.error||'upstream exact commit не получен');
+    if(!/^[0-9a-f]{40}$/i.test(sha))throw new Error(resolved?.error||rfUi('upstream exact commit не получен',"The exact upstream commit could not be retrieved"));
     const manifestRes=await listSourceFetch(`https://raw.githubusercontent.com/${listSourceRepo}/${sha}/SHA256SUMS`,10000),manifest=await manifestRes.text(),items=[];
     for(const line of manifest.split(/\r?\n/)){const m=line.match(/^([0-9a-fA-F]{64})\s+(strategies\/lists\/([^\s/]+\.list))$/);if(m)items.push({name:m[3],path:m[2],sha256:m[1].toLowerCase(),ref:sha})}
-    if(!items.length)throw new Error('upstream list manifest пуст');listSourceRef=sha;listSourceUpstream=items.sort((a,b)=>a.name.localeCompare(b.name));
+    if(!items.length)throw new Error(rfUi('upstream list manifest пуст',"The upstream list manifest is empty"));listSourceRef=sha;listSourceUpstream=items.sort((a,b)=>a.name.localeCompare(b.name));
   }
   function renderListSources(){
     if(disposed)return;
@@ -656,8 +657,8 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
 
   async function installListSource(name){
-    if(listSourceLoading)return;const item=listSourceUpstream.find(x=>x.name===name);if(!item||!listSourceRef)return;const local=listSourceLocalByName(name),replace=!!local,verb=replace?'заменить':'установить';if(!confirm(`List Source: ${verb} ${name}?\n\nSHA256 ${item.sha256}\nExact ref ${listSourceRef.slice(0,12)}\n\nSafety backup: ${replace?'YES':'not needed'}\nReload/restart: NO`))return;
-    listSourceLoading=true;renderListSources();try{const r=await listSourceFetch(`https://raw.githubusercontent.com/${listSourceRepo}/${listSourceRef}/${item.path}`,10000),buffer=await r.arrayBuffer(),actual=await listSourceSha256(buffer);if(actual.toLowerCase()!==item.sha256.toLowerCase())throw new Error('upstream SHA256 mismatch');const result=await api('/list-sources/install',{method:'POST',body:JSON.stringify({name:item.name,content_base64:listSourceBase64(buffer),expected_sha256:item.sha256,expected_existing_sha256:replace?local.sha256:'',replace,confirm:replace?'NFQWS_LIST_SOURCE_REPLACE':'NFQWS_LIST_SOURCE_INSTALL'})});listSourceFiles=Array.isArray(result.inventory?.files)?result.inventory.files:listSourceFiles;current=result.status||current;emit(onListInventory,(current?.lists||[]).slice());renderListSources();notice(`${name}: ${result.already_current?'уже актуален':replace?'заменён':'установлен'} · runtime restart не выполнялся.`,'good')}
+    if(listSourceLoading)return;const item=listSourceUpstream.find(x=>x.name===name);if(!item||!listSourceRef)return;const local=listSourceLocalByName(name),replace=!!local,verb=replace?rfUi('заменить',"replace"):rfUi('установить',"install");if(!confirm(`List Source: ${verb} ${name}?\n\nSHA256 ${item.sha256}\nExact ref ${listSourceRef.slice(0,12)}\n\nSafety backup: ${replace?'YES':'not needed'}\nReload/restart: NO`))return;
+    listSourceLoading=true;renderListSources();try{const r=await listSourceFetch(`https://raw.githubusercontent.com/${listSourceRepo}/${listSourceRef}/${item.path}`,10000),buffer=await r.arrayBuffer(),actual=await listSourceSha256(buffer);if(actual.toLowerCase()!==item.sha256.toLowerCase())throw new Error('upstream SHA256 mismatch');const result=await api('/list-sources/install',{method:'POST',body:JSON.stringify({name:item.name,content_base64:listSourceBase64(buffer),expected_sha256:item.sha256,expected_existing_sha256:replace?local.sha256:'',replace,confirm:replace?'NFQWS_LIST_SOURCE_REPLACE':'NFQWS_LIST_SOURCE_INSTALL'})});listSourceFiles=Array.isArray(result.inventory?.files)?result.inventory.files:listSourceFiles;current=result.status||current;emit(onListInventory,(current?.lists||[]).slice());renderListSources();notice(rfUi(`${name}: ${result.already_current?'уже актуален':replace?'заменён':'установлен'} · runtime restart не выполнялся.`,`${name}: ${result.already_current?'already up to date':replace?'replaced':'installed'} · the service was not restarted.`),'good')}
     catch(e){notice(`List Source ${name}: ${e.message}`,'error')}
     finally{listSourceLoading=false;renderListSources()}
   }
@@ -684,15 +685,15 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   function catalogCompatibility(config,integrity){
     const text=String(config||''),checks=[],known=new Set((current?.lists||[]).map(x=>String(x.name||''))),deps=catalogDependencyModel(text),add=(severity,title,detail)=>checks.push({severity,title,detail});
-    if(!text.trim())add('bad','Пустой config','Полный nfqws2.conf отсутствует.');else add('good','Полный config загружен',`${lines(text).length} lines · ${bytes(new Blob([text]).size)}`);
-    const hasStrategy=['NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET','NFQWS_ARGS_CUSTOM'].some(k=>String(assignmentValue(text,k)||'').trim());add(hasStrategy?'good':'bad',hasStrategy?'Strategy assignments найдены':'Strategy assignments не найдены',hasStrategy?'NFQWS_ARGS* доступны для semantic analysis.':'Нет NFQWS_ARGS* — это не совместимый полный strategy config.');
+    if(!text.trim())add('bad',rfUi('Пустой config',"Empty configuration"),rfUi('Полный nfqws2.conf отсутствует.',"Full nfqws2.conf is missing."));else add('good',rfUi('Полный config загружен',"Full configuration loaded"),`${lines(text).length} lines · ${bytes(new Blob([text]).size)}`);
+    const hasStrategy=['NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET','NFQWS_ARGS_CUSTOM'].some(k=>String(assignmentValue(text,k)||'').trim());add(hasStrategy?'good':'bad',hasStrategy?rfUi('Strategy assignments найдены',"Strategy assignments found"):rfUi('Strategy assignments не найдены',"Strategy assignments not found"),hasStrategy?rfUi('NFQWS_ARGS* доступны для semantic analysis.',"NFQWS_ARGS* available for configuration analysis."):rfUi('Нет NFQWS_ARGS* — это не совместимый полный strategy config.',"NFQWS_ARGS* missing — this is not a compatible full strategy configuration."));
     for(const key of ['NFQWS_BASE_ARGS','NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET']){const v=assignmentValue(text,key);if(/(^|\s)--new(?:\s|$)/.test(v))add('bad',`${key}: запрещён --new`,'Upstream contract RouterForge разрешает --new только внутри NFQWS_ARGS_CUSTOM.')}
-    const iface=assignmentValue(text,'ISP_INTERFACE');add(iface?'good':'warn',iface?'ISP_INTERFACE задан':'ISP_INTERFACE отсутствует',iface||'Перед Smart Apply понадобится WAN interface.');
-    for(const key of ['NFQUEUE_NUM','USER','CONFIG_VERSION'])if(!assignmentValue(text,key))add('warn',`${key} не найден`,'Полный config стоит проверить перед Smart Apply.');
-    const missing=deps.lists.filter(x=>!known.has(x));add(missing.length?'warn':'good',missing.length?'Есть отсутствующие локально list dependencies':'List dependencies разрешены',missing.length?missing.join(', '):(deps.lists.join(', ')||'Ссылок на list-файлы нет.'));
-    if(deps.blobs.length)add('info',`${deps.blobs.length} blob dependencies`,`Проверь Blob Manager: ${deps.blobs.map(x=>x.name).join(', ')}`);else add('info','Blob dependencies не обнаружены','R26 всё равно проверит локальный blob inventory.');
+    const iface=assignmentValue(text,'ISP_INTERFACE');add(iface?'good':'warn',iface?rfUi('ISP_INTERFACE задан',"ISP_INTERFACE set"):rfUi('ISP_INTERFACE отсутствует',"ISP_INTERFACE missing"),iface||rfUi('Перед Smart Apply понадобится WAN interface.',"WAN interface is required before Smart Apply."));
+    for(const key of ['NFQUEUE_NUM','USER','CONFIG_VERSION'])if(!assignmentValue(text,key))add('warn',`${key} не найден`,rfUi('Полный config стоит проверить перед Smart Apply.',"Review the full configuration before Smart Apply."));
+    const missing=deps.lists.filter(x=>!known.has(x));add(missing.length?'warn':'good',missing.length?rfUi('Есть отсутствующие локально list dependencies',"Some required list files are missing locally"):rfUi('List dependencies разрешены',"List dependencies resolved"),missing.length?missing.join(', '):(deps.lists.join(', ')||rfUi('Ссылок на list-файлы нет.',"No list file references.")));
+    if(deps.blobs.length)add('info',`${deps.blobs.length} blob dependencies`,`Проверь Blob Manager: ${deps.blobs.map(x=>x.name).join(', ')}`);else add('info',rfUi('Blob dependencies не обнаружены',"No blob dependencies found"),rfUi('R26 всё равно проверит локальный blob inventory.',"Local blob inventory is verified separately."));
     if(deps.lua.length)add('info',`${deps.lua.length} Lua dependencies`,deps.lua.map(catalogNormalizeRefPath).join(', '));
-    if(integrity==='verified')add('good','SHA256 integrity: VERIFIED','Файл совпадает с hash из upstream SHA256SUMS.');else if(integrity==='mismatch')add('bad','SHA256 integrity: MISMATCH','Полученный config не совпадает с upstream manifest.');else add('info','SHA256 integrity: LOCAL/UNAVAILABLE','Для локального файла используется локальный SHA; upstream manifest не применим.');
+    if(integrity==='verified')add('good','SHA256 integrity: VERIFIED',rfUi('Файл совпадает с hash из upstream SHA256SUMS.',"File matches the upstream SHA256SUMS checksum."));else if(integrity==='mismatch')add('bad','SHA256 integrity: MISMATCH',rfUi('Полученный config не совпадает с upstream manifest.',"Received configuration does not match the upstream manifest."));else add('info','SHA256 integrity: LOCAL/UNAVAILABLE',rfUi('Для локального файла используется локальный SHA; upstream manifest не применим.',"Local files use a local SHA; the upstream manifest does not apply."));
     const bad=checks.filter(x=>x.severity==='bad').length,warn=checks.filter(x=>x.severity==='warn').length;return{checks,deps,status:bad?'BLOCKED':warn?'CHECK':'COMPATIBLE'};
   }
   function catalogSemanticDiff(config){
@@ -718,7 +719,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
       if(!configLibraryLoaded)await loadConfigLibrary(true);const local=[{id:'active:canonical',kind:'active',name:'nfqws2.conf',path:current?.config_path||'/opt/etc/nfqws2/nfqws2.conf',source:'RouterForge active',ref:'active',sha256:current?.config_sha256||''},...configLibraryFiles.map(x=>({id:`local:${x.name}`,kind:'local',name:x.name,path:x.path,source:'Config Library',ref:'local',sha256:x.sha256||'',active:!!x.active}))];
       let upstream=[];try{
         const resolved=await resolveNFQWSMenuRef(force),sha=String(resolved?.sha||'').trim();catalogUpstream.sha=sha;catalogUpstream.ref=catalogBranch;catalogUpstream.source=String(resolved?.source||'');
-        if(!/^[0-9a-f]{40}$/i.test(sha)){catalogUpstream.state=resolved?.state==='rate_limited'?'rate_limited':'error';throw new Error(resolved?.error||'upstream exact commit не получен')}
+        if(!/^[0-9a-f]{40}$/i.test(sha)){catalogUpstream.state=resolved?.state==='rate_limited'?'rate_limited':'error';throw new Error(resolved?.error||rfUi('upstream exact commit не получен',"The exact upstream commit could not be retrieved"))}
         const ref=sha,manifestRes=await catalogFetch(`https://raw.githubusercontent.com/${catalogRepo}/${ref}/SHA256SUMS`,10000),manifest=await manifestRes.text();
         upstream=manifest.split(/\r?\n/).map(line=>{const m=line.match(/^([0-9a-fA-F]{64})\s+(strategies\/nfqws2\/[^\s]+\.conf)$/);if(!m)return null;return{id:`upstream:${m[2]}`,kind:'upstream',name:m[2].split('/').pop(),path:m[2],source:catalogRepo,ref:ref,sha256:m[1].toLowerCase()}}).filter(Boolean);catalogUpstream.state=resolved?.state==='stale_cache'?'stale':'ready';catalogUpstream.count=upstream.length;
       }catch(e){if(catalogUpstream.state!=='rate_limited')catalogUpstream.state='error';catalogUpstream.error=e?.name==='AbortError'?'timeout':String(e.message||e)}
@@ -761,10 +762,10 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   function smartApplyLocalList(name){return listSourceFiles.find(x=>String(x.name)===String(name))||null}
   function smartApplyLocalBlob(name){return blobFiles.find(x=>String(x.name)===String(name))||null}
   async function buildSmartApplyPlan(){
-    if(!catalogSelectedData)throw new Error('Сначала выберите config в Каталоге.');if(!current?.mutation_ready)throw new Error('Runtime mutation boundary не готов.');if(!current?.config_sha256)throw new Error('Active config SHA256 недоступен.');
-    const d=catalogSelectedData,item=d.item,compat=catalogCompatibility(d.content,d.integrity);if(compat.status==='BLOCKED')throw new Error('Candidate BLOCKED compatibility checks; Smart Apply запрещён.');if(item.kind==='upstream'&&d.integrity!=='verified')throw new Error('Upstream candidate должен иметь VERIFIED SHA256.');
+    if(!catalogSelectedData)throw new Error(rfUi('Сначала выберите config в Каталоге.',"First select a configuration in the Catalog."));if(!current?.mutation_ready)throw new Error(rfUi('Runtime mutation boundary не готов.',"The service change safety checks are not ready."));if(!current?.config_sha256)throw new Error(rfUi('Active config SHA256 недоступен.',"Active configuration SHA256 is unavailable."));
+    const d=catalogSelectedData,item=d.item,compat=catalogCompatibility(d.content,d.integrity);if(compat.status==='BLOCKED')throw new Error(rfUi('Candidate BLOCKED compatibility checks; Smart Apply запрещён.',"The candidate failed compatibility checks; applying is blocked."));if(item.kind==='upstream'&&d.integrity!=='verified')throw new Error(rfUi('Upstream candidate должен иметь VERIFIED SHA256.',"An upstream candidate requires a verified SHA256."));
     const merge=smartMergeConfig(d.content),config=merge.config,configSha=await catalogSha256(config),deps=catalogDependencyModel(config);await loadListSources(true);await loadBlobs(true);
-    let manifest={lists:new Map(),blobs:new Map()};if(item.kind==='upstream'){if(!item.ref)throw new Error('Exact upstream ref отсутствует.');manifest=await smartApplyManifestForRef(item.ref)}
+    let manifest={lists:new Map(),blobs:new Map()};if(item.kind==='upstream'){if(!item.ref)throw new Error(rfUi('Exact upstream ref отсутствует.',"The exact upstream reference is missing."));manifest=await smartApplyManifestForRef(item.ref)}
     const lists=deps.lists.map(name=>{const local=smartApplyLocalList(name),expected=manifest.lists.get(name)||null;let state=local?'ok':'blocked',reason=local?'локальный файл присутствует':'нет локального файла';if(expected){state=local&&String(local.sha256||'').toLowerCase()===expected.sha256?'ok':'write';reason=state==='ok'?'SHA256 совпадает с exact upstream':'будет установлен/заменён из exact upstream'}return{name,local,expected,state,reason}});
     const blobs=deps.blobs.map(dep=>{const name=blobBasename(dep.path),local=smartApplyLocalBlob(name),expected=manifest.blobs.get(name)||null;let state=local?'ok':'blocked',reason=local?'локальный blob присутствует':'нет локального blob';if(expected){state=local&&String(local.sha256||'').toLowerCase()===expected.sha256?'ok':'write';reason=state==='ok'?'SHA256 совпадает с exact upstream':'будет установлен/заменён из exact upstream'}return{name,local,expected,state,reason}});
     const blocked=[...lists,...blobs].filter(x=>x.state==='blocked');return{item,compat,merge,config,configSha,lists,blobs,blocked,expectedActiveSha:current.config_sha256,wasRunning:!!current.running,ref:item.ref||'local'};
@@ -806,7 +807,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   async function applySmartApply(){
     const p=smartApplyPlan;const recoverySettings=getRecoverySettings(),recoveryBaseline=recoverySettings.enabled?latestRecoveryBaselineForCurrent():null,recoveryStartedAt=new Date().toISOString();if(!smartApplyOpen||!p||p.blocked.length||smartApplyBusy||smartApplyPreparing)return;if(!confirm(`Smart Apply ${p.item.name}?\nDependencies to write: ${[...p.lists,...p.blobs].filter(x=>x.state==='write').length}\nConfig: semantic merge\n${p.wasRunning?'Service restart: YES':'Service restart: NO'}\nRollback on first failure: YES`))return;smartApplyBusy=true;smartApplyError='';renderSmartApplyPlan();
-    try{const lists=(await Promise.all(p.lists.map(x=>smartApplyFetchDependency('list',x,p.ref)))).filter(Boolean),blobs=(await Promise.all(p.blobs.map(x=>smartApplyFetchDependency('blob',x,p.ref)))).filter(Boolean);const latest=await api('/status');if(String(latest.config_sha256||'').toLowerCase()!==String(p.expectedActiveSha).toLowerCase())throw new Error('Active config изменился после построения плана. Пересчитайте Smart Apply.');const expected_lists=Object.fromEntries(p.lists.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),expected_blobs=Object.fromEntries(p.blobs.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),result=await api('/smart-apply',{method:'POST',body:JSON.stringify({config:p.config,expected_active_sha256:p.expectedActiveSha,expected_config_sha256:p.configSha,lists,blobs,expected_lists,expected_blobs,confirm:'NFQWS_SMART_APPLY'})});current=result.status||current;original=current?.config||p.config;loadFlow(original);listSourceLoaded=false;blobLoaded=false;configLibraryLoaded=false;catalogLoaded=false;smartApplyPlan=null;smartApplyOpen=false;render(current);renderSmartApplyPlan();notice(`Smart Apply: PASS · ${p.item.name} · lists ${result.applied_lists?.length||0} · blobs ${result.applied_blobs?.length||0}${result.service_restarted?' · runtime restarted':''}`,'good');if(recoveryBaseline)void runRecoveryGuard(recoveryBaseline,recoveryStartedAt,p.item.name,recoverySettings.threshold)}
+    try{const lists=(await Promise.all(p.lists.map(x=>smartApplyFetchDependency('list',x,p.ref)))).filter(Boolean),blobs=(await Promise.all(p.blobs.map(x=>smartApplyFetchDependency('blob',x,p.ref)))).filter(Boolean);const latest=await api('/status');if(String(latest.config_sha256||'').toLowerCase()!==String(p.expectedActiveSha).toLowerCase())throw new Error(rfUi('Active config изменился после построения плана. Пересчитайте Smart Apply.',"The active configuration changed after the plan was created. Recalculate Smart Apply."));const expected_lists=Object.fromEntries(p.lists.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),expected_blobs=Object.fromEntries(p.blobs.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),result=await api('/smart-apply',{method:'POST',body:JSON.stringify({config:p.config,expected_active_sha256:p.expectedActiveSha,expected_config_sha256:p.configSha,lists,blobs,expected_lists,expected_blobs,confirm:'NFQWS_SMART_APPLY'})});current=result.status||current;original=current?.config||p.config;loadFlow(original);listSourceLoaded=false;blobLoaded=false;configLibraryLoaded=false;catalogLoaded=false;smartApplyPlan=null;smartApplyOpen=false;render(current);renderSmartApplyPlan();notice(`Smart Apply: PASS · ${p.item.name} · lists ${result.applied_lists?.length||0} · blobs ${result.applied_blobs?.length||0}${result.service_restarted?' · runtime restarted':''}`,'good');if(recoveryBaseline)void runRecoveryGuard(recoveryBaseline,recoveryStartedAt,p.item.name,recoverySettings.threshold)}
     catch(e){smartApplyError='Smart Apply FAIL: '+String(e.message||e)+'. Если runtime начал mutation, серверный ответ содержит rollback state.';renderSmartApplyPlan();notice(`Smart Apply: ${e.message}`,'error')}
     finally{smartApplyBusy=false;renderSmartApplyPlan()}
   }
@@ -825,7 +826,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     blobManifestCache[key]=map;return map;
   }
   async function blobSha256Bytes(buffer){
-    if(!globalThis.crypto?.subtle)throw new Error('WebCrypto SHA-256 недоступен в этом браузере.');
+    if(!globalThis.crypto?.subtle)throw new Error(rfUi('WebCrypto SHA-256 недоступен в этом браузере.',"WebCrypto SHA-256 is unavailable in this browser."));
     const d=await crypto.subtle.digest('SHA-256',buffer);return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,'0')).join('');
   }
   function blobBase64(buffer){
@@ -961,7 +962,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     const deps=entries.filter(x=>x.kind!=='config').sort((a,b)=>String(b.created_at||b.created).localeCompare(String(a.created_at||a.created)));
     const config=entries.filter(x=>x.kind==='config').sort((a,b)=>String(b.created_at||b.created).localeCompare(String(a.created_at||a.created))).slice(0,1);
     const ordered=[...deps,...config];
-    if(!config.length)throw new Error('persistent pre-apply config snapshot не найден');
+    if(!config.length)throw new Error(rfUi('persistent pre-apply config snapshot не найден',"No persistent pre-apply configuration backup was found"));
     for(const entry of ordered)await api('/backups/restore',{method:'POST',body:JSON.stringify({id:entry.id,confirm:'NFQWS_BACKUP_RESTORE'})});
     return ordered;
   }
@@ -973,7 +974,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
       if(!regressed){
         recoveryGuardLastResult={state:'PASS',label,reach_before:b.reach,reach_after:after.reach,stable_before:b.stable,stable_after:after.stable};
         renderRunHistory();
-        notice('Recovery Guard: PASS · regression threshold не достигнут.','good');return;
+        notice(rfUi('Recovery Guard: PASS · regression threshold не достигнут.',"Recovery Guard: passed · regression threshold not reached."),'good');return;
       }
       renderRunHistory();
       const snapshots=await recoverySnapshotSet(startedAt),restored=await restoreRecoverySnapshots(snapshots);
@@ -1022,7 +1023,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     const same=runHistory.filter(x=>x.kind===entry.kind),i=same.findIndex(x=>x.id===entry.id);return i>=0&&i+1<same.length?same[i+1]:null;
   }
   function runHistoryDelta(entry){
-    const prev=runHistoryPrevious(entry);if(!prev)return{cls:'same',text:'первый'};const d=Number(entry.score)-Number(prev.score);return{cls:d>0?'up':d<0?'down':'same',text:d>0?`+${d}`:`${d}`};
+    const prev=runHistoryPrevious(entry);if(!prev)return{cls:'same',text:rfUi('первый',"first")};const d=Number(entry.score)-Number(prev.score);return{cls:d>0?'up':d<0?'down':'same',text:d>0?`+${d}`:`${d}`};
   }
   function runHistoryKindLabel(kind){
     switch(String(kind||'')){
@@ -1075,7 +1076,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     if(name==='copy-one'){
       const entry=runHistory.find(x=>x.id===id);
       if(!entry)return;
-      try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard API недоступен');await navigator.clipboard.writeText(JSON.stringify(entry,null,2));notice('JSON прогона скопирован.','good')}
+      try{if(!navigator.clipboard?.writeText)throw new Error(rfUi('Clipboard API недоступен',"Clipboard access unavailable"));await navigator.clipboard.writeText(JSON.stringify(entry,null,2));notice(rfUi('JSON прогона скопирован.',"Run JSON copied."),'good')}
       catch(e){notice(`История JSON: ${e.message}`,'error')}
       return;
     }
@@ -1090,7 +1091,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
   async function copyRunHistory(){
     if(!runHistory.length)return;
-    try{if(!navigator.clipboard?.writeText)throw Error('Clipboard API недоступен');await navigator.clipboard.writeText(JSON.stringify({exported_at:new Date().toISOString(),schema:'routerforge-nfqws-run-history-v1',runs:runHistory},null,2));notice('История прогонов скопирована в JSON.','good')}
+    try{if(!navigator.clipboard?.writeText)throw Error(rfUi('Clipboard API недоступен',"Clipboard access unavailable"));await navigator.clipboard.writeText(JSON.stringify({exported_at:new Date().toISOString(),schema:'routerforge-nfqws-run-history-v1',runs:runHistory},null,2));notice(rfUi('История прогонов скопирована в JSON.',"Run history copied as JSON."),'good')}
     catch(e){notice(`История JSON: ${e.message}`,'error')}
   }
 
@@ -1105,7 +1106,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   async function runDomainCheck(){
     if(disposed)return;
     const domains=extractDomains(getListEditor()?.readContext?.()?.value||'');
-    if(!domains.length){notice('В выбранном списке не найдено доменов.','error');return}
+    if(!domains.length){notice(rfUi('В выбранном списке не найдено доменов.',"No domains found in the selected list."),'error');return}
     stopDomainCheck();
     const gen=++checkGeneration,c=new AbortController();checkAbort=c;
     const stopOnUnmount=()=>c.abort();lifecycle.signal.addEventListener('abort',stopOnUnmount,{once:true});
@@ -1380,7 +1381,7 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
       if(name==='sandbox'){
         if(!catalogSelectedData||catalogSelectionBusy)return;
         const d=catalogSelectedData,candidate=assignmentValue(d.content,'NFQWS_ARGS');
-        if(!candidate){notice('В выбранном config NFQWS_ARGS пуст — нечего отправлять в Sandbox.','error');return;}
+        if(!candidate){notice(rfUi('В выбранном config NFQWS_ARGS пуст — нечего отправлять в Sandbox.',"NFQWS_ARGS is empty in the selected configuration — nothing to send to Sandbox."),'error');return;}
         v2OpenSandboxFromArgs(candidate,d.item.name,'catalog');
         notice(`Candidate ${d.item.name} загружен в V2 Sandbox. Active config не изменён.`,'good');return;
       }

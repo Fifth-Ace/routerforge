@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import { onMount } from 'svelte';
   import { createPortAccessReadSession } from './PortAccessReadSession.js';
   const readSession = createPortAccessReadSession();
@@ -6,10 +7,10 @@
 
   const endpoint = '/api/modules/port-access-manager/odin';
   const labels = {
-    save: 'Сохранить настройки',
-    enable: 'Включить защиту',
-    confirm: 'Подтвердить защиту',
-    disable: 'Выключить защиту'
+    save: rfUi('Сохранить настройки',"Save settings"),
+    enable: rfUi('Включить защиту',"Enable protection"),
+    confirm: rfUi('Подтвердить защиту',"Confirm protection"),
+    disable: rfUi('Выключить защиту',"Disable protection")
   };
   let wan = $state('eth3');
   let ip = $state('192.168.1.2');
@@ -22,7 +23,7 @@
   let ttl = $state(28800);
   let data = $state(null);
   let busy = $state(false);
-  let status = $state('Проверяем…');
+  let status = $state(rfUi('Проверяем…',"Checking…"));
   let lastOperationError = $state('');
   let localDeadline = $state(0);
   let now = $state(Date.now());
@@ -36,10 +37,10 @@
   const configured = $derived(Boolean(data?.configured));
   const secondsLeft = $derived(localDeadline ? Math.max(0, Math.ceil((localDeadline - now) / 1000)) : null);
   const countdown = $derived(!enabled || confirmed ? '' : secondsLeft === null
-    ? 'Срок watchdog неизвестен: обнови состояние. Не подтверждай защиту без проверки.'
+    ? rfUi('Срок watchdog неизвестен: обнови состояние. Не подтверждай защиту без проверки.',"Watchdog deadline unknown: refresh status. Do not confirm protection without verification.")
     : secondsLeft > 0
-      ? 'До автоматического отката: приблизительно ' + secondsLeft + ' сек.'
-      : 'Срок подтверждения истёк. Проверяем состояние…');
+      ? rfUi('До автоматического отката: приблизительно ',"Approximate time until automatic rollback:") + secondsLeft + rfUi(' сек.',"sec.")
+      : rfUi('Срок подтверждения истёк. Проверяем состояние…',"Confirmation deadline passed. Checking status…"));
 
   async function request(method, body) {
     return readSession.consume(endpoint, {
@@ -50,7 +51,7 @@
       const raw = await response.text();
       let result;
       try { result = raw ? JSON.parse(raw) : {}; }
-      catch (_) { throw new Error('Некорректный ответ сервера (HTTP ' + response.status + ')'); }
+      catch (_) { throw new Error(rfUi('Некорректный ответ сервера (HTTP ',"Invalid server response (HTTP") + response.status + ')'); }
       if (!response.ok) throw new Error(result.error || result.message || 'HTTP ' + response.status);
       return result;
     });
@@ -71,13 +72,13 @@
     if (!/^[a-zA-Z0-9_.:-]+$/.test(s.wan)) return 'Укажи корректный WAN-интерфейс';
     if (parts.length !== 4 || parts.some(part => !/^\d{1,3}$/.test(part) || Number(part) > 255)) return 'Некорректный IPv4 сервиса';
     const ports = s.knock.concat(s.ports);
-    if (ports.some(p => !Number.isInteger(p) || p < 1 || p > 65535)) return 'Порты должны быть от 1 до 65535';
-    if (s.ports.length < 1 || s.ports.length > 15) return 'От 1 до 15 защищаемых портов';
-    if (s.trusted.length > 32) return 'Не более 32 доверенных IP/CIDR';
+    if (ports.some(p => !Number.isInteger(p) || p < 1 || p > 65535)) return rfUi('Порты должны быть от 1 до 65535',"Ports must be between 1 and 65535");
+    if (s.ports.length < 1 || s.ports.length > 15) return rfUi('От 1 до 15 защищаемых портов',"1–15 protected ports");
+    if (s.trusted.length > 32) return rfUi('Не более 32 доверенных IP/CIDR',"Up to 32 trusted IP/CIDR entries");
     if (s.trusted.some(x => !/^[0-9./]+$/.test(x))) return 'Доверенные адреса: только IPv4/CIDR';
     if (new Set(ports).size !== ports.length) return 'Порты стуков и сервиса должны различаться';
-    if (!Number.isInteger(s.window) || s.window < 5 || s.window > 300) return 'Окно стуков: 5–300 секунд';
-    if (!Number.isInteger(s.ttl) || s.ttl < 30 || s.ttl > 86400) return 'Доступ: 30–86400 секунд';
+    if (!Number.isInteger(s.window) || s.window < 5 || s.window > 300) return rfUi('Окно стуков: 5–300 секунд',"Knock window: 5–300 seconds");
+    if (!Number.isInteger(s.ttl) || s.ttl < 30 || s.ttl > 86400) return rfUi('Доступ: 30–86400 секунд',"Access: 30–86400 seconds");
     return '';
   }
 
@@ -104,8 +105,8 @@
     data = next;
     if (fill && next.configured && next.settings) fillSettings(next.settings);
     status = lastOperationError || (next.enabled
-      ? (next.confirmed ? 'Защита включена · подтверждена' : 'Защита включена · ожидает подтверждения')
-      : 'Защита выключена');
+      ? (next.confirmed ? rfUi('Защита включена · подтверждена',"Protection enabled · confirmed") : rfUi('Защита включена · ожидает подтверждения',"Protection enabled · awaiting confirmation"))
+      : rfUi('Защита выключена',"Protection disabled"));
     if (changed) onStateChanged();
   }
 
@@ -119,7 +120,7 @@
       return response;
     } catch (error) {
       if (!disposed && serial === requestSerial) {
-        status = lastOperationError || 'Ошибка получения состояния: ' + error.message;
+        status = lastOperationError || rfUi('Ошибка получения состояния: ',"Status retrieval error:") + error.message;
         data = null; // Fail closed: no enable/confirm until verified again.
         onStateChanged();
       }
@@ -137,22 +138,22 @@
       if (reason) { status = reason; return; }
     }
     const messages = {
-      enable: 'Включить защиту odin? Неправильная конфигурация может закрыть доступ. Без подтверждения watchdog откатит изменения через 90 секунд.',
-      confirm: 'Подтвердить защиту? Автооткат через 90 секунд будет отменён. Убедись, что доступ по стукам проверен.',
-      disable: 'Выключить защиту odin и убрать её правила из firewall?',
-      save: 'Сохранить настройки odin?'
+      enable: rfUi('Включить защиту odin? Неправильная конфигурация может закрыть доступ. Без подтверждения watchdog откатит изменения через 90 секунд.',"Enable odin protection? Incorrect settings can block access. Without confirmation, the watchdog will roll back changes after 90 seconds."),
+      confirm: rfUi('Подтвердить защиту? Автооткат через 90 секунд будет отменён. Убедись, что доступ по стукам проверен.',"Confirm protection? Automatic rollback after 90 seconds will be cancelled. Make sure knock-based access is verified."),
+      disable: rfUi('Выключить защиту odin и убрать её правила из firewall?',"Disable odin protection and remove its firewall rules?"),
+      save: rfUi('Сохранить настройки odin?',"Save odin settings?")
     };
     if (!window.confirm(messages[action])) return;
     lastOperationError = '';
     busy = true;
-    status = 'Выполняется: ' + labels[action] + '…';
+    status = rfUi('Выполняется: ',"Running:") + labels[action] + '…';
     try {
       await request('POST', { action, confirm: 'APPLY', settings: s });
       const fresh = await request('GET');
       ++requestSerial;
       applyServerState(fresh, true);
     } catch (error) {
-      lastOperationError = 'Ошибка: ' + error.message + '. Обнови состояние перед повторной операцией.';
+      lastOperationError = rfUi('Ошибка: ',"Error:") + error.message + rfUi('. Обнови состояние перед повторной операцией.',". Refresh the status before trying again.");
       status = lastOperationError;
       // A failed mutation can still have taken effect: reconcile from server.
       await refresh();
@@ -184,26 +185,26 @@
 
 <section class="panel" id="odin-manager">
   <h2>Port Knocking · odin (Keenetic)</h2>
-  <p class="help">Алгоритм odin для сервиса, уже проброшенного через KeeneticOS. Автор: <a href="https://forum.keenetic.ru/topic/22137-port-knoking-%D0%B4%D0%BB%D1%8F-%D0%BF%D1%80%D0%BE%D0%B1%D1%80%D0%B0%D1%81%D1%8B%D0%B2%D0%B0%D0%B5%D0%BC%D0%BE%D0%B3%D0%BE-%D0%BF%D0%BE%D1%80%D1%82%D0%B0/" target="_blank" rel="noopener noreferrer">odin · Keenetic Community</a>. Авторские цепочки KNOCKING-FIRST/LAST и списки KK1/KK2/KK3/KKD. Установка пакета не включает защиту.</p>
+  <p class="help">{rfUi("Алгоритм odin для сервиса, уже проброшенного через KeeneticOS. Автор:","odin protection for a service already forwarded through KeeneticOS. Author:")} <a href="https://forum.keenetic.ru/topic/22137-port-knoking-%D0%B4%D0%BB%D1%8F-%D0%BF%D1%80%D0%BE%D0%B1%D1%80%D0%B0%D1%81%D1%8B%D0%B2%D0%B0%D0%B5%D0%BC%D0%BE%D0%B3%D0%BE-%D0%BF%D0%BE%D1%80%D1%82%D0%B0/" target="_blank" rel="noopener noreferrer">odin · Keenetic Community</a>{rfUi(". Авторские цепочки KNOCKING-FIRST/LAST и списки KK1/KK2/KK3/KKD. Установка пакета не включает защиту.",". Uses dedicated KNOCKING-FIRST/LAST chains and KK1/KK2/KK3/KKD lists. Installing the package does not enable protection.")}</p>
   <div class="form-grid">
-    <label>WAN-интерфейс<input id="odin-wan" bind:value={wan} autocomplete="off" /></label>
-    <label>Внутренний IPv4 сервиса<input id="odin-ip" bind:value={ip} autocomplete="off" /></label>
-    <label>TCP-порты (через запятую)<input id="odin-port" bind:value={portText} autocomplete="off" placeholder="3389, 22, 8443" /></label>
-    <label>Постоянный доступ IPv4/CIDR<input id="odin-trusted" bind:value={trustedText} autocomplete="off" placeholder="192.0.2.10/32, 198.51.100.0/24" /></label>
-    <label>Стук 1<input id="odin-k1" type="number" min="1" max="65535" bind:value={k1} /></label>
-    <label>Стук 2<input id="odin-k2" type="number" min="1" max="65535" bind:value={k2} /></label>
-    <label>Стук 3<input id="odin-k3" type="number" min="1" max="65535" bind:value={k3} /></label>
-    <label>Окно между стуками, сек<input id="odin-window" type="number" min="5" max="300" bind:value={windowSeconds} /></label>
-    <label>Доступ, сек<input id="odin-ttl" type="number" min="30" max="86400" bind:value={ttl} /></label>
+    <label>{rfUi("WAN-интерфейс","WAN interface")}<input id="odin-wan" bind:value={wan} autocomplete="off" /></label>
+    <label>{rfUi("Внутренний IPv4 сервиса","Service's internal IPv4")}<input id="odin-ip" bind:value={ip} autocomplete="off" /></label>
+    <label>{rfUi("TCP-порты (через запятую)","TCP ports (comma-separated)")}<input id="odin-port" bind:value={portText} autocomplete="off" placeholder="3389, 22, 8443" /></label>
+    <label>{rfUi("Постоянный доступ IPv4/CIDR","Permanent IPv4/CIDR access")}<input id="odin-trusted" bind:value={trustedText} autocomplete="off" placeholder="192.0.2.10/32, 198.51.100.0/24" /></label>
+    <label>{rfUi("Стук 1","Knock 1")}<input id="odin-k1" type="number" min="1" max="65535" bind:value={k1} /></label>
+    <label>{rfUi("Стук 2","Knock 2")}<input id="odin-k2" type="number" min="1" max="65535" bind:value={k2} /></label>
+    <label>{rfUi("Стук 3","Knock 3")}<input id="odin-k3" type="number" min="1" max="65535" bind:value={k3} /></label>
+    <label>{rfUi("Окно между стуками, сек","Time between knocks, sec")}<input id="odin-window" type="number" min="5" max="300" bind:value={windowSeconds} /></label>
+    <label>{rfUi("Доступ, сек","Access duration, sec")}<input id="odin-ttl" type="number" min="30" max="86400" bind:value={ttl} /></label>
   </div>
   <div class="refresh-bar">
-    <button type="button" data-odin="save" disabled={busy || !data || enabled} onclick={() => perform('save')}>Сохранить настройки</button>
-    <button type="button" data-odin="enable" disabled={busy || !data || enabled || !configured} onclick={() => perform('enable')}>Включить защиту</button>
-    <button type="button" data-odin="confirm" disabled={busy || !data || !enabled || confirmed} onclick={() => perform('confirm')}>Подтвердить защиту</button>
-    <button type="button" data-odin="disable" disabled={busy || !data || !enabled} onclick={() => perform('disable')}>Выключить защиту</button>
-    <button type="button" data-odin="refresh" disabled={busy} onclick={() => perform('refresh')}>Обновить</button>
+    <button type="button" data-odin="save" disabled={busy || !data || enabled} onclick={() => perform('save')}>{rfUi("Сохранить настройки","Save settings")}</button>
+    <button type="button" data-odin="enable" disabled={busy || !data || enabled || !configured} onclick={() => perform('enable')}>{rfUi("Включить защиту","Enable protection")}</button>
+    <button type="button" data-odin="confirm" disabled={busy || !data || !enabled || confirmed} onclick={() => perform('confirm')}>{rfUi("Подтвердить защиту","Confirm protection")}</button>
+    <button type="button" data-odin="disable" disabled={busy || !data || !enabled} onclick={() => perform('disable')}>{rfUi("Выключить защиту","Disable protection")}</button>
+    <button type="button" data-odin="refresh" disabled={busy} onclick={() => perform('refresh')}>{rfUi("Обновить","Refresh")}</button>
     <span id="odin-status" class={enabled ? (confirmed ? "odin-state odin-state-on" : "odin-state odin-state-pending") : "odin-state"} role="status" aria-live="polite">{status}</span>
     <span id="odin-watchdog-countdown" class="odin-countdown" role="status" aria-live="off">{countdown}</span>
   </div>
-  <p class="help">Сначала проверь доступ после трёх стуков, затем подтверди защиту в течение 90 секунд. Подтверждение отключает автоматический откат; после него ответственность за выключение защиты остаётся у оператора. Проброс защищаемого порта настраивается в KeeneticOS, порты стуков пробрасывать не требуется.</p>
+  <p class="help">{rfUi("Сначала проверь доступ после трёх стуков, затем подтверди защиту в течение 90 секунд. Подтверждение отключает автоматический откат; после него ответственность за выключение защиты остаётся у оператора. Проброс защищаемого порта настраивается в KeeneticOS, порты стуков пробрасывать не требуется.","Verify access after all three knocks, then confirm protection within 90 seconds. Confirmation disables automatic rollback; disabling protection afterward is your responsibility. Configure forwarding for the protected port in KeeneticOS; knock ports do not require forwarding.")}</p>
 </section>

@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
 
   import { onMount } from 'svelte';
 
@@ -143,21 +144,21 @@
     if (type.startsWith('storage.doctor.')) {
       const kind = type.slice('storage.doctor.'.length);
       const titles = {
-        usb_disconnect: ['USB-накопитель отключился','USB drive disconnected'],
-        usb_reset: ['Сброс USB-подключения','USB connection reset'],
-        io_error: ['Ошибка чтения или записи','Disk I/O error'],
-        fs_error: ['Ошибка файловой системы','Filesystem error'],
-        read_only: ['Накопитель только для чтения','Filesystem switched to read-only'],
-        disappeared: ['Точка монтирования исчезла','Mount disappeared'],
-        appeared: ['Точка монтирования появилась','Mount appeared'],
-        writable_again: ['Запись восстановлена','Writable again'],
-        smart_degradation: ['SMART: ухудшение показателей','SMART counters increased'],
-        smart_critical: ['SMART: критический статус','SMART critical health'],
-        overheat: ['Перегрев накопителя','Drive overheating'],
-        cooled: ['Температура нормализовалась','Temperature recovered']
+        usb_disconnect: [rfUi('USB-накопитель отключился',"USB storage device disconnected"),'USB drive disconnected'],
+        usb_reset: [rfUi('Сброс USB-подключения',"USB connection reset"),'USB connection reset'],
+        io_error: [rfUi('Ошибка чтения или записи',"Read/write error"),'Disk I/O error'],
+        fs_error: [rfUi('Ошибка файловой системы',"File system error"),'Filesystem error'],
+        read_only: [rfUi('Накопитель только для чтения',"Storage device is read-only"),'Filesystem switched to read-only'],
+        disappeared: [rfUi('Точка монтирования исчезла',"Mount point disappeared"),'Mount disappeared'],
+        appeared: [rfUi('Точка монтирования появилась',"Mount point appeared"),'Mount appeared'],
+        writable_again: [rfUi('Запись восстановлена',"Write access restored"),'Writable again'],
+        smart_degradation: [rfUi('SMART: ухудшение показателей',"SMART: indicators degraded"),'SMART counters increased'],
+        smart_critical: [rfUi('SMART: критический статус',"SMART: critical status"),'SMART critical health'],
+        overheat: [rfUi('Перегрев накопителя',"Storage device overheating"),'Drive overheating'],
+        cooled: [rfUi('Температура нормализовалась',"Temperature back to normal"),'Temperature recovered']
       };
       const translated = titles[kind] || [kind,kind];
-      return { title: locale === 'ru' ? translated[0] : translated[1], text: locale === 'ru' ? 'Устройство: ' + (object || 'накопитель') + '. Подробности — в карточке события.' : 'Device: ' + (object || 'drive') + '. Technical details are available below.' };
+      return { title: locale === 'ru' ? translated[0] : translated[1], text: locale === 'ru' ? rfUi('Устройство: ',"Device:") + (object || rfUi('накопитель',"storage device")) + rfUi('. Подробности — в карточке события.',". See the event card for details.") : 'Device: ' + (object || 'drive') + '. Technical details are available below.' };
     }
     if (type === 'module.health.down') return result('healthDown', { name });
     if (type === 'module.health.recovered') return result('healthRecovered', { name });

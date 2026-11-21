@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // DNS Lite's explicit, disposable HTTP client. Boot only calls GET endpoints;
 // mutations require a user-initiated command with an action header.
 export function createDnsLiteApi({fetchImpl, base = '../', timeoutMs = 15000} = {}) {
@@ -39,7 +40,7 @@ export function createDnsLiteApi({fetchImpl, base = '../', timeoutMs = 15000} = 
       if (stopped && cancellableRead) throw Error('DNS_LITE_DISPOSED');
       const contentType = response.headers?.get?.('content-type') || '';
       if (!contentType.toLowerCase().includes('json'))
-        throw Error('Ожидался JSON от RouterForge: '+path);
+        throw Error(rfUi('Ожидался JSON от RouterForge: ',"Expected JSON from RouterForge:")+path);
       const body = await response.json();
       if (stopped && cancellableRead) throw Error('DNS_LITE_DISPOSED');
       if (!response.ok) {

@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // DPI Detector V5 Web: pure request and report projections, no network or DOM.
 // Backend owns the final safety check; client must never equate a truncated stream
 // or an unconfirmed `done` with successful production-state verification.
@@ -69,9 +70,9 @@ export function dpiReportSections(report){
     const id=headings.findIndex(re=>re.test(lines[i]));
     if(id>=0&&(!markers.length||markers[markers.length-1].id!==id))markers.push({at:i,id});
   }
-  if(!markers.length)return[{id:'all',title:'Отчёт upstream',text}];
+  if(!markers.length)return[{id:'all',title:rfUi('Отчёт upstream',"Upstream report"),text}];
   const sections=[];
-  if(markers[0].at>0)sections.push({id:'intro',title:'Введение',text:lines.slice(0,markers[0].at).join('\n')});
+  if(markers[0].at>0)sections.push({id:'intro',title:rfUi('Введение',"Introduction"),text:lines.slice(0,markers[0].at).join('\n')});
   for(let i=0;i<markers.length;i++){
     const marker=markers[i],end=i+1<markers.length?markers[i+1].at:lines.length;
     sections.push({id:`${marker.id}-${i}`,title:dpiTestOptions[marker.id].name,text:lines.slice(marker.at,end).join('\n')});

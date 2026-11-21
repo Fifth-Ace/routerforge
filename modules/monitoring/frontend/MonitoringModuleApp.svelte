@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import { onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
   import { catalog } from '$lib/stores/catalog.js';
@@ -310,7 +311,7 @@
   function doctorTr(ru,en) { return locale === 'ru' ? ru : en; }
   function doctorSmartStatus(s) {
     if(!s) return doctorTr('Ещё не проверялось','Not checked yet');
-    const values = {available:doctorTr('Данные получены','Data available'),asleep:doctorTr('Диск находится в режиме сна','Drive is asleep'),unsupported:doctorTr('Устройство не поддерживает проверку','Device does not support the check'),unavailable:doctorTr('Данные недоступны','Data unavailable'),busy:doctorTr('Диск не ответил вовремя','Drive did not respond'),error:doctorTr('Проверка не удалась','Check failed')};
+    const values = {available:doctorTr(rfUi('Данные получены',"Data received"),'Data available'),asleep:doctorTr(rfUi('Диск находится в режиме сна',"The disk is sleeping"),'Drive is asleep'),unsupported:doctorTr(rfUi('Устройство не поддерживает проверку',"This device does not support the check"),'Device does not support the check'),unavailable:doctorTr(rfUi('Данные недоступны',"Data unavailable"),'Data unavailable'),busy:doctorTr(rfUi('Диск не ответил вовремя',"The disk did not respond in time"),'Drive did not respond'),error:doctorTr(rfUi('Проверка не удалась',"Check failed"),'Check failed')};
     if(s.status!=='available') return values[s.status] || doctorTr('Результат недоступен','Result unavailable');
     if(s.health==='ok') return doctorTr('Критических признаков не найдено','No critical indicators found');
     if(s.health==='warning') return doctorTr('Есть признаки возможных проблем','Possible issues detected');
@@ -321,8 +322,8 @@
     const names = {
       usb_disconnect: doctorTr('USB отключился','USB disconnected'),
       usb_reset: doctorTr('Перезапуск USB','USB reset'),
-      io_error: doctorTr('Ошибка чтения или записи','I/O error'),
-      fs_error: doctorTr('Ошибка файловой системы','Filesystem error'),
+      io_error: doctorTr(rfUi('Ошибка чтения или записи',"Read/write error"),'I/O error'),
+      fs_error: doctorTr(rfUi('Ошибка файловой системы',"File system error"),'Filesystem error'),
       read_only: doctorTr('Диск перешёл в режим чтения','Filesystem read-only'),
       disappeared: doctorTr('Накопитель отключился','Mount disappeared'),
       appeared: doctorTr('Накопитель подключился','Mount appeared'),
@@ -345,13 +346,13 @@
     doctorInstallNotice = '';
     try {
       const plan = await preflightEntwarePackage('smartmontools', 'install');
-      if (!plan?.allowed) throw new Error(plan?.reason || doctorTr('Установка недоступна через Центр приложений.','Installation is not available through App Center.'));
+      if (!plan?.allowed) throw new Error(plan?.reason || doctorTr(rfUi('Установка недоступна через Центр приложений.',"Installation is unavailable through App Center."),'Installation is not available through App Center.'));
       if (!confirm(doctorTr('Установить дополнительный пакет smartmontools из Entware? Изменится список пакетов, но диски не будут проверяться или изменяться автоматически.','Install the optional smartmontools Entware package? Installed packages will change, but no drive scans or modifications will start automatically.'))) return;
       await entwarePackageAction('smartmontools', 'install');
       doctorInstallNotice = doctorTr('Запрос передан Центру приложений. Статус установки обновится автоматически.','The request was sent to App Center. Installation status will update automatically.');
       await loadCurrent(false);
     } catch (error) {
-      doctorInstallError = error?.payload?.error || error?.message || doctorTr('Не удалось выполнить установку.','Installation failed.');
+      doctorInstallError = error?.payload?.error || error?.message || doctorTr(rfUi('Не удалось выполнить установку.',"Installation could not be completed."),'Installation failed.');
     } finally {
       doctorInstallBusy = false;
     }
@@ -380,7 +381,7 @@
     if(doctorBusy[device]) return;
     const diskKey = smartDriverDiskKey(doctorDiskForPreference(device));
     if (!diskKey) {
-      doctorError = { ...doctorError, [device]: { message: doctorTr('Не удалось определить текущий диск.','Cannot identify the current disk.'), _diskKey: '' } };
+      doctorError = { ...doctorError, [device]: { message: doctorTr(rfUi('Не удалось определить текущий диск.',"Could not determine the selected disk."),'Cannot identify the current disk.'), _diskKey: '' } };
       return;
     }
     doctorBusy={...doctorBusy,[device]:true};doctorError={...doctorError,[device]:null};
@@ -392,7 +393,7 @@
       const url=`/api/modules/storage/doctor-smart?device=${encodeURIComponent(name)}&driver=${encodeURIComponent(driver)}`;
       const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:ctl.signal});
       const result=await response.json();
-      if(!response.ok) throw new Error(result.error||doctorTr('Не удалось проверить SMART','SMART check failed'));
+      if(!response.ok) throw new Error(result.error||doctorTr(rfUi('Не удалось проверить SMART',"Could not check SMART"),'SMART check failed'));
       if (smartDriverDiskKey(doctorDiskForPreference(device)) !== diskKey) return;
       doctorSmartByDevice={...doctorSmartByDevice,[device]:{...result,_diskKey:diskKey}};doctorExpanded=device;
     } catch(error){if(smartDriverDiskKey(doctorDiskForPreference(device)) === diskKey) doctorError={...doctorError,[device]:{message:error?.message||String(error),_diskKey:diskKey}};}

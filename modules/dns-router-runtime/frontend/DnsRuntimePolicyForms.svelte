@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount,untrack} from 'svelte';
   import {draft,readDraft,commitDraft,feedback,formsSnapshot} from './DnsRuntimeStore.svelte.js';
   import {createDraftEditor} from './DnsRuntimeDraftEditorLogic.js';
@@ -95,13 +96,13 @@
 
 {#if scope==='upstream'}
 <div class="form-grid fields-upstream" data-native-svelte-upstream-form="true">
-  <label><span>Протокол</span>
+  <label><span>{rfUi("Протокол","Protocol")}</span>
     <select value={poolTransport} onchange={changeTransport}>
       <option value="dot">DoT (TLS)</option>
       <option value="doh">DoH (HTTPS)</option>
       <option value="doq">DoQ (QUIC)</option>
-      <option value="udp">DNS UDP (без шифрования)</option>
-      <option value="tcp">DNS TCP (без шифрования)</option>
+      <option value="udp">{rfUi("DNS UDP (без шифрования)","DNS UDP (unencrypted)")}</option>
+      <option value="tcp">{rfUi("DNS TCP (без шифрования)","DNS TCP (unencrypted)")}</option>
       <option value="native">Keenetic Native — System / PolicyN</option>
     </select>
   </label>
@@ -109,36 +110,36 @@
     <DnsRuntimeNative bind:value={poolAddress} />
     <form class="form-grid span-all" onsubmit={saveUpstream}>
       <label><span>ID Native DNS</span><input required maxlength="64" readonly={!!editingId} bind:value={poolID} placeholder="system-main"></label>
-      <label><span>Выбранный селектор</span><input required readonly bind:value={poolAddress} placeholder="Выбери System / PolicyN выше"></label>
-      <div class="form-actions"><button class="button primary" type="submit" disabled={!poolAddress}>{editingId?'Сохранить Native DNS':'Добавить Native DNS в черновик'}</button>{#if editingId}<button type="button" onclick={resetEditor}>Отменить</button>{/if}</div>
+      <label><span>{rfUi("Выбранный селектор","Selected DNS selector")}</span><input required readonly bind:value={poolAddress} placeholder={rfUi("Выбери System / PolicyN выше","Select System / PolicyN above")}></label>
+      <div class="form-actions"><button class="button primary" type="submit" disabled={!poolAddress}>{editingId?'Сохранить Native DNS':'Добавить Native DNS в черновик'}</button>{#if editingId}<button type="button" onclick={resetEditor}>{rfUi("Отменить","Cancel")}</button>{/if}</div>
     </form>
   {:else}
     <form class="form-grid span-all" onsubmit={saveUpstream}>
-      <label><span>ID пула</span><input required maxlength="64" readonly={!!editingId} placeholder="cloudflare" bind:value={poolID}></label>
-      <label><span>Адрес</span><input required placeholder="1.1.1.1:853" bind:value={poolAddress}></label>
+      <label><span>{rfUi("ID пула","Pool ID")}</span><input required maxlength="64" readonly={!!editingId} placeholder="cloudflare" bind:value={poolID}></label>
+      <label><span>{rfUi("Адрес","Address")}</span><input required placeholder="1.1.1.1:853" bind:value={poolAddress}></label>
       <label><span>TLS SNI (DoT/DoH/DoQ)</span><input placeholder="dns.example.com" bind:value={poolSNI}></label>
       <label><span>DoH path</span><input placeholder="/dns-query" bind:value={poolPath}></label>
-      <label><span>Резервные ID через запятую</span><input placeholder="secondary, backup" bind:value={poolFallbacks}></label>
-      <div class="form-actions"><button class="button primary" type="submit">{editingId?'Сохранить DNS-пул':'+ Добавить пул'}</button>{#if editingId}<button type="button" onclick={resetEditor}>Отменить</button>{/if}</div>
+      <label><span>{rfUi("Резервные ID через запятую","Fallback IDs, comma-separated")}</span><input placeholder="secondary, backup" bind:value={poolFallbacks}></label>
+      <div class="form-actions"><button class="button primary" type="submit">{editingId?'Сохранить DNS-пул':'+ Добавить пул'}</button>{#if editingId}<button type="button" onclick={resetEditor}>{rfUi("Отменить","Cancel")}</button>{/if}</div>
     </form>
   {/if}
 </div>
 {:else if scope==='rule'}
-  {#if !upstreams.length}<p class="boundary-copy">Для доменных правил сначала добавь DNS-пул.</p>{/if}
+  {#if !upstreams.length}<p class="boundary-copy">{rfUi("Для доменных правил сначала добавь DNS-пул.","Add a DNS pool before defining domain rules.")}</p>{/if}
   <form class="form-grid fields-rule" data-native-svelte-rule-form="true" onsubmit={saveRule}>
-    <label><span>ID правила</span><input required maxlength="64" readonly={!!editingId} placeholder="main-site" bind:value={ruleID}></label>
-    <label><span>Домен</span><input required placeholder="example.com" bind:value={domain}></label>
-    <label><span>Совпадение</span><select bind:value={match}><option value="suffix">Домен и поддомены</option><option value="exact">Только домен</option><option value="subdomains">Только поддомены</option></select></label>
-    <label><span>DNS-пул</span><select required bind:value={upstream}>{#each upstreams as item (item.id)}<option value={item.id}>{item.id}</option>{/each}</select></label>
-    <label><span>Приоритет</span><input type="number" min="0" max="1000000" bind:value={priority}></label>
-    <div class="form-actions"><button class="button primary" type="submit" disabled={!upstreams.length}>{editingId?'Сохранить правило':'+ Добавить правило'}</button>{#if editingId}<button type="button" onclick={resetEditor}>Отменить</button>{/if}</div>
+    <label><span>{rfUi("ID правила","Rule ID")}</span><input required maxlength="64" readonly={!!editingId} placeholder="main-site" bind:value={ruleID}></label>
+    <label><span>{rfUi("Домен","Domain")}</span><input required placeholder="example.com" bind:value={domain}></label>
+    <label><span>{rfUi("Совпадение","Match type")}</span><select bind:value={match}><option value="suffix">{rfUi("Домен и поддомены","Domain and subdomains")}</option><option value="exact">{rfUi("Только домен","Exact domain only")}</option><option value="subdomains">{rfUi("Только поддомены","Subdomains only")}</option></select></label>
+    <label><span>{rfUi("DNS-пул","DNS pool")}</span><select required bind:value={upstream}>{#each upstreams as item (item.id)}<option value={item.id}>{item.id}</option>{/each}</select></label>
+    <label><span>{rfUi("Приоритет","Priority")}</span><input type="number" min="0" max="1000000" bind:value={priority}></label>
+    <div class="form-actions"><button class="button primary" type="submit" disabled={!upstreams.length}>{editingId?'Сохранить правило':'+ Добавить правило'}</button>{#if editingId}<button type="button" onclick={resetEditor}>{rfUi("Отменить","Cancel")}</button>{/if}</div>
   </form>
 {:else}
   <form class="form-grid" data-native-svelte-listener-form="true" onsubmit={saveListener}>
-    <label><span>Режим</span><select bind:value={listenerMode} onchange={()=>{listenerEdited=true;}}><option value="loopback">Только loopback</option><option value="lan">Приватный IPv4 LAN + ACL</option></select></label>
-    <label><span>Адрес и порт (не 53)</span><input required placeholder="127.0.0.1:55353" bind:value={listenerAddress} oninput={()=>{listenerEdited=true;}}></label>
-    <label class="span-all"><span>Разрешённые клиенты для LAN, через запятую</span><input placeholder="192.168.10.1,127.0.0.1" bind:value={listenerACL} oninput={()=>{listenerEdited=true;}}></label>
-    <div class="form-actions"><button class="button primary" type="submit">Добавить в черновик</button></div>
+    <label><span>{rfUi("Режим","Mode")}</span><select bind:value={listenerMode} onchange={()=>{listenerEdited=true;}}><option value="loopback">{rfUi("Только loopback","Loopback only")}</option><option value="lan">{rfUi("Приватный IPv4 LAN + ACL","Private LAN IPv4 + ACL")}</option></select></label>
+    <label><span>{rfUi("Адрес и порт (не 53)","Address and port (not 53)")}</span><input required placeholder="127.0.0.1:55353" bind:value={listenerAddress} oninput={()=>{listenerEdited=true;}}></label>
+    <label class="span-all"><span>{rfUi("Разрешённые клиенты для LAN, через запятую","Allowed LAN clients, comma-separated")}</span><input placeholder="192.168.10.1,127.0.0.1" bind:value={listenerACL} oninput={()=>{listenerEdited=true;}}></label>
+    <div class="form-actions"><button class="button primary" type="submit">{rfUi("Добавить в черновик","Add to draft")}</button></div>
   </form>
 {/if}
 {#if error}<p class="notice bad" role="alert">{error}</p>{/if}

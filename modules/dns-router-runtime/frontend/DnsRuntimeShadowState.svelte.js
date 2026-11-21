@@ -1,8 +1,9 @@
+import { rfUi } from './rf-localization.js';
 import {readDraft,feedback} from './DnsRuntimeStore.svelte.js';
 /* Native Svelte 5 shadow-DNS action state. No automatic mutation. */
 export const shadow = $state({
   busy: false,
-  status: 'Загрузка состояния…',
+  status: rfUi('Загрузка состояния…',"Loading status…"),
   error: '',
   result: null,
   sequence: 0,
@@ -16,7 +17,7 @@ export function beginShadowView() {
   shadow.destroyed = false;
   ++shadow.sequence;
   shadow.result = null;
-  shadow.status = 'Загрузка состояния…';
+  shadow.status = rfUi('Загрузка состояния…',"Loading status…");
   shadow.error = '';
   return () => {
     if (epoch !== shadow.viewEpoch) return;
@@ -29,10 +30,10 @@ export function beginShadowView() {
 export function draftStatus() {
   const state = readDraft();
   if (!state || typeof state.revision !== 'string' || !state.revision) {
-    throw Error('Конфигурация ещё не загружена');
+    throw Error(rfUi('Конфигурация ещё не загружена',"Configuration has not loaded yet"));
   }
   if (state.dirty) {
-    throw Error('Сначала сохрани настройки: есть несохранённые изменения');
+    throw Error(rfUi('Сначала сохрани настройки: есть несохранённые изменения',"Save settings first: there are unsaved changes"));
   }
   return state;
 }
@@ -41,7 +42,7 @@ async function jsonRequest(path, options = {}) {
   const response = await fetch('../' + path, {cache:'no-store', credentials:'same-origin', ...options});
   let payload;
   try { payload = await response.json(); }
-  catch { throw Error('Некорректный JSON: ' + path); }
+  catch { throw Error(rfUi('Некорректный JSON: ',"Invalid JSON:") + path); }
   if (!response.ok) throw Error('HTTP ' + response.status + ': ' + (payload?.error || 'unknown error'));
   return payload;
 }
@@ -62,7 +63,7 @@ export async function refreshShadow() {
   } catch (error) {
     if (shadow.destroyed || epoch !== shadow.viewEpoch || requestId !== shadow.sequence || controller.signal.aborted) return;
     shadow.error = String(error?.message || error);
-    shadow.status = 'Ошибка состояния Shadow DNS: ' + shadow.error;
+    shadow.status = rfUi('Ошибка состояния Shadow DNS: ',"Test DNS status error:") + shadow.error;
     feedback('Shadow: ' + shadow.error);
   } finally {
     if (activeRead === controller) activeRead = null;
@@ -75,8 +76,8 @@ export async function controlShadow(operation) {
   let state;
   try { state = draftStatus(); }
   catch (error) { feedback(error.message); return; }
-  if (operation === 'start' && !confirm('Запустить сохранённый shadow listener? Keenetic DNS не изменится.')) return;
-  if (operation === 'apply' && !confirm('Применить сохранённую ревизию к shadow DNS?')) return;
+  if (operation === 'start' && !confirm(rfUi('Запустить сохранённый shadow listener? Keenetic DNS не изменится.',"Start the saved test DNS listener? Keenetic DNS will not change."))) return;
+  if (operation === 'apply' && !confirm(rfUi('Применить сохранённую ревизию к shadow DNS?',"Apply the saved revision to test DNS?"))) return;
   // Re-check after a synchronous confirmation callback before touching the backend.
   if (epoch !== shadow.viewEpoch || shadow.destroyed) return;
   shadow.busy = true;
@@ -92,7 +93,7 @@ export async function controlShadow(operation) {
       body: JSON.stringify({operation})
     });
     if (epoch === shadow.viewEpoch && !shadow.destroyed)
-      feedback('Shadow: ' + result.outcome + ' · DNS Keenetic не затронут');
+      feedback('Shadow: ' + result.outcome + rfUi(' · DNS Keenetic не затронут',"· Keenetic DNS unchanged"));
   } catch (error) {
     if (epoch === shadow.viewEpoch && !shadow.destroyed) {
       shadow.error = String(error?.message || error);

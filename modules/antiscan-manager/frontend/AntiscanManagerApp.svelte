@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount} from 'svelte';
   import AntiscanSetEntries from './AntiscanSetEntries.svelte';
   import AntiscanInspectorResult from './AntiscanInspectorResult.svelte';
@@ -53,26 +54,26 @@
   let ipsetRows = $state([]);
   let diagnosticContractRows = $state([]);
   let diagnosticChecks = $state([]);
-  let diagnosticChecksEmpty = $state('Диагностика ещё не запускалась.');
+  let diagnosticChecksEmpty = $state(rfUi('Диагностика ещё не запускалась.',"Diagnostics have not been run yet."));
   let compatibilityRows = $state([]);
   let compatibilityWarnings = $state([]);
   let compatibilityError = $state('');
   let historyRows = $state([]);
-  let historyRowsEmpty = $state('Откройте вкладку, чтобы загрузить последние события.');
+  let historyRowsEmpty = $state(rfUi('Откройте вкладку, чтобы загрузить последние события.',"Open the tab to load recent events."));
   let blockedRows = $state([]);
-  let blockedRowsEmpty = $state('Набор ещё не загружен.');
+  let blockedRowsEmpty = $state(rfUi('Набор ещё не загружен.',"Set not loaded yet."));
   let listRows = $state([]);
-  let listRowsEmpty = $state('Выберите набор и загрузите текущее состояние.');
+  let listRowsEmpty = $state(rfUi('Выберите набор и загрузите текущее состояние.',"Select a set and load its current status."));
   let customRows = $state([]);
-  let customRowsEmpty = $state('Исходный список ещё не загружен.');
+  let customRowsEmpty = $state(rfUi('Исходный список ещё не загружен.',"Source list not loaded yet."));
   let inspectorView = $state(null);
-  let inspectorEmpty = $state('Введите IPv4-адрес. Эта проверка ничего не меняет в Antiscan.');
+  let inspectorEmpty = $state(rfUi('Введите IPv4-адрес. Эта проверка ничего не меняет в Antiscan.',"Enter an IPv4 address. This check does not change Antiscan."));
   let flushWarningRows = $state([]);
   let schedulerError = $state('');
   let listOptions = $state([
-    ['ascn_custom_exclude','Пользовательские исключения'],
-    ['ascn_custom_blacklist','Пользовательский чёрный список'],
-    ['ascn_custom_whitelist','Пользовательский белый список']
+    ['ascn_custom_exclude',rfUi('Пользовательские исключения',"User exclusions")],
+    ['ascn_custom_blacklist',rfUi('Пользовательский чёрный список',"User blocklist")],
+    ['ascn_custom_whitelist',rfUi('Пользовательский белый список',"User allowlist")]
   ]);
 
 
@@ -93,17 +94,17 @@
   const pageControlIds = ["rf-generated-9", "rf-generated-14", "rf-generated-15", "rf-generated-16", "rf-generated-17", "rf-generated-20", "rf-generated-21", "rf-generated-22", "rf-generated-23"];
 
 const setDescriptions = {
-  ascn_candidates: 'Кандидаты для распределённой /24-защиты',
-  ascn_ips: 'Прямые IP-блокировки',
-  ascn_subnets: 'Заблокированные подсети /24',
-  ascn_custom_exclude: 'Пользовательские исключения',
-  ascn_custom_blacklist: 'Пользовательский чёрный список',
-  ascn_custom_whitelist: 'Пользовательский белый список',
-  ascn_geo_blacklist: 'Geo-чёрный список',
-  ascn_geo_whitelist: 'Geo-белый список',
-  ascn_geo_exclude: 'Geo-исключения',
-  ascn_ndm_lockout: 'Блокировки Keenetic',
-  ascn_honeypot: 'Ловушка'
+  ascn_candidates: rfUi('Кандидаты для распределённой /24-защиты',"Candidates for distributed /24 protection"),
+  ascn_ips: rfUi('Прямые IP-блокировки',"Direct IP blocks"),
+  ascn_subnets: rfUi('Заблокированные подсети /24',"Blocked /24 subnets"),
+  ascn_custom_exclude: rfUi('Пользовательские исключения',"User exclusions"),
+  ascn_custom_blacklist: rfUi('Пользовательский чёрный список',"User blocklist"),
+  ascn_custom_whitelist: rfUi('Пользовательский белый список',"User allowlist"),
+  ascn_geo_blacklist: rfUi('Geo-чёрный список',"Geo blocklist"),
+  ascn_geo_whitelist: rfUi('Geo-белый список',"Geo allowlist"),
+  ascn_geo_exclude: rfUi('Geo-исключения',"Geo exclusions"),
+  ascn_ndm_lockout: rfUi('Блокировки Keenetic',"Keenetic lockouts"),
+  ascn_honeypot: rfUi('Ловушка',"Honeypot")
 };
 
 const browserState = {
@@ -147,34 +148,34 @@ function countFor(name) {
 
 function setOperationalExplanation(name) {
   return {
-    ascn_candidates: 'Кандидат сам по себе не блокирует IP; несколько адресов одной /24 могут позднее привести к блокировке всей подсети.',
-    ascn_ips: 'Прямая блокировка IP. Antiscan не сохраняет точную причину срабатывания внутри этого набора.',
-    ascn_subnets: 'Блокируется вся /24 после накопления разных IP-кандидатов. Это особенно важно для мобильных и динамических пулов.',
-    ascn_honeypot: 'IP заблокирован после обращения к одному из портов ловушки HONEYPOT_PORTS.',
-    ascn_ndm_lockout: 'Запись импортирована из политики блокировок Keenetic; прямое снятие такой блокировки здесь намеренно отключено.',
-    ascn_custom_exclude: 'Пользовательское исключение имеет приоритет перед блокирующими правилами.',
-    ascn_custom_blacklist: 'Активный пользовательский чёрный список при CUSTOM_LISTS_BLOCK_MODE=blacklist.',
-    ascn_custom_whitelist: 'В режиме whitelist отсутствие адреса в этом наборе означает блокировку.',
-    ascn_geo_blacklist: 'Подсети стран из активного Geo-чёрного списка.',
-    ascn_geo_whitelist: 'В режиме Geo whitelist отсутствие подсети в разрешённом наборе означает блокировку.',
-    ascn_geo_exclude: 'Geo-исключение имеет приоритет перед блокирующими правилами.'
-  }[name] || 'Запись активного набора Antiscan.';
+    ascn_candidates: rfUi('Кандидат сам по себе не блокирует IP; несколько адресов одной /24 могут позднее привести к блокировке всей подсети.',"A candidate does not block an IP itself; several addresses within a /24 can later trigger a whole-subnet block."),
+    ascn_ips: rfUi('Прямая блокировка IP. Antiscan не сохраняет точную причину срабатывания внутри этого набора.',"Direct IP block. Antiscan does not save the exact trigger reason in this set."),
+    ascn_subnets: rfUi('Блокируется вся /24 после накопления разных IP-кандидатов. Это особенно важно для мобильных и динамических пулов.',"The entire /24 is blocked after enough distinct IP candidates accumulate. This matters especially for mobile and dynamic address pools."),
+    ascn_honeypot: rfUi('IP заблокирован после обращения к одному из портов ловушки HONEYPOT_PORTS.',"IP was blocked after accessing one of the HONEYPOT_PORTS decoy ports."),
+    ascn_ndm_lockout: rfUi('Запись импортирована из политики блокировок Keenetic; прямое снятие такой блокировки здесь намеренно отключено.',"Entry imported from the Keenetic lockout policy; direct removal here is intentionally disabled."),
+    ascn_custom_exclude: rfUi('Пользовательское исключение имеет приоритет перед блокирующими правилами.',"User exclusion takes priority over blocking rules."),
+    ascn_custom_blacklist: rfUi('Активный пользовательский чёрный список при CUSTOM_LISTS_BLOCK_MODE=blacklist.',"Active user blocklist when CUSTOM_LISTS_BLOCK_MODE=blacklist."),
+    ascn_custom_whitelist: rfUi('В режиме whitelist отсутствие адреса в этом наборе означает блокировку.',"In allowlist mode, an address absent from this set is blocked."),
+    ascn_geo_blacklist: rfUi('Подсети стран из активного Geo-чёрного списка.',"Country subnets in the active Geo blocklist."),
+    ascn_geo_whitelist: rfUi('В режиме Geo whitelist отсутствие подсети в разрешённом наборе означает блокировку.',"In Geo allowlist mode, a subnet absent from the allowed set is blocked."),
+    ascn_geo_exclude: rfUi('Geo-исключение имеет приоритет перед блокирующими правилами.',"Geo exclusion takes priority over blocking rules.")
+  }[name] || rfUi('Запись активного набора Antiscan.',"Entry in an active Antiscan set.");
 }
 
 function reasonExplanation(result) {
   const descriptions = {
-    'custom-exclude': 'IP найден в пользовательских исключениях. Antiscan пропускает такой адрес до проверки блокирующих правил.',
-    'geo-exclude': 'IP попал в Geo-исключение и не должен блокироваться последующими правилами.',
-    'custom-blacklist': 'IP найден в активном пользовательском чёрном списке.',
-    'custom-whitelist-miss': 'Включён режим белого списка, но IP отсутствует среди разрешённых адресов.',
-    'geo-blacklist': 'IP относится к подсети страны из активного Geo-чёрного списка.',
-    'geo-whitelist-miss': 'Включён Geo-белый список, но IP не относится к разрешённым подсетям.',
-    'ndm-lockout': 'IP импортирован из политики блокировок Keenetic.',
-    honeypot: 'IP находится в наборе блокировок ловушки после обращения к порту-приманке.',
-    'distributed-subnet': 'Заблокирована вся /24: Antiscan накопил заданное количество разных IP-кандидатов из одной подсети.',
-    'direct-ip': 'IP находится в прямом наборе блокировок. Antiscan не сохраняет, какой именно механизм был точным триггером.',
-    'candidate-only': 'IP пока только кандидат для анализа /24 и этим набором сам по себе не блокируется.',
-    'no-active-set-match': 'Совпадений с активными блокирующими наборами не найдено.'
+    'custom-exclude': rfUi('IP найден в пользовательских исключениях. Antiscan пропускает такой адрес до проверки блокирующих правил.',"IP was found in user exclusions. Antiscan skips it before checking blocking rules."),
+    'geo-exclude': rfUi('IP попал в Geo-исключение и не должен блокироваться последующими правилами.',"IP matched a Geo exclusion and should not be blocked by later rules."),
+    'custom-blacklist': rfUi('IP найден в активном пользовательском чёрном списке.',"IP was found in the active user blocklist."),
+    'custom-whitelist-miss': rfUi('Включён режим белого списка, но IP отсутствует среди разрешённых адресов.',"Allowlist mode is enabled, but the IP is not among allowed addresses."),
+    'geo-blacklist': rfUi('IP относится к подсети страны из активного Geo-чёрного списка.',"IP belongs to a country subnet in the active Geo blocklist."),
+    'geo-whitelist-miss': rfUi('Включён Geo-белый список, но IP не относится к разрешённым подсетям.',"Geo allowlist is enabled, but the IP does not belong to allowed subnets."),
+    'ndm-lockout': rfUi('IP импортирован из политики блокировок Keenetic.',"IP was imported from the Keenetic lockout policy."),
+    honeypot: rfUi('IP находится в наборе блокировок ловушки после обращения к порту-приманке.',"IP is in the honeypot block set after contacting a decoy port."),
+    'distributed-subnet': rfUi('Заблокирована вся /24: Antiscan накопил заданное количество разных IP-кандидатов из одной подсети.',"Entire /24 blocked: Antiscan accumulated the configured number of distinct IP candidates from one subnet."),
+    'direct-ip': rfUi('IP находится в прямом наборе блокировок. Antiscan не сохраняет, какой именно механизм был точным триггером.',"IP is in the direct block set. Antiscan does not record which mechanism triggered it."),
+    'candidate-only': rfUi('IP пока только кандидат для анализа /24 и этим набором сам по себе не блокируется.',"IP is currently only a /24 analysis candidate and is not blocked by this set alone."),
+    'no-active-set-match': rfUi('Совпадений с активными блокирующими наборами не найдено.',"No matches found in active blocking sets.")
   };
   return descriptions[result?.reason] || '';
 }
@@ -191,8 +192,8 @@ function populateConfigEditor(force = false) {
   if (!form) return;
   if (!snapshot?.detected || !snapshot?.config) {
     configControls['configState'].className = 'state neutral';
-    configControls['configState'].textContent = 'НЕДОСТУПНО';
-    configControls['configHint'].textContent = 'Antiscan или ascn.conf не обнаружен.';
+    configControls['configState'].textContent = rfUi('НЕДОСТУПНО',"UNAVAILABLE");
+    configControls['configHint'].textContent = rfUi('Antiscan или ascn.conf не обнаружен.',"Antiscan or ascn.conf was not found.");
     configControls['applyConfig'].disabled = true;
     configControls['resetConfig'].disabled = true;
     return;
@@ -220,26 +221,26 @@ function updateConfigEditorState() {
   state.className = 'state';
   if (configBusy) {
     addUIClass(state, 'info');
-    state.textContent = 'ПРИМЕНЕНИЕ…';
-    hint.textContent = 'Создаём резервную копию → атомарно записываем → перечитываем Antiscan → проверяем результат. При ошибке выполняется откат.';
+    state.textContent = rfUi('ПРИМЕНЕНИЕ…',"APPLYING…");
+    hint.textContent = rfUi('Создаём резервную копию → атомарно записываем → перечитываем Antiscan → проверяем результат. При ошибке выполняется откат.',"Backing up → writing atomically → reloading Antiscan → verifying. Failures trigger rollback.");
   } else if (stale) {
     addUIClass(state, 'bad');
-    state.textContent = 'УСТАРЕЛО';
-    hint.textContent = 'ascn.conf изменился после открытия формы. Сбросьте форму к свежим данным перед применением.';
+    state.textContent = rfUi('УСТАРЕЛО',"OUTDATED");
+    hint.textContent = rfUi('ascn.conf изменился после открытия формы. Сбросьте форму к свежим данным перед применением.',"ascn.conf changed after the editor was opened. Reload the latest settings before applying.");
   } else if (upstreamBusy) {
     addUIClass(state, 'warn');
-    state.textContent = 'ANTISCAN ЗАНЯТ';
-    hint.textContent = 'Antiscan сейчас перечитывает конфигурацию или Geo-данные. Применение временно заблокировано.';
+    state.textContent = rfUi('ANTISCAN ЗАНЯТ',"ANTISCAN BUSY");
+    hint.textContent = rfUi('Antiscan сейчас перечитывает конфигурацию или Geo-данные. Применение временно заблокировано.',"Antiscan is reloading configuration or Geo data. Applying changes is temporarily blocked.");
   } else if (configDirty) {
     addUIClass(state, 'warn');
-    state.textContent = 'ИЗМЕНЕНО';
+    state.textContent = rfUi('ИЗМЕНЕНО',"MODIFIED");
     hint.textContent = snapshot?.running
-      ? 'Изменения будут безопасно применены через штатное перечитывание S99ascn.'
-      : 'Antiscan остановлен: файл будет сохранён и проверен, а настройки вступят в силу при следующем запуске.';
+      ? rfUi('Изменения будут безопасно применены через штатное перечитывание S99ascn.',"Changes will be applied safely through the standard S99ascn reload.")
+      : rfUi('Antiscan остановлен: файл будет сохранён и проверен, а настройки вступят в силу при следующем запуске.',"Antiscan is stopped: the file will be saved and verified; settings take effect on next start.");
   } else {
     addUIClass(state, 'good');
-    state.textContent = 'СИНХРОНИЗИРОВАНО';
-    hint.textContent = snapshot?.running ? 'Форма соответствует активному ascn.conf.' : 'Форма соответствует сохранённому ascn.conf.';
+    state.textContent = rfUi('СИНХРОНИЗИРОВАНО',"SYNCHRONIZED");
+    hint.textContent = snapshot?.running ? rfUi('Форма соответствует активному ascn.conf.',"The form matches the active ascn.conf.") : rfUi('Форма соответствует сохранённому ascn.conf.',"The form matches the saved ascn.conf.");
   }
 
   configControls['configHash'].textContent = configBaseSHA ? `SHA256 ${configBaseSHA.slice(0, 16)}…` : 'SHA256 —';
@@ -261,8 +262,8 @@ async function applyConfigEditor() {
   if (!configDirty || !configBaseSHA) return;
   const current = currentConfigFormPayload();
   const warning = snapshot?.running
-    ? 'Будет создана резервная копия, ascn.conf запишется атомарно, затем Antiscan штатно перечитает настройки. При ошибке RouterForge восстановит предыдущий файл и рабочее состояние.'
-    : 'Antiscan остановлен. Будет создана резервная копия и атомарно сохранён ascn.conf; настройки вступят в силу при следующем запуске.';
+    ? rfUi('Будет создана резервная копия, ascn.conf запишется атомарно, затем Antiscan штатно перечитает настройки. При ошибке RouterForge восстановит предыдущий файл и рабочее состояние.',"A backup will be created, ascn.conf written atomically and Antiscan reloaded normally. On failure, RouterForge will restore the previous file and running state.")
+    : rfUi('Antiscan остановлен. Будет создана резервная копия и атомарно сохранён ascn.conf; настройки вступят в силу при следующем запуске.',"Antiscan is stopped. A backup will be created and ascn.conf saved atomically; settings take effect at the next start.");
   if (!window.confirm(`Применить изменения ascn.conf?\n\n${warning}`)) return;
 
   configBusy = true;
@@ -292,11 +293,11 @@ async function applyConfigEditor() {
 
 function diagnosticStateView(state) {
   return {
-    pass: ['good', 'ГОТОВО'],
-    warn: ['warn', 'ВНИМАНИЕ'],
-    fail: ['bad', 'ОШИБКА'],
-    info: ['info', 'ИНФО']
-  }[state] || ['neutral', 'НЕИЗВЕСТНО'];
+    pass: ['good', rfUi('ГОТОВО',"READY")],
+    warn: ['warn', rfUi('ВНИМАНИЕ',"WARNING")],
+    fail: ['bad', rfUi('ОШИБКА',"ERROR")],
+    info: ['info', rfUi('ИНФО',"INFO")]
+  }[state] || ['neutral', rfUi('НЕИЗВЕСТНО',"UNKNOWN")];
 }
 
 function renderDiagnostics(payload) {
@@ -306,29 +307,29 @@ function renderDiagnostics(payload) {
   state.textContent = overall[1];
 
   const generated = payload?.generated_at ? fmtAuditTime(payload.generated_at) : '—';
-  diagnosticsControls['diagnosticsMeta'].textContent = `Проверено: ${generated} · Antiscan ${payload?.installed_version || 'не определён'} · ${payload?.running ? 'работает' : 'остановлен'}`;
+  diagnosticsControls['diagnosticsMeta'].textContent = rfUi(`Проверено: ${generated} · Antiscan ${payload?.installed_version || 'не определён'} · ${payload?.running ? 'работает' : 'остановлен'}`,`Checked: ${generated} · Antiscan ${payload?.installed_version || 'unknown'} · ${payload?.running ? 'running' : 'stopped'}`);
 
   const contract = payload?.contract || {};
   const rows = [
     ['Upstream', contract.repository || '—'],
-    ['Зафиксированная версия', contract.version || '—'],
+    [rfUi('Зафиксированная версия',"Pinned version"), contract.version || '—'],
     ['Upstream SHA', contract.pinned_sha || '—'],
-    ['Параметры ascn.conf', `${(contract.config_keys || []).length} / 25`],
-    ['Известные ipset', `${(contract.ipsets || []).length} / 11`],
-    ['CLI-команды', String((contract.commands || []).length)],
-    ['Разрешённые cron-задачи', (contract.valid_tasks || []).join(' · ') || '—']
+    [rfUi('Параметры ascn.conf',"ascn.conf settings"), `${(contract.config_keys || []).length} / 25`],
+    [rfUi('Известные ipset',"Known ipset sets"), `${(contract.ipsets || []).length} / 11`],
+    [rfUi('CLI-команды',"CLI commands"), String((contract.commands || []).length)],
+    [rfUi('Разрешённые cron-задачи',"Allowed cron tasks"), (contract.valid_tasks || []).join(' · ') || '—']
   ];
   diagnosticContractRows = rows;
 
   diagnosticChecks = Array.isArray(payload?.checks) ? payload.checks : [];
-  diagnosticChecksEmpty = 'Проверки не вернули данных.';
+  diagnosticChecksEmpty = rfUi('Проверки не вернули данных.',"Checks returned no data.");
 }
 
 async function loadDiagnostics() {
   const button = diagnosticsControls['reloadDiagnostics'];
   if (button) button.disabled = true;
   diagnosticsControls['diagnosticsState'].className = 'state info';
-  diagnosticsControls['diagnosticsState'].textContent = 'ПРОВЕРКА…';
+  diagnosticsControls['diagnosticsState'].textContent = rfUi('ПРОВЕРКА…',"CHECKING…");
   try {
     const payload = await api('diagnostics');
     diagnosticsLoaded = true;
@@ -336,10 +337,10 @@ async function loadDiagnostics() {
   } catch (error) {
     diagnosticsLoaded = true;
     diagnosticsControls['diagnosticsState'].className = 'state bad';
-    diagnosticsControls['diagnosticsState'].textContent = 'ОШИБКА';
-    diagnosticsControls['diagnosticsMeta'].textContent = localizeMessage(error.message || 'Не удалось выполнить диагностику Antiscan.');
+    diagnosticsControls['diagnosticsState'].textContent = rfUi('ОШИБКА',"ERROR");
+    diagnosticsControls['diagnosticsMeta'].textContent = localizeMessage(error.message || rfUi('Не удалось выполнить диагностику Antiscan.',"Could not run Antiscan diagnostics."));
     diagnosticChecks = [];
-    diagnosticChecksEmpty = 'Диагностика недоступна.';
+    diagnosticChecksEmpty = rfUi('Диагностика недоступна.',"Diagnostics unavailable.");
   } finally {
     if (button) button.disabled = false;
   }
@@ -355,40 +356,40 @@ function renderCompatibility(payload) {
   const view = diagnosticStateView(payload?.state || 'info');
   state.className = `state ${view[0]}`;
   state.textContent = view[1];
-  meta.textContent = payload?.summary || 'Состояние совместимости не определено.';
+  meta.textContent = payload?.summary || rfUi('Состояние совместимости не определено.',"Compatibility status is unknown.");
 
   const update = payload?.update || {};
   const firmware = payload?.firmware || {};
   const hook = payload?.hook || {};
-  const packageVersion = payload?.package_version || 'не найден';
+  const packageVersion = payload?.package_version || rfUi('не найден',"not found");
   const packageMatch = payload?.package_version
-    ? (payload?.package_runtime_match ? 'совпадает' : 'расходится')
-    : 'не проверено';
+    ? (payload?.package_runtime_match ? rfUi('совпадает',"matching") : rfUi('расходится',"mismatch"))
+    : rfUi('не проверено',"not checked");
   const updateValue = update.available
     ? `${update.available_version || '—'} · ${update.available_channel || 'upstream'}`
-    : (update.eligibility_known ? 'по текущему upstream cache нет' : 'не определено');
+    : (update.eligibility_known ? rfUi('по текущему upstream cache нет',"not in current upstream cache") : rfUi('не определено',"not determined"));
   const cacheValue = !update.cache_present
-    ? 'нет'
-    : `${update.cache_fresh ? 'свежий' : 'устарел'} · ${Number(update.cache_age_seconds || 0)} сек.`;
+    ? rfUi('нет',"no")
+    : `${update.cache_fresh ? rfUi('свежий',"fresh") : rfUi('устарел',"outdated")} · ${Number(update.cache_age_seconds || 0)} сек.`;
   const netfilterValue = !firmware.netfilter_known
-    ? 'не определено'
-    : (firmware.netfilter_present ? 'есть' : 'не найден');
+    ? rfUi('не определено',"not determined")
+    : (firmware.netfilter_present ? rfUi('есть',"present") : 'не найден');
   const hookValue = hook.present
-    ? (hook.executable ? 'установлен · исполняем' : 'установлен · не исполняем')
-    : 'не найден';
+    ? (hook.executable ? rfUi('установлен · исполняем',"installed · executable") : rfUi('установлен · не исполняем',"installed · not executable"))
+    : rfUi('не найден',"not found");
 
   const rows = [
     ['Runtime S99ascn', payload?.script_version || '—'],
     ['OPKG Antiscan', packageVersion],
-    ['Пакет / runtime', packageMatch],
-    ['Проверенный RouterForge', payload?.pinned_version || '—'],
-    ['Pinned contract', payload?.contract_exact ? 'точное совпадение' : 'не совпадает'],
-    ['Доступное обновление', updateValue],
+    [rfUi('Пакет / runtime',"Package / service status"), packageMatch],
+    [rfUi('Проверенный RouterForge',"Verified RouterForge"), payload?.pinned_version || '—'],
+    ['Pinned contract', payload?.contract_exact ? rfUi('точное совпадение',"exact match") : rfUi('не совпадает',"mismatch")],
+    [rfUi('Доступное обновление',"Available update"), updateValue],
     ['Upstream update cache', cacheValue],
-    ['Прошивка Keenetic', firmware.version || 'не определена'],
+    [rfUi('Прошивка Keenetic',"Keenetic firmware"), firmware.version || rfUi('не определена',"unknown")],
     ['Netfilter', netfilterValue],
     ['Netfilter hook', hookValue],
-    ['Кто обновляет Antiscan', payload?.update_owner === 'upstream-opkg' ? 'официальный upstream OPKG' : (payload?.update_owner || '—')]
+    [rfUi('Кто обновляет Antiscan',"Antiscan update source"), payload?.update_owner === 'upstream-opkg' ? rfUi('официальный upstream OPKG',"official upstream OPKG") : (payload?.update_owner || '—')]
   ];
   compatibilityRows = rows;
   compatibilityWarnings = Array.isArray(payload?.warnings) ? payload.warnings : [];
@@ -398,18 +399,18 @@ async function loadCompatibility() {
   const button = diagnosticsControls['reloadCompatibility'];
   if (button) button.disabled = true;
   diagnosticsControls['compatibilityState'].className = 'state info';
-  diagnosticsControls['compatibilityState'].textContent = 'ПРОВЕРКА…';
+  diagnosticsControls['compatibilityState'].textContent = rfUi('ПРОВЕРКА…',"CHECKING…");
   try {
     const payload = await api('compatibility');
     renderCompatibility(payload);
   } catch (error) {
     compatibilityLoaded = true;
     diagnosticsControls['compatibilityState'].className = 'state bad';
-    diagnosticsControls['compatibilityState'].textContent = 'ОШИБКА';
-    diagnosticsControls['compatibilityMeta'].textContent = localizeMessage(error.message || 'Не удалось проверить совместимость Antiscan.');
+    diagnosticsControls['compatibilityState'].textContent = rfUi('ОШИБКА',"ERROR");
+    diagnosticsControls['compatibilityMeta'].textContent = localizeMessage(error.message || rfUi('Не удалось проверить совместимость Antiscan.',"Could not check Antiscan compatibility."));
     compatibilityRows = [];
     compatibilityWarnings = [];
-    compatibilityError = localizeMessage(error.message || 'Не удалось проверить совместимость Antiscan.');
+    compatibilityError = localizeMessage(error.message || rfUi('Не удалось проверить совместимость Antiscan.',"Could not check Antiscan compatibility."));
   } finally {
     if (button) button.disabled = false;
   }
@@ -417,10 +418,10 @@ async function loadCompatibility() {
 
 function rciAuthLabel(state) {
   return {
-    required: 'требуется',
-    not_required: 'не требуется',
-    unknown: 'ещё не определено'
-  }[state] || 'неизвестно';
+    required: rfUi('требуется',"required"),
+    not_required: rfUi('не требуется',"not required"),
+    unknown: rfUi('ещё не определено',"not determined yet")
+  }[state] || rfUi('неизвестно',"unknown");
 }
 
 function renderRCITokenStatus(payload) {
@@ -440,29 +441,29 @@ function renderRCITokenStatus(payload) {
   state.className = 'state';
   if (!supported) {
     addUIClass(state, 'neutral');
-    state.textContent = 'НЕ ПОДДЕРЖИВАЕТСЯ';
-    summary.textContent = 'Upstream отключил token-flow для этой версии прошивки.';
+    state.textContent = rfUi('НЕ ПОДДЕРЖИВАЕТСЯ',"UNSUPPORTED");
+    summary.textContent = rfUi('Upstream отключил token-flow для этой версии прошивки.',"Upstream does not support token-based authentication on this firmware version.");
   } else if (authState === 'required' && !complete) {
     addUIClass(state, 'bad');
-    state.textContent = 'НУЖЕН ТОКЕН';
-    summary.textContent = 'RCI требует токен, но комплект token/key Antiscan неполный.';
+    state.textContent = rfUi('НУЖЕН ТОКЕН',"TOKEN REQUIRED");
+    summary.textContent = rfUi('RCI требует токен, но комплект token/key Antiscan неполный.',"RCI requires a token, but the Antiscan token/key pair is incomplete.");
   } else if (complete) {
     addUIClass(state, 'good');
-    state.textContent = 'НАСТРОЕН';
+    state.textContent = rfUi('НАСТРОЕН',"CONFIGURED");
     summary.textContent = authState === 'required'
-      ? 'RCI требует токен; зашифрованный token/key комплект Antiscan присутствует.'
-      : 'Зашифрованный token/key комплект Antiscan присутствует.';
+      ? rfUi('RCI требует токен; зашифрованный token/key комплект Antiscan присутствует.',"RCI requires a token; the encrypted Antiscan token/key pair is present.")
+      : rfUi('Зашифрованный token/key комплект Antiscan присутствует.',"Encrypted Antiscan token/key pair is present.");
   } else if (authState === 'not_required') {
     addUIClass(state, 'info');
-    state.textContent = 'НЕ ТРЕБУЕТСЯ';
-    summary.textContent = 'Upstream cache сообщает, что этой прошивке RCI-токен сейчас не требуется.';
+    state.textContent = rfUi('НЕ ТРЕБУЕТСЯ',"NOT REQUIRED");
+    summary.textContent = rfUi('Upstream cache сообщает, что этой прошивке RCI-токен сейчас не требуется.',"The upstream cache reports that this firmware does not currently require an RCI token.");
   } else {
     addUIClass(state, 'warn');
-    state.textContent = 'НЕ ОПРЕДЕЛЕНО';
-    summary.textContent = 'Требование RCI ещё не закэшировано upstream.';
+    state.textContent = rfUi('НЕ ОПРЕДЕЛЕНО',"UNKNOWN");
+    summary.textContent = rfUi('Требование RCI ещё не закэшировано upstream.',"The upstream cache has not yet resolved whether RCI authentication is required.");
   }
 
-  meta.textContent = `RCI: ${rciAuthLabel(authState)} · token ${payload?.token_present ? 'есть' : 'нет'} · key ${payload?.key_present ? 'есть' : 'нет'} · Antiscan ${payload?.running ? 'работает' : 'остановлен'}`;
+  meta.textContent = rfUi(`RCI: ${rciAuthLabel(authState)} · token ${payload?.token_present ? 'есть' : 'нет'} · key ${payload?.key_present ? 'есть' : 'нет'} · Antiscan ${payload?.running ? 'работает' : 'остановлен'}`,`RCI: ${rciAuthLabel(authState)} · token ${payload?.token_present ? 'present' : 'missing'} · key ${payload?.key_present ? 'present' : 'missing'} · Antiscan ${payload?.running ? 'running' : 'stopped'}`);
   setButton.disabled = rciTokenBusy || !supported;
   checkButton.disabled = rciTokenBusy || !supported || !complete;
   deleteButton.disabled = rciTokenBusy || (!payload?.token_present && !payload?.key_present);
@@ -477,8 +478,8 @@ async function loadRCITokenStatus() {
   } catch (error) {
     rciTokenLoaded = true;
     diagnosticsControls['rciTokenState'].className = 'state bad';
-    diagnosticsControls['rciTokenState'].textContent = 'ОШИБКА';
-    diagnosticsControls['rciTokenSummary'].textContent = localizeMessage(error.message || 'Не удалось прочитать состояние RCI-токена.');
+    diagnosticsControls['rciTokenState'].textContent = rfUi('ОШИБКА',"ERROR");
+    diagnosticsControls['rciTokenSummary'].textContent = localizeMessage(error.message || rfUi('Не удалось прочитать состояние RCI-токена.',"Could not read the RCI token status."));
   } finally {
     if (button) button.disabled = false;
   }
@@ -498,13 +499,13 @@ async function performRCITokenAction(action) {
       return;
     }
     confirmValue = 'SET_TOKEN';
-    prompt = 'Сохранить новый RCI-токен?\n\nТокен будет передан штатной команде Antiscan через stdin, проверен upstream и не попадёт в argv или журнал.';
+    prompt = rfUi('Сохранить новый RCI-токен?\n\nТокен будет передан штатной команде Antiscan через stdin, проверен upstream и не попадёт в argv или журнал.',"Save the new RCI token?\\n\\nThe token will be passed to the standard Antiscan command through stdin, checked upstream and never written to argv or logs.");
   } else if (action === 'check') {
     confirmValue = 'CHECK_TOKEN';
-    prompt = 'Проверить сохранённый RCI-токен через штатную команду Antiscan?';
+    prompt = rfUi('Проверить сохранённый RCI-токен через штатную команду Antiscan?',"Check the saved RCI token using the standard Antiscan command?");
   } else if (action === 'delete') {
     confirmValue = 'DELETE_TOKEN';
-    prompt = 'Удалить RCI-токен Antiscan?\n\nЕсли прошивка требует RCI-аутентификацию, upstream может штатно остановить Antiscan после удаления.';
+    prompt = rfUi('Удалить RCI-токен Antiscan?\n\nЕсли прошивка требует RCI-аутентификацию, upstream может штатно остановить Antiscan после удаления.',"Delete the Antiscan RCI token?\\n\\nIf firmware requires RCI authentication, upstream Antiscan may stop after deletion.");
   } else {
     return;
   }
@@ -553,19 +554,19 @@ function updateSchedulerState() {
   schedulerDirty = Boolean(schedulerBaseline) && current !== schedulerBaseline;
   if (!schedulerSnapshot.valid) {
     state.className = 'state bad';
-    state.textContent = 'ОШИБКА ФАЙЛА';
+    state.textContent = rfUi('ОШИБКА ФАЙЛА',"FILE ERROR");
   } else if (schedulerBusy) {
     state.className = 'state info';
-    state.textContent = 'ПРИМЕНЕНИЕ…';
+    state.textContent = rfUi('ПРИМЕНЕНИЕ…',"APPLYING…");
   } else if (schedulerDirty) {
     state.className = 'state warn';
-    state.textContent = 'ИЗМЕНЕНО';
+    state.textContent = rfUi('ИЗМЕНЕНО',"MODIFIED");
   } else if (!schedulerSnapshot.synced) {
     state.className = 'state warn';
-    state.textContent = 'НЕ СИНХРОНИЗИРОВАНО';
+    state.textContent = rfUi('НЕ СИНХРОНИЗИРОВАНО',"NOT SYNCHRONIZED");
   } else {
     state.className = 'state good';
-    state.textContent = 'СИНХРОНИЗИРОВАНО';
+    state.textContent = rfUi('СИНХРОНИЗИРОВАНО',"SYNCHRONIZED");
   }
 
   apply.disabled = schedulerBusy || !schedulerSnapshot.valid || (!schedulerDirty && schedulerSnapshot.synced);
@@ -580,7 +581,7 @@ function renderScheduler(payload, force = false) {
   if (!root || !meta) return;
 
   const errors = payload?.errors || [];
-  meta.textContent = `ascn_crontab.conf: ${payload?.task_count ?? 0} задач · active crontab: ${payload?.active_count ?? 0} · ${payload?.synced ? 'синхронизировано' : 'есть расхождение'} · SHA256 ${(payload?.source_sha256 || '—').slice(0, 16)}…`;
+  meta.textContent = rfUi(`ascn_crontab.conf: ${payload?.task_count ?? 0} задач · active crontab: ${payload?.active_count ?? 0} · ${payload?.synced ? 'синхронизировано' : 'есть расхождение'} · SHA256 ${(payload?.source_sha256 || '—').slice(0, 16)}…`,`ascn_crontab.conf: ${payload?.task_count ?? 0} tasks · active crontab: ${payload?.active_count ?? 0} · ${payload?.synced ? 'synchronized' : 'mismatch'} · SHA256 ${(payload?.source_sha256 || '—').slice(0, 16)}…`);
   if (errors.length) {
     root.className = 'scheduler-list';
     schedulerRows = [];
@@ -617,10 +618,10 @@ async function loadScheduler() {
     schedulerLoaded = true;
     schedulerSnapshot = null;
     schedulerControls['schedulerState'].className = 'state bad';
-    schedulerControls['schedulerState'].textContent = 'ОШИБКА';
-    schedulerControls['schedulerMeta'].textContent = localizeMessage(error.message || 'Не удалось прочитать расписание Antiscan.');
+    schedulerControls['schedulerState'].textContent = rfUi('ОШИБКА',"ERROR");
+    schedulerControls['schedulerMeta'].textContent = localizeMessage(error.message || rfUi('Не удалось прочитать расписание Antiscan.',"Could not read the Antiscan schedule."));
     schedulerControls['schedulerTaskRows'].className = 'scheduler-list empty-state bad-text';
-    schedulerError = 'Расписание недоступно.';
+    schedulerError = rfUi('Расписание недоступно.',"Schedule unavailable.");
     schedulerControls['applyScheduler'].disabled = true;
     schedulerControls['resetScheduler'].disabled = true;
   } finally {
@@ -632,7 +633,7 @@ async function loadScheduler() {
 async function applyScheduler() {
   if (!schedulerSnapshot?.source_sha256 || !schedulerSnapshot?.valid) return;
   const tasks = schedulerManagedPayload();
-  if (!window.confirm('Применить расписание Antiscan?\n\nRouterForge атомарно обновит ascn_crontab.conf, вызовет штатный update_crontab и проверит активный crontab. При ошибке будет восстановлено предыдущее состояние.')) return;
+  if (!window.confirm(rfUi('Применить расписание Antiscan?\n\nRouterForge атомарно обновит ascn_crontab.conf, вызовет штатный update_crontab и проверит активный crontab. При ошибке будет восстановлено предыдущее состояние.',"Apply the Antiscan schedule?\\n\\nRouterForge will atomically update ascn_crontab.conf, run the standard update_crontab and verify active crontab. Previous state will be restored on failure."))) return;
 
   schedulerBusy = true;
   updateSchedulerState();
@@ -655,20 +656,20 @@ async function applyScheduler() {
 }
 
 const flushTargetLabels = {
-  candidates: 'Кандидаты',
-  ips: 'Прямые IP',
-  subnets: 'Подсети /24',
-  custom_whitelist: 'Пользовательский белый список',
-  custom_blacklist: 'Пользовательский чёрный список',
-  custom_exclude: 'Пользовательские исключения',
-  geo: 'Все Geo-наборы',
-  ndm_lockout: 'Блокировки Keenetic',
-  honeypot: 'Ловушка',
-  all: 'Upstream «все»'
+  candidates: rfUi('Кандидаты',"Candidates"),
+  ips: rfUi('Прямые IP',"Direct IPs"),
+  subnets: rfUi('Подсети /24',"/24 subnets"),
+  custom_whitelist: rfUi('Пользовательский белый список',"User allowlist"),
+  custom_blacklist: rfUi('Пользовательский чёрный список',"User blocklist"),
+  custom_exclude: rfUi('Пользовательские исключения',"User exclusions"),
+  geo: rfUi('Все Geo-наборы',"All Geo sets"),
+  ndm_lockout: rfUi('Блокировки Keenetic',"Keenetic lockouts"),
+  honeypot: rfUi('Ловушка',"Honeypot"),
+  all: rfUi('Upstream «все»',"Upstream «all»")
 };
 
 function flushTargetLabel(target) {
-  return flushTargetLabels[target] || target || 'Наборы Antiscan';
+  return flushTargetLabels[target] || target || rfUi('Наборы Antiscan',"Antiscan sets");
 }
 
 function renderFlushPreview(payload) {
@@ -681,16 +682,16 @@ function renderFlushPreview(payload) {
   if (!state || !meta || !warnings || !button) return;
 
   state.className = `state ${payload?.allowed ? 'warn' : 'bad'}`;
-  state.textContent = payload?.allowed ? 'ГОТОВО К ОЧИСТКЕ' : 'ЗАБЛОКИРОВАНО';
+  state.textContent = payload?.allowed ? rfUi('ГОТОВО К ОЧИСТКЕ',"READY TO CLEAR") : rfUi('ЗАБЛОКИРОВАНО',"BLOCKED");
   const sets = (payload?.affected_sets || []).map((item) => {
     const count = item.count_known ? Number(item.count || 0) : '—';
     return `${item.name}: ${count}`;
   });
-  meta.textContent = `${flushTargetLabel(payload?.target)} · записей сейчас ${Number(payload?.before_entries || 0)} · ${sets.join(' · ') || 'наборы не найдены'}`;
+  meta.textContent = rfUi(`${flushTargetLabel(payload?.target)} · записей сейчас ${Number(payload?.before_entries || 0)} · ${sets.join(' · ') || 'наборы не найдены'}`,`${flushTargetLabel(payload?.target)} · current entries ${Number(payload?.before_entries || 0)} · ${sets.join(' · ') || 'no sets found'}`);
 
   const messages = [...localizeMessages(payload?.warnings || [])];
-  if (payload?.destructive_file) messages.unshift('Операция затрагивает сохранённые файлы upstream, а не только runtime.');
-  if (payload?.restart_required) messages.push('После этой очистки upstream требует восстановить данные и перезапустить Antiscan перед возвратом соответствующей защиты.');
+  if (payload?.destructive_file) messages.unshift(rfUi('Операция затрагивает сохранённые файлы upstream, а не только runtime.',"This operation affects saved upstream files, not only the running state."));
+  if (payload?.restart_required) messages.push(rfUi('После этой очистки upstream требует восстановить данные и перезапустить Antiscan перед возвратом соответствующей защиты.',"After this cleanup, upstream requires data restoration and an Antiscan restart before re-enabling the related protection."));
   if (payload?.block_reason) messages.unshift(localizeMessage(payload.block_reason));
   flushWarningRows = messages;
   button.disabled = flushBusy || !payload?.allowed;
@@ -708,8 +709,8 @@ async function loadFlushPreview() {
     flushPreviewLoaded = true;
     flushPreview = null;
     blockedControls['flushState'].className = 'state bad';
-    blockedControls['flushState'].textContent = 'ОШИБКА';
-    blockedControls['flushMeta'].textContent = localizeMessage(error.message || 'Не удалось построить preview очистки.');
+    blockedControls['flushState'].textContent = rfUi('ОШИБКА',"ERROR");
+    blockedControls['flushMeta'].textContent = localizeMessage(error.message || rfUi('Не удалось построить preview очистки.',"Could not prepare the clear-operation preview."));
     flushWarningRows = [];
     blockedControls['flushSelected'].disabled = true;
   } finally {
@@ -724,7 +725,7 @@ async function performFlush() {
   const detail = [
     `Цель: ${flushTargetLabel(target)}`,
     `Записей сейчас: ${Number(flushPreview.before_entries || 0)}`,
-    flushPreview.destructive_file ? 'Будут изменены/удалены сохранённые файлы upstream.' : '',
+    flushPreview.destructive_file ? rfUi('Будут изменены/удалены сохранённые файлы upstream.',"Saved upstream files will be changed or deleted.") : '',
     ...warnings
   ].filter(Boolean).join('\n');
   if (!window.confirm(`Выполнить штатный Antiscan flush?\n\n${detail}\n\nОперация необратимо очищает выбранные данные.`)) return;
@@ -774,30 +775,30 @@ function renderState() {
   state.className = 'state';
   if (!snapshot?.detected) {
     addUIClass(state, 'neutral');
-    state.textContent = 'НЕ ОБНАРУЖЕН';
+    state.textContent = rfUi('НЕ ОБНАРУЖЕН',"NOT DETECTED");
   } else if (snapshot.running) {
     addUIClass(state, 'good');
-    state.textContent = 'РАБОТАЕТ';
+    state.textContent = rfUi('РАБОТАЕТ',"RUNNING");
   } else {
     addUIClass(state, 'warn');
-    state.textContent = 'ОСТАНОВЛЕН';
+    state.textContent = rfUi('ОСТАНОВЛЕН',"STOPPED");
   }
 
   shellControls['version'].textContent = snapshot?.version || '—';
   shellControls['blockedIps'].textContent = countFor('ascn_ips');
   shellControls['blockedSubnets'].textContent = countFor('ascn_subnets');
   shellControls['candidateCount'].textContent = countFor('ascn_candidates');
-  overviewControls['ipsetBinary'].textContent = `ipset: ${snapshot?.ipset_binary || 'не найден'}`;
+  overviewControls['ipsetBinary'].textContent = rfUi(`ipset: ${snapshot?.ipset_binary || 'не найден'}`,`ipset: ${snapshot?.ipset_binary || 'not found'}`);
 
   const notice = shellControls['notice'];
   if (!snapshot?.detected) {
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = 'Antiscan не обнаружен. RouterForge не устанавливает пакет Antiscan автоматически.';
+    notice.textContent = rfUi('Antiscan не обнаружен. RouterForge не устанавливает пакет Antiscan автоматически.',"Antiscan was not found. RouterForge does not install Antiscan automatically.");
   } else if (!snapshot.running) {
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = 'Antiscan обнаружен, но /tmp/ascn.run отсутствует. Текущее состояние блокировок нельзя считать достоверным.';
+    notice.textContent = rfUi('Antiscan обнаружен, но /tmp/ascn.run отсутствует. Текущее состояние блокировок нельзя считать достоверным.',"Antiscan was found, but /tmp/ascn.run is missing. The current blocking status cannot be verified.");
   } else if ((snapshot.errors || []).length) {
     notice.hidden = false;
     notice.className = 'notice warn';
@@ -831,32 +832,32 @@ function renderLifecycleControls() {
   state.className = 'state';
   if (lifecycleBusy) {
     addUIClass(state, 'info');
-    state.textContent = 'ОПЕРАЦИЯ…';
-    hint.textContent = 'Ждём завершения штатной команды Antiscan и проверяем итоговое состояние.';
+    state.textContent = rfUi('ОПЕРАЦИЯ…',"RUNNING OPERATION…");
+    hint.textContent = rfUi('Ждём завершения штатной команды Antiscan и проверяем итоговое состояние.',"Waiting for the Antiscan command to finish and verifying its result.");
   } else if (operationBusy) {
     addUIClass(state, 'info');
-    state.textContent = 'ОБСЛУЖИВАНИЕ…';
-    hint.textContent = 'Выполняется штатная сервисная команда Antiscan.';
+    state.textContent = rfUi('ОБСЛУЖИВАНИЕ…',"MAINTENANCE…");
+    hint.textContent = rfUi('Выполняется штатная сервисная команда Antiscan.',"Running an Antiscan service command.");
   } else if (!detected) {
     addUIClass(state, 'neutral');
-    state.textContent = 'НЕДОСТУПНО';
-    hint.textContent = 'Antiscan не обнаружен — команды управления недоступны.';
+    state.textContent = rfUi('НЕДОСТУПНО',"UNAVAILABLE");
+    hint.textContent = rfUi('Antiscan не обнаружен — команды управления недоступны.',"Antiscan is not installed; management actions are unavailable.");
   } else if (upstreamBusy) {
     addUIClass(state, 'warn');
-    state.textContent = 'ANTISCAN ЗАНЯТ';
-    hint.textContent = 'Antiscan уже перечитывает конфигурацию или Geo-данные. Новое действие временно заблокировано.';
+    state.textContent = rfUi('ANTISCAN ЗАНЯТ',"ANTISCAN BUSY");
+    hint.textContent = rfUi('Antiscan уже перечитывает конфигурацию или Geo-данные. Новое действие временно заблокировано.',"Antiscan is already reloading configuration or Geo data. New actions are temporarily blocked.");
   } else if (configDirty) {
     addUIClass(state, 'warn');
-    state.textContent = 'НЕ СОХРАНЕНО';
-    hint.textContent = 'Сначала примените или сбросьте изменения ascn.conf. Штатные lifecycle-команды всегда работают с сохранённым конфигом.';
+    state.textContent = rfUi('НЕ СОХРАНЕНО',"NOT SAVED");
+    hint.textContent = rfUi('Сначала примените или сбросьте изменения ascn.conf. Штатные lifecycle-команды всегда работают с сохранённым конфигом.',"First apply or discard the ascn.conf changes. Native service commands always use the saved configuration.");
   } else if (running) {
     addUIClass(state, 'good');
-    state.textContent = 'РАБОТАЕТ';
-    hint.textContent = 'Можно перечитать ascn.conf, штатно перезапустить или остановить Antiscan.';
+    state.textContent = rfUi('РАБОТАЕТ',"RUNNING");
+    hint.textContent = rfUi('Можно перечитать ascn.conf, штатно перезапустить или остановить Antiscan.',"You can reload ascn.conf, restart, or stop Antiscan using its native commands.");
   } else {
     addUIClass(state, 'warn');
-    state.textContent = 'ОСТАНОВЛЕН';
-    hint.textContent = 'Можно штатно запустить Antiscan; restart в этом состоянии также выполнит запуск upstream-командой.';
+    state.textContent = rfUi('ОСТАНОВЛЕН',"STOPPED");
+    hint.textContent = rfUi('Можно штатно запустить Antiscan; restart в этом состоянии также выполнит запуск upstream-командой.',"You can start Antiscan using its native command; Restart will also start a stopped instance.");
   }
 
   renderOperationControls();
@@ -880,34 +881,34 @@ function renderOperationControls() {
   state.className = 'state';
   if (operationBusy) {
     addUIClass(state, 'info');
-    state.textContent = 'ВЫПОЛНЕНИЕ…';
+    state.textContent = rfUi('ВЫПОЛНЕНИЕ…',"RUNNING…");
   } else if (!detected) {
     addUIClass(state, 'neutral');
-    state.textContent = 'НЕДОСТУПНО';
+    state.textContent = rfUi('НЕДОСТУПНО',"UNAVAILABLE");
   } else if (upstreamBusy) {
     addUIClass(state, 'warn');
-    state.textContent = 'ANTISCAN ЗАНЯТ';
+    state.textContent = rfUi('ANTISCAN ЗАНЯТ',"ANTISCAN BUSY");
   } else if (configDirty) {
     addUIClass(state, 'warn');
-    state.textContent = 'НЕ СОХРАНЕНО';
+    state.textContent = rfUi('НЕ СОХРАНЕНО',"NOT SAVED");
   } else if (!running) {
     addUIClass(state, 'warn');
-    state.textContent = 'ТОЛЬКО CRON';
+    state.textContent = rfUi('ТОЛЬКО CRON',"CRON ONLY");
   } else {
     addUIClass(state, 'good');
-    state.textContent = 'ГОТОВО';
+    state.textContent = rfUi('ГОТОВО',"READY");
   }
 }
 
 function renderRuntimeSummary() {
   const cfg = snapshot?.config || {};
   const rows = [
-    ['Antiscan', snapshot?.detected ? 'Обнаружен' : 'Не обнаружен'],
-    ['Маркер работы', snapshot?.running ? 'Есть · /tmp/ascn.run' : 'Нет'],
-    ['Перечитывание конфигурации', snapshot?.config_reload_in_progress ? 'Выполняется' : 'Нет'],
-    ['Обновление Geo', snapshot?.geo_reload_in_progress ? 'Выполняется' : 'Нет'],
-    ['Интерфейсы', (cfg.isp_interfaces || []).join(', ') || '—'],
-    ['Защищаемые порты', (cfg.ports || []).join(', ') || '—']
+    ['Antiscan', snapshot?.detected ? rfUi('Обнаружен',"Detected") : rfUi('Не обнаружен',"Not detected")],
+    [rfUi('Маркер работы',"Running marker"), snapshot?.running ? rfUi('Есть · /tmp/ascn.run',"Present · /tmp/ascn.run") : rfUi('Нет',"No")],
+    ['Перечитывание конфигурации', snapshot?.config_reload_in_progress ? rfUi('Выполняется',"Running") : 'Нет'],
+    ['Обновление Geo', snapshot?.geo_reload_in_progress ? rfUi('Выполняется',"Running") : 'Нет'],
+    [rfUi('Интерфейсы',"Interfaces"), (cfg.isp_interfaces || []).join(', ') || '—'],
+    [rfUi('Защищаемые порты',"Protected ports"), (cfg.ports || []).join(', ') || '—']
   ];
   runtimeRows = rows;
 }
@@ -929,26 +930,26 @@ function renderProtection() {
   const p = snapshot?.protection || {};
   const cfg = snapshot?.config || {};
   const rows = [
-    ['Интерфейсы', (cfg.isp_interfaces || []).join(', ') || '—'],
-    ['Порты роутера', (cfg.ports || []).join(', ') || '—'],
-    ['Проброшенные порты', (cfg.forwarded_ports || []).join(', ') || '—'],
-    ['Защита IP и подсетей', boolText(Boolean(p.ips_ban_enabled))],
-    ['Окно новых соединений', fmtDuration(p.recent_window_seconds)],
-    ['Порог новых подключений', p.recent_hitcount || '—'],
-    ['Лимит одновременных соединений', p.concurrent_connection_limit || '—'],
-    ['Блокировка IP', fmtDuration(p.direct_ip_ban_seconds)],
-    ['Порог разных IP в /24', p.different_ip_threshold || '—'],
-    ['Хранение кандидатов', fmtDuration(p.candidate_storage_seconds)],
-    ['Блокировка /24', fmtDuration(p.subnet_ban_seconds)],
+    [rfUi('Интерфейсы',"Interfaces"), (cfg.isp_interfaces || []).join(', ') || '—'],
+    [rfUi('Порты роутера',"Router ports"), (cfg.ports || []).join(', ') || '—'],
+    [rfUi('Проброшенные порты',"Forwarded ports"), (cfg.forwarded_ports || []).join(', ') || '—'],
+    [rfUi('Защита IP и подсетей',"IP and subnet protection"), boolText(Boolean(p.ips_ban_enabled))],
+    [rfUi('Окно новых соединений',"New connection window"), fmtDuration(p.recent_window_seconds)],
+    [rfUi('Порог новых подключений',"New connection threshold"), p.recent_hitcount || '—'],
+    [rfUi('Лимит одновременных соединений',"Concurrent connection limit"), p.concurrent_connection_limit || '—'],
+    [rfUi('Блокировка IP',"IP block"), fmtDuration(p.direct_ip_ban_seconds)],
+    [rfUi('Порог разных IP в /24',"Distinct IP threshold per /24"), p.different_ip_threshold || '—'],
+    [rfUi('Хранение кандидатов',"Candidate retention"), fmtDuration(p.candidate_storage_seconds)],
+    [rfUi('Блокировка /24',"/24 block"), fmtDuration(p.subnet_ban_seconds)],
     ['Ловушка', boolText(Boolean(p.honeypot_enabled))],
-    ['Порты ловушки', (cfg.honeypot_ports || []).join(', ') || '—'],
+    [rfUi('Порты ловушки',"Honeypot ports"), (cfg.honeypot_ports || []).join(', ') || '—'],
     ['Пользовательские исключения', boolText(Boolean(cfg.use_custom_exclude_list))],
-    ['Режим пользовательского списка', cfg.custom_lists_block_mode || '0'],
-    ['Режим Geo', cfg.geoblock_mode || '0'],
-    ['Страны Geo', (cfg.geoblock_countries || []).join(', ') || '—'],
-    ['Страны-исключения Geo', (cfg.geo_exclude_countries || []).join(', ') || '—'],
-    ['Импорт блокировок Keenetic', boolText(Boolean(cfg.read_ndm_lockout_ipsets))],
-    ['Сохранение наборов ipset', boolText(Boolean(cfg.save_ipsets))]
+    [rfUi('Режим пользовательского списка',"User list mode"), cfg.custom_lists_block_mode || '0'],
+    [rfUi('Режим Geo',"Geo mode"), cfg.geoblock_mode || '0'],
+    [rfUi('Страны Geo',"Geo countries"), (cfg.geoblock_countries || []).join(', ') || '—'],
+    [rfUi('Страны-исключения Geo',"Excluded Geo countries"), (cfg.geo_exclude_countries || []).join(', ') || '—'],
+    [rfUi('Импорт блокировок Keenetic',"Import Keenetic blocks"), boolText(Boolean(cfg.read_ndm_lockout_ipsets))],
+    [rfUi('Сохранение наборов ipset',"Save ipset sets"), boolText(Boolean(cfg.save_ipsets))]
   ];
   protectionRows = rows;
 }
@@ -972,8 +973,8 @@ function renderSets() {
     const hasOperationalError = Boolean(item.error) && !countUnavailable;
     return {
       name: item.name,
-      description: setDescriptions[item.name] || 'Набор Antiscan',
-      state: item.exists ? (hasOperationalError ? 'ЧАСТИЧНО' : 'АКТИВЕН') : 'НЕТ',
+      description: setDescriptions[item.name] || rfUi('Набор Antiscan',"Antiscan set"),
+      state: item.exists ? (hasOperationalError ? 'ЧАСТИЧНО' : 'АКТИВЕН') : rfUi('НЕТ',"NO"),
       stateClass: item.exists ? (hasOperationalError ? 'warn' : 'good') : 'neutral',
       count: item.count_known ? String(item.count ?? 0) : '—',
       countUnavailable, error: hasOperationalError ? localizeMessage(item.error) : ''
@@ -982,13 +983,13 @@ function renderSets() {
 }
 
 function verdictTitle(result) {
-  if (result.verdict === 'blocked') return 'ЗАБЛОКИРОВАН';
-  if (result.verdict === 'excluded') return 'ИСКЛЮЧЁН';
-  if (result.verdict === 'not-blocked') return 'НЕ ЗАБЛОКИРОВАН';
-  if (result.verdict === 'candidate') return 'КАНДИДАТ';
-  if (result.verdict === 'stopped') return 'ANTISCAN ОСТАНОВЛЕН';
-  if (result.verdict === 'not-detected') return 'ANTISCAN НЕ ОБНАРУЖЕН';
-  return 'НЕДОСТАТОЧНО ДАННЫХ';
+  if (result.verdict === 'blocked') return rfUi('ЗАБЛОКИРОВАН',"BLOCKED");
+  if (result.verdict === 'excluded') return rfUi('ИСКЛЮЧЁН',"EXCLUDED");
+  if (result.verdict === 'not-blocked') return rfUi('НЕ ЗАБЛОКИРОВАН',"NOT BLOCKED");
+  if (result.verdict === 'candidate') return rfUi('КАНДИДАТ',"CANDIDATE");
+  if (result.verdict === 'stopped') return rfUi('ANTISCAN ОСТАНОВЛЕН',"ANTISCAN STOPPED");
+  if (result.verdict === 'not-detected') return rfUi('ANTISCAN НЕ ОБНАРУЖЕН',"ANTISCAN NOT DETECTED");
+  return rfUi('НЕДОСТАТОЧНО ДАННЫХ',"INSUFFICIENT DATA");
 }
 
 function renderInspect(result) {
@@ -1011,7 +1012,7 @@ function entrySecondary(entry) {
   if (entry.timeout_known) {
     const seconds = Number(entry.timeout_seconds || 0);
     if (seconds === 0) {
-      bits.push('без таймаута');
+      bits.push(rfUi('без таймаута',"without timeout"));
     } else {
       const expires = new Date(Date.now() + seconds * 1000);
       bits.push(`осталось ${fmtDuration(seconds)} · примерно до ${expires.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
@@ -1019,7 +1020,7 @@ function entrySecondary(entry) {
   }
   if (entry.packets_known) bits.push(`${entry.packets} пак.`);
   if (entry.bytes_known) bits.push(fmtBytes(entry.bytes));
-  return bits.join(' · ') || 'запись в наборе';
+  return bits.join(' · ') || rfUi('запись в наборе',"entry in set");
 }
 
 function canUnbanSet(name) {
@@ -1035,14 +1036,14 @@ function currentRuntimeListMode() {
 function runtimeListOptions(mode) {
   return mode === 'geo'
     ? [
-        ['ascn_geo_exclude', 'Geo-исключения'],
-        ['ascn_geo_blacklist', 'Geo-чёрный список'],
-        ['ascn_geo_whitelist', 'Geo-белый список']
+        ['ascn_geo_exclude', rfUi('Geo-исключения',"Geo exclusions")],
+        ['ascn_geo_blacklist', rfUi('Geo-чёрный список',"Geo blocklist")],
+        ['ascn_geo_whitelist', rfUi('Geo-белый список',"Geo allowlist")]
       ]
     : [
-        ['ascn_custom_exclude', 'Пользовательские исключения'],
-        ['ascn_custom_blacklist', 'Пользовательский чёрный список'],
-        ['ascn_custom_whitelist', 'Пользовательский белый список']
+        ['ascn_custom_exclude', rfUi('Пользовательские исключения',"User exclusions")],
+        ['ascn_custom_blacklist', rfUi('Пользовательский чёрный список',"User blocklist")],
+        ['ascn_custom_whitelist', rfUi('Пользовательский белый список',"User allowlist")]
       ];
 }
 
@@ -1065,11 +1066,11 @@ function configureListSetMode(mode) {
   if (changedMode) filter.value = '';
 
   if (mode === 'geo') {
-    title.textContent = 'Geo-наборы Antiscan';
-    description.textContent = 'Текущее содержимое Geo ipset. Для больших наборов показываются первые 500 записей.';
+    title.textContent = rfUi('Geo-наборы Antiscan',"Antiscan Geo sets");
+    description.textContent = rfUi('Текущее содержимое Geo ipset. Для больших наборов показываются первые 500 записей.',"Current Geo ipset contents. Large sets show only the first 500 entries.");
   } else {
-    title.textContent = 'Активные пользовательские списки';
-    description.textContent = 'Текущее содержимое runtime ipset для blacklist, whitelist и exclude.';
+    title.textContent = rfUi('Активные пользовательские списки',"Active user lists");
+    description.textContent = rfUi('Текущее содержимое runtime ipset для blacklist, whitelist и exclude.',"Current active ipsets for blocklists, allowlists, and exclusions.");
   }
 
   if (browserState[mode]) {
@@ -1077,7 +1078,7 @@ function configureListSetMode(mode) {
   } else {
     listsControls['listMeta'].textContent = '—';
     listsControls['listEntries'].className = 'entry-table empty-state';
-    listRows = []; listRowsEmpty = 'Выберите набор и загрузите текущее состояние.';
+    listRows = []; listRowsEmpty = rfUi('Выберите набор и загрузите текущее состояние.',"Select a set and load its current status.");
   }
 }
 
@@ -1092,7 +1093,7 @@ function renderSetPage(kind) {
     if (blocked) { blockedRows = rows; blockedRowsEmpty = empty; }
     else { listRows = rows; listRowsEmpty = empty; }
   }
-  setRows([], 'Набор ещё не загружен.');
+  setRows([], rfUi('Набор ещё не загружен.',"Set not loaded yet."));
   if (!page) {
     target.className = 'entry-table empty-state';
     meta.textContent = '—';
@@ -1106,17 +1107,17 @@ function renderSetPage(kind) {
   }
   if (!page.exists) {
     target.className = 'entry-table empty-state';
-    meta.textContent = 'НЕТ';
+    meta.textContent = rfUi('НЕТ',"NO");
     setRows([], `${page.name}: набор сейчас отсутствует.`);
     return;
   }
   const all = page.entries || [];
   const entries = filter ? all.filter(entry => String(entry.value || '').toLowerCase().includes(filter)) : all;
   const total = page.count_known ? page.count : all.length;
-  meta.textContent = `${page.name} · ${total} записей${page.truncated ? ` · показаны первые ${page.limit}` : ''}`;
+  meta.textContent = rfUi(`${page.name} · ${total} записей${page.truncated ? ` · показаны первые ${page.limit}` : ''}`,`${page.name} · ${total} entries${page.truncated ? ` · first ${page.limit} shown` : ''}`);
   if (!entries.length) {
     target.className = 'entry-table empty-state';
-    setRows([], filter ? 'По фильтру ничего не найдено.' : 'Набор пуст.');
+    setRows([], filter ? rfUi('По фильтру ничего не найдено.',"No results match the filter.") : rfUi('Набор пуст.',"Set empty."));
     return;
   }
   target.className = 'entry-table';
@@ -1141,8 +1142,8 @@ async function loadSet(kind) {
   button.disabled = true;
   if (blocked || kind === currentRuntimeListMode()) {
     target.className = 'entry-table empty-state';
-    if (blocked) { blockedRows = []; blockedRowsEmpty = 'Читаем текущий набор ipset…'; }
-    else { listRows = []; listRowsEmpty = 'Читаем текущий набор ipset…'; }
+    if (blocked) { blockedRows = []; blockedRowsEmpty = rfUi('Читаем текущий набор ipset…',"Reading current ipset set…"); }
+    else { listRows = []; listRowsEmpty = rfUi('Читаем текущий набор ipset…',"Reading current ipset set…"); }
   }
   try {
     const page = await read.api(`sets?name=${encodeURIComponent(selected)}&limit=500`);
@@ -1151,7 +1152,7 @@ async function loadSet(kind) {
     renderSetPage(kind);
   } catch (error) {
     if (!read.isCurrent() || select.value !== selected) return;
-    browserState[kind] = { name: selected, error: error.message || 'Не удалось прочитать ipset.' };
+    browserState[kind] = { name: selected, error: error.message || rfUi('Не удалось прочитать ipset.',"Could not read the ipset.") };
     renderSetPage(kind);
   } finally {
     if (read.isCurrent()) button.disabled = false;
@@ -1161,33 +1162,33 @@ async function loadSet(kind) {
 
 function mutationSuccessMessage(context, payload) {
   if (!payload?.changed) {
-    if (context === 'unban') return 'Запись уже отсутствовала в активной блокировке.';
-    if (context === 'list-entry') return 'Такая запись уже есть в выбранном списке.';
-    if (context === 'lifecycle:start') return 'Antiscan уже запущен.';
-    if (context === 'lifecycle:stop') return 'Antiscan уже остановлен.';
-    if (context === 'schedule:apply') return 'ascn_crontab.conf уже совпадал с формой; активный crontab синхронизирован.';
-    if (context.startsWith('flush:')) return 'Выбранные данные уже были пусты; штатная очистка проверена.';
-    if (context.startsWith('operation:')) return 'Команда не потребовалась: текущее состояние уже корректно.';
-    return 'Состояние уже соответствовало запросу.';
+    if (context === 'unban') return rfUi('Запись уже отсутствовала в активной блокировке.',"Entry was already absent from the active block set.");
+    if (context === 'list-entry') return rfUi('Такая запись уже есть в выбранном списке.',"This entry already exists in the selected list.");
+    if (context === 'lifecycle:start') return rfUi('Antiscan уже запущен.',"Antiscan is already running.");
+    if (context === 'lifecycle:stop') return rfUi('Antiscan уже остановлен.',"Antiscan is already stopped.");
+    if (context === 'schedule:apply') return rfUi('ascn_crontab.conf уже совпадал с формой; активный crontab синхронизирован.',"ascn_crontab.conf already matched the form; active crontab is synchronized.");
+    if (context.startsWith('flush:')) return rfUi('Выбранные данные уже были пусты; штатная очистка проверена.',"Selected data was already empty; standard cleanup verified.");
+    if (context.startsWith('operation:')) return rfUi('Команда не потребовалась: текущее состояние уже корректно.',"No command needed; current state is already correct.");
+    return rfUi('Состояние уже соответствовало запросу.',"State already matched the request.");
   }
-  if (context === 'unban') return 'Блокировка снята, результат проверен.';
-  if (context === 'list-entry') return 'Запись добавлена в список и результат проверен.';
-  if (context === 'lifecycle:start') return 'Antiscan запущен, состояние проверено.';
-  if (context === 'lifecycle:stop') return 'Antiscan остановлен. Защита отключена до следующего запуска.';
-  if (context === 'lifecycle:reload') return 'Antiscan перечитал конфигурацию, состояние проверено.';
-  if (context === 'lifecycle:restart') return 'Antiscan штатно перезапущен, состояние проверено.';
-  if (context === 'rci-token:set') return 'RCI-токен сохранён и проверен штатной командой Antiscan.';
-  if (context === 'rci-token:check') return 'Сохранённый RCI-токен прошёл проверку Keenetic.';
-  if (context === 'rci-token:delete') return 'RCI-токен удалён, состояние проверено.';
-  if (context === 'schedule:apply') return 'Расписание Antiscan обновлено и синхронизировано с активным crontab.';
-  if (context.startsWith('flush:')) return 'Штатная очистка Antiscan выполнена, результат проверен.';
-  if (context.startsWith('operation:')) return 'Штатная сервисная команда Antiscan выполнена и проверена.';
+  if (context === 'unban') return rfUi('Блокировка снята, результат проверен.',"Block removed; result verified.");
+  if (context === 'list-entry') return rfUi('Запись добавлена в список и результат проверен.',"Entry added to list; result verified.");
+  if (context === 'lifecycle:start') return rfUi('Antiscan запущен, состояние проверено.',"Antiscan started; status verified.");
+  if (context === 'lifecycle:stop') return rfUi('Antiscan остановлен. Защита отключена до следующего запуска.',"Antiscan is stopped. Protection is disabled until the next start.");
+  if (context === 'lifecycle:reload') return rfUi('Antiscan перечитал конфигурацию, состояние проверено.',"Antiscan reloaded its configuration; status verified.");
+  if (context === 'lifecycle:restart') return rfUi('Antiscan штатно перезапущен, состояние проверено.',"Antiscan restarted through its standard script; status verified.");
+  if (context === 'rci-token:set') return rfUi('RCI-токен сохранён и проверен штатной командой Antiscan.',"RCI token saved and verified using the standard Antiscan command.");
+  if (context === 'rci-token:check') return rfUi('Сохранённый RCI-токен прошёл проверку Keenetic.',"Saved RCI token passed Keenetic verification.");
+  if (context === 'rci-token:delete') return rfUi('RCI-токен удалён, состояние проверено.',"RCI token deleted; status verified.");
+  if (context === 'schedule:apply') return rfUi('Расписание Antiscan обновлено и синхронизировано с активным crontab.',"Antiscan schedule updated and synchronized with active crontab.");
+  if (context.startsWith('flush:')) return rfUi('Штатная очистка Antiscan выполнена, результат проверен.',"Standard Antiscan cleanup completed and verified.");
+  if (context.startsWith('operation:')) return rfUi('Штатная сервисная команда Antiscan выполнена и проверена.',"Standard Antiscan service command completed and verified.");
   if (context === 'config') {
     return payload?.runtime_applied
-      ? 'Настройки сохранены, применены и проверены.'
-      : 'Настройки сохранены и проверены. Они вступят в силу при следующем запуске Antiscan.';
+      ? rfUi('Настройки сохранены, применены и проверены.',"Settings saved, applied and verified.")
+      : rfUi('Настройки сохранены и проверены. Они вступят в силу при следующем запуске Antiscan.',"Settings saved and verified. They will take effect when Antiscan next starts.");
   }
-  return 'Изменение применено и проверено.';
+  return rfUi('Изменение применено и проверено.',"Change applied and verified.");
 }
 
 function showMutationResult(payload, failed = false, context = '') {
@@ -1197,8 +1198,8 @@ function showMutationResult(payload, failed = false, context = '') {
   const warnings = localizeMessages(payload?.warnings);
   if (failed) {
     const prefix = payload?.rollback_performed
-      ? 'Операция не выполнена. Предыдущее состояние восстановлено.'
-      : 'Операцию выполнить не удалось.';
+      ? rfUi('Операция не выполнена. Предыдущее состояние восстановлено.',"Operation not completed. Previous state restored.")
+      : rfUi('Операцию выполнить не удалось.',"Operation failed.");
     const reason = localizeMessage(payload?.error || payload?.message || '');
     notice.textContent = [prefix, reason, ...warnings].filter(Boolean).join(' · ');
     return;
@@ -1206,8 +1207,8 @@ function showMutationResult(payload, failed = false, context = '') {
   const messages = [mutationSuccessMessage(context, payload), ...warnings];
   if (payload?.restart_required) {
     messages.push(context.startsWith('flush:')
-      ? 'После штатной очистки восстановите нужные данные и перезапустите Antiscan перед возвратом соответствующей защиты.'
-      : 'Требуется остановить и снова запустить Antiscan, чтобы полностью применить новый IPSETS_DIRECTORY.');
+      ? rfUi('После штатной очистки восстановите нужные данные и перезапустите Antiscan перед возвратом соответствующей защиты.',"After standard cleanup, restore the required data and restart Antiscan before re-enabling that protection.")
+      : rfUi('Требуется остановить и снова запустить Antiscan, чтобы полностью применить новый IPSETS_DIRECTORY.',"Stop and restart Antiscan to fully apply the new IPSETS_DIRECTORY."));
   }
   notice.textContent = messages.filter(Boolean).join(' · ');
 }
@@ -1225,7 +1226,7 @@ async function performUnban(setName, entry) {
 }
 
 async function performListEntry(listName, entry) {
-  const target = listName === 'exclude' ? 'пользовательские исключения' : 'пользовательский белый список';
+  const target = listName === 'exclude' ? rfUi('пользовательские исключения',"user exclusions") : rfUi('пользовательский белый список',"user allowlist");
   if (!entry) return;
   if (!window.confirm(`Добавить запись в ${target}?\n\n${entry}\n\nФайл изменится атомарно. Если список активен, Antiscan перечитает его и RouterForge проверит результат.`)) return;
   try {
@@ -1241,10 +1242,10 @@ async function performListEntry(listName, entry) {
 
 function customListLabel(name) {
   return {
-    blacklist: 'Чёрный список',
-    whitelist: 'Белый список',
-    exclude: 'Исключения'
-  }[name] || name || 'Пользовательский список';
+    blacklist: rfUi('Чёрный список',"Blocklist"),
+    whitelist: rfUi('Белый список',"Allowlist"),
+    exclude: rfUi('Исключения',"Exclusions")
+  }[name] || name || rfUi('Пользовательский список',"User list");
 }
 
 function renderCustomList(page) {
@@ -1261,29 +1262,29 @@ function renderCustomList(page) {
     meta.textContent = customListLabel(page.list);
     return;
   }
-  const state = page?.active ? 'активен' : page?.configured ? 'включён, Antiscan остановлен' : 'выключен';
-  const runtime = page?.active ? (page.runtime_exists ? 'runtime есть' : 'runtime отсутствует') : 'runtime не требуется';
+  const state = page?.active ? rfUi('активен',"active") : page?.configured ? rfUi('включён, Antiscan остановлен',"enabled, Antiscan stopped") : rfUi('выключен',"disabled");
+  const runtime = page?.active ? (page.runtime_exists ? rfUi('runtime есть',"service runtime present") : rfUi('runtime отсутствует',"service runtime missing")) : rfUi('runtime не требуется',"service runtime not required");
   const skipped = Number(page?.skipped_invalid || 0);
-  meta.textContent = `${customListLabel(page?.list)} · записей ${Number(page?.count || 0)} · ${state} · ${runtime}${skipped ? ` · пропущено строк ${skipped}` : ''}`;
+  meta.textContent = rfUi(`${customListLabel(page?.list)} · записей ${Number(page?.count || 0)} · ${state} · ${runtime}${skipped ? ` · пропущено строк ${skipped}` : ''}`,`${customListLabel(page?.list)} · entries ${Number(page?.count || 0)} · ${state} · ${runtime}${skipped ? ` · skipped ${skipped} lines` : ''}`);
   if (clearButton) {
     clearButton.disabled = customListBusy || (Number(page?.count || 0) === 0 && !page?.runtime_exists);
     clearButton.title = page?.active
-      ? 'Активный список будет очищен штатной командой Antiscan flush.'
-      : 'Исходный файл будет очищен до нулевой длины.';
+      ? rfUi('Активный список будет очищен штатной командой Antiscan flush.',"Active set will be cleared using the standard Antiscan flush command.")
+      : rfUi('Исходный файл будет очищен до нулевой длины.',"Source file will be emptied.");
   }
   if (reloadRuntimeButton) reloadRuntimeButton.disabled = customListBusy || !page?.configured || !page?.running;
   const entries = page?.entries || [];
   if (!entries.length) {
     target.className = 'entry-table empty-state';
-    customRowsEmpty = 'В исходном файле нет корректных IPv4/CIDR записей.';
+    customRowsEmpty = rfUi('В исходном файле нет корректных IPv4/CIDR записей.',"No valid IPv4/CIDR records in the source file.");
     return;
   }
   target.className = 'entry-table';
   customRows = entries.map(entry => ({
     value: entry, meta: `исходный файл ${page?.set || ''}`,
     explanation: page?.active
-      ? 'Изменение будет применено штатной командой Antiscan; удаление последней записи перейдёт в upstream flush.'
-      : 'Изменение затронет только исходный файл.',
+      ? rfUi('Изменение будет применено штатной командой Antiscan; удаление последней записи перейдёт в upstream flush.',"Change will be applied with the standard Antiscan command; deleting the last entry will trigger upstream flush.")
+      : rfUi('Изменение затронет только исходный файл.',"Change will affect the source file only."),
     canDelete: true
   }));
 }
@@ -1301,7 +1302,7 @@ async function loadCustomList() {
     renderCustomList(page);
   } catch (error) {
     if (!read.isCurrent() || selected !== select.value) return;
-    renderCustomList({ list: selected, error: error.message || 'Не удалось прочитать исходный пользовательский список.' });
+    renderCustomList({ list: selected, error: error.message || rfUi('Не удалось прочитать исходный пользовательский список.',"Could not read the original user list.") });
   } finally {
     if (read.isCurrent()) button.disabled = false;
     read.finish();
@@ -1347,15 +1348,15 @@ async function performLifecycle(action) {
     const notice = shellControls['notice'];
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = 'Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.';
+    notice.textContent = rfUi('Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.',"ascn.conf has unsaved changes. Apply or discard them first.");
     return;
   }
 
   const prompts = {
-    start: 'Запустить Antiscan?\n\nБудут созданы штатные наборы ipset и правила фильтрации Antiscan.',
-    stop: 'Остановить Antiscan?\n\nЗащита Antiscan будет отключена до следующего запуска. Сохранение состояния при остановке выполняет сам Antiscan согласно SAVE_ON_EXIT.',
-    reload: 'Перечитать текущий ascn.conf?\n\nAntiscan штатно перестроит необходимые правила и наборы, после чего RouterForge проверит итоговое состояние.',
-    restart: 'Штатно перезапустить Antiscan?\n\nБудет вызван именно S99ascn restart. Upstream выполнит свой stop 1, затем start и сохранит предусмотренную им семантику перезапуска.'
+    start: rfUi('Запустить Antiscan?\n\nБудут созданы штатные наборы ipset и правила фильтрации Antiscan.',"Start Antiscan?\\n\\nStandard Antiscan ipset sets and filtering rules will be created."),
+    stop: rfUi('Остановить Antiscan?\n\nЗащита Antiscan будет отключена до следующего запуска. Сохранение состояния при остановке выполняет сам Antiscan согласно SAVE_ON_EXIT.',"Stop Antiscan?\\n\\nAntiscan protection will be disabled until next start. Antiscan itself saves state on shutdown according to SAVE_ON_EXIT."),
+    reload: rfUi('Перечитать текущий ascn.conf?\n\nAntiscan штатно перестроит необходимые правила и наборы, после чего RouterForge проверит итоговое состояние.',"Reload the current ascn.conf?\\n\\nAntiscan will rebuild the required rules and sets, then RouterForge will verify the resulting state."),
+    restart: rfUi('Штатно перезапустить Antiscan?\n\nБудет вызван именно S99ascn restart. Upstream выполнит свой stop 1, затем start и сохранит предусмотренную им семантику перезапуска.',"Restart Antiscan using its standard script?\\n\\nS99ascn restart will be invoked. The upstream script will perform stop 1 and then start, preserving its restart behavior.")
   };
   if (!prompts[action] || !window.confirm(prompts[action])) return;
 
@@ -1382,7 +1383,7 @@ async function performOperation(action, scope = '') {
     const notice = shellControls['notice'];
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = 'Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.';
+    notice.textContent = rfUi('Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.',"ascn.conf has unsaved changes. Apply or discard them first.");
     return;
   }
 
@@ -1402,11 +1403,11 @@ async function performOperation(action, scope = '') {
   operationBusy = true;
   renderLifecycleControls();
   const output = overviewControls['operationOutput'];
-  if (output) output.textContent = 'Выполняется штатная команда Antiscan…';
+  if (output) output.textContent = rfUi('Выполняется штатная команда Antiscan…',"Running an Antiscan command…");
   try {
     const result = await mutate('operation', { action, scope, confirm: 'RUN' });
     showMutationResult(result, false, `operation:${key}`);
-    if (output) output.textContent = result.output || 'Команда завершена без текстового вывода.';
+    if (output) output.textContent = result.output || rfUi('Команда завершена без текстового вывода.',"The command completed without output.");
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
@@ -1415,7 +1416,7 @@ async function performOperation(action, scope = '') {
   } catch (error) {
     const payload = error.payload || { error: error.message };
     showMutationResult(payload, true, `operation:${key}`);
-    if (output) output.textContent = localizeMessage(payload.error || error.message || 'Ошибка сервисной операции.');
+    if (output) output.textContent = localizeMessage(payload.error || error.message || rfUi('Ошибка сервисной операции.',"Service operation error."));
   } finally {
     operationBusy = false;
     renderLifecycleControls();
@@ -1427,37 +1428,37 @@ function auditActionTitle(action) {
     return `Очистка / восстановление: ${flushTargetLabel(String(action).slice(6))}`;
   }
   return {
-    unban: 'Снятие одной блокировки',
-    'list-entry': 'Изменение пользовательского списка',
-    'custom-list:add': 'Добавление в пользовательский список',
-    'custom-list:delete': 'Удаление из пользовательского списка',
-    'custom-list:clear': 'Очистка пользовательского списка',
-    'custom-list:reload': 'Перечитывание пользовательского списка',
-    'rci-token:set': 'Установка RCI-токена',
-    'rci-token:check': 'Проверка RCI-токена',
-    'rci-token:delete': 'Удаление RCI-токена',
-    'lifecycle:start': 'Запуск Antiscan',
-    'lifecycle:stop': 'Остановка Antiscan',
-    'lifecycle:reload': 'Перечитывание конфигурации',
-    'lifecycle:restart': 'Перезапуск Antiscan',
-    'operation:update_rules': 'Восстановление правил Antiscan',
-    'operation:read_candidates': 'Обработка кандидатов',
-    'operation:read_ndm_ipsets': 'Импорт блокировок Keenetic',
-    'operation:save_ipsets': 'Сохранение runtime ipset',
-    'operation:update_ipsets:custom': 'Перечитывание пользовательских списков',
-    'operation:update_ipsets:geo': 'Обновление Geo-списков',
-    'operation:retry_load_geo': 'Повторная загрузка Geo',
-    'operation:update_crontab': 'Синхронизация cron',
-    'schedule:apply': 'Изменение расписания Antiscan',
-    config: 'Изменение конфигурации'
-  }[action] || action || 'Действие Antiscan Manager';
+    unban: rfUi('Снятие одной блокировки',"Remove one block"),
+    'list-entry': rfUi('Изменение пользовательского списка',"User list change"),
+    'custom-list:add': rfUi('Добавление в пользовательский список',"Add to user list"),
+    'custom-list:delete': rfUi('Удаление из пользовательского списка',"Remove from user list"),
+    'custom-list:clear': rfUi('Очистка пользовательского списка',"Clear user list"),
+    'custom-list:reload': rfUi('Перечитывание пользовательского списка',"Reload user list"),
+    'rci-token:set': rfUi('Установка RCI-токена',"Set RCI token"),
+    'rci-token:check': rfUi('Проверка RCI-токена',"RCI token check"),
+    'rci-token:delete': rfUi('Удаление RCI-токена',"Delete RCI token"),
+    'lifecycle:start': rfUi('Запуск Antiscan',"Start Antiscan"),
+    'lifecycle:stop': rfUi('Остановка Antiscan',"Stop Antiscan"),
+    'lifecycle:reload': rfUi('Перечитывание конфигурации',"Reload configuration"),
+    'lifecycle:restart': rfUi('Перезапуск Antiscan',"Restart Antiscan"),
+    'operation:update_rules': rfUi('Восстановление правил Antiscan',"Restore Antiscan rules"),
+    'operation:read_candidates': rfUi('Обработка кандидатов',"Process candidates"),
+    'operation:read_ndm_ipsets': rfUi(rfUi('Импорт блокировок Keenetic',"Import Keenetic blocks"),"Import Keenetic blocks"),
+    'operation:save_ipsets': rfUi('Сохранение runtime ipset',"Save runtime ipset"),
+    'operation:update_ipsets:custom': rfUi('Перечитывание пользовательских списков',"Reload user lists"),
+    'operation:update_ipsets:geo': rfUi('Обновление Geo-списков',"Update Geo lists"),
+    'operation:retry_load_geo': rfUi('Повторная загрузка Geo',"Retry Geo download"),
+    'operation:update_crontab': rfUi('Синхронизация cron',"Synchronize cron"),
+    'schedule:apply': rfUi('Изменение расписания Antiscan',"Antiscan schedule change"),
+    config: rfUi('Изменение конфигурации',"Configuration change")
+  }[action] || action || rfUi('Действие Antiscan Manager',"Antiscan Manager action");
 }
 
 function renderHistory(page) {
   const events = page?.events || [];
   historyLoaded = true;
-  historyControls['historyMeta'].textContent = `${events.length} событий · новые сверху${page?.skipped_invalid_lines ? ` · пропущено повреждённых строк: ${page.skipped_invalid_lines}` : ''}`;
-  historyRowsEmpty = 'В журнале пока нет действий Antiscan Manager.';
+  historyControls['historyMeta'].textContent = rfUi(`${events.length} событий · новые сверху${page?.skipped_invalid_lines ? ` · пропущено повреждённых строк: ${page.skipped_invalid_lines}` : ''}`,`${events.length} events · newest first${page?.skipped_invalid_lines ? ` · damaged lines skipped: ${page.skipped_invalid_lines}` : ''}`);
+  historyRowsEmpty = rfUi('В журнале пока нет действий Antiscan Manager.',"No Antiscan Manager activity has been logged yet.");
   historyRows = events.map(event => ({
     failed: event.outcome !== 'success', title: auditActionTitle(event.action),
     time: fmtAuditTime(event.timestamp), summary: localizeMessage(event.summary || '—'),
@@ -1479,9 +1480,9 @@ async function loadHistory() {
   } catch (error) {
     if (!read.isCurrent()) return;
     historyLoaded = true;
-    historyControls['historyMeta'].textContent = 'Не удалось прочитать историю';
+    historyControls['historyMeta'].textContent = rfUi('Не удалось прочитать историю',"Could not read history");
     historyRows = [];
-    historyRowsEmpty = localizeMessage(error.message || 'Не удалось прочитать журнал действий.');
+    historyRowsEmpty = localizeMessage(error.message || rfUi('Не удалось прочитать журнал действий.',"Could not read the activity log."));
   } finally {
     if (read.isCurrent() && button) button.disabled = false;
     read.finish();
@@ -1507,7 +1508,7 @@ async function loadStatus() {
     const notice = shellControls['notice'];
     notice.hidden = false;
     notice.className = 'notice bad';
-    notice.textContent = localizeMessage(error.message || 'Не удалось получить статус Antiscan Manager.');
+    notice.textContent = localizeMessage(error.message || rfUi('Не удалось получить статус Antiscan Manager.',"Could not retrieve Antiscan Manager status."));
   } finally {
     if (read.isCurrent()) shellControls['refresh'].disabled = false;
     read.finish();
@@ -1520,7 +1521,7 @@ async function inspectIP() {
   inspectorControls['inspectButton'].disabled = true;
   inspectorControls['inspectResult'].className = 'inspect-result empty';
   inspectorView = null;
-  inspectorEmpty = 'Проверяем текущее состояние Antiscan…';
+  inspectorEmpty = rfUi('Проверяем текущее состояние Antiscan…',"Checking current Antiscan status…");
   try {
     const result = await api(`inspect?ip=${encodeURIComponent(ip)}`);
     renderInspect(result);
@@ -1531,7 +1532,7 @@ async function inspectIP() {
       conclusive: false,
       blocked: false,
       verdict: payload.verdict || 'unknown',
-      warnings: localizeMessages(payload.warnings || [error.message || 'Ошибка проверки'])
+      warnings: localizeMessages(payload.warnings || [error.message || rfUi('Ошибка проверки',"Verification error")])
     });
   } finally {
     inspectorControls['inspectButton'].disabled = false;
@@ -1589,11 +1590,11 @@ async function inspectIP() {
           <h1>Antiscan Manager</h1>
 
         </div>
-        <p>Диагностика и безопасное управление Antiscan: понятные причины блокировок, настройка с откатом и журнал последних действий.</p>
+        <p>{rfUi("Диагностика и безопасное управление Antiscan: понятные причины блокировок, настройка с откатом и журнал последних действий.","Diagnose and manage Antiscan safely: clear blocking explanations, rollback-protected configuration, and an action log.")}</p>
       </div>
       <div class="hero-actions">
-        <span id="targetState" class={shellControls['targetState'].className} hidden={shellControls['targetState'].hidden}>{#if shellControls['targetState'].textContent !== undefined}{shellControls['targetState'].textContent}{:else}ПРОВЕРКА…{/if}</span>
-        <button id="refresh" class={shellControls['refresh'].className} type="button" hidden={shellControls['refresh'].hidden} disabled={shellControls['refresh'].disabled} onclick={refreshAll}>{#if shellControls['refresh'].textContent !== undefined}{shellControls['refresh'].textContent}{:else}↻ Обновить{/if}</button>
+        <span id="targetState" class={shellControls['targetState'].className} hidden={shellControls['targetState'].hidden}>{#if shellControls['targetState'].textContent !== undefined}{shellControls['targetState'].textContent}{:else}{rfUi("ПРОВЕРКА…","CHECKING…")}{/if}</span>
+        <button id="refresh" class={shellControls['refresh'].className} type="button" hidden={shellControls['refresh'].hidden} disabled={shellControls['refresh'].disabled} onclick={refreshAll}>{#if shellControls['refresh'].textContent !== undefined}{shellControls['refresh'].textContent}{:else}{rfUi("↻ Обновить","↻ Refresh")}{/if}</button>
       </div>
     </header>
 
@@ -1601,21 +1602,21 @@ async function inspectIP() {
     <section id="actionNotice" class={shellControls['actionNotice'].className} hidden={shellControls['actionNotice'].hidden}>{#if shellControls['actionNotice'].textContent !== undefined}{shellControls['actionNotice'].textContent}{:else}{/if}</section>
 
     <section class="metrics" aria-label="Antiscan summary">
-      <article class="metric"><span>Версия</span><strong id="version" class={shellControls['version'].className} hidden={shellControls['version'].hidden}>{#if shellControls['version'].textContent !== undefined}{shellControls['version'].textContent}{:else}—{/if}</strong><small>оригинальный Antiscan</small></article>
-      <article class="metric"><span>Прямые блокировки</span><strong id="blockedIps" class={shellControls['blockedIps'].className} hidden={shellControls['blockedIps'].hidden}>{#if shellControls['blockedIps'].textContent !== undefined}{shellControls['blockedIps'].textContent}{:else}—{/if}</strong><small>ascn_ips</small></article>
-      <article class="metric"><span>Заблокировано /24</span><strong id="blockedSubnets" class={shellControls['blockedSubnets'].className} hidden={shellControls['blockedSubnets'].hidden}>{#if shellControls['blockedSubnets'].textContent !== undefined}{shellControls['blockedSubnets'].textContent}{:else}—{/if}</strong><small>ascn_subnets</small></article>
-      <article class="metric"><span>Кандидаты</span><strong id="candidateCount" class={shellControls['candidateCount'].className} hidden={shellControls['candidateCount'].hidden}>{#if shellControls['candidateCount'].textContent !== undefined}{shellControls['candidateCount'].textContent}{:else}—{/if}</strong><small>ascn_candidates</small></article>
+      <article class="metric"><span>{rfUi("Версия","Version")}</span><strong id="version" class={shellControls['version'].className} hidden={shellControls['version'].hidden}>{#if shellControls['version'].textContent !== undefined}{shellControls['version'].textContent}{:else}—{/if}</strong><small>{rfUi("оригинальный Antiscan","original Antiscan")}</small></article>
+      <article class="metric"><span>{rfUi("Прямые блокировки","Direct blocks")}</span><strong id="blockedIps" class={shellControls['blockedIps'].className} hidden={shellControls['blockedIps'].hidden}>{#if shellControls['blockedIps'].textContent !== undefined}{shellControls['blockedIps'].textContent}{:else}—{/if}</strong><small>ascn_ips</small></article>
+      <article class="metric"><span>{rfUi("Заблокировано /24","Blocked /24")}</span><strong id="blockedSubnets" class={shellControls['blockedSubnets'].className} hidden={shellControls['blockedSubnets'].hidden}>{#if shellControls['blockedSubnets'].textContent !== undefined}{shellControls['blockedSubnets'].textContent}{:else}—{/if}</strong><small>ascn_subnets</small></article>
+      <article class="metric"><span>{rfUi("Кандидаты","Candidates")}</span><strong id="candidateCount" class={shellControls['candidateCount'].className} hidden={shellControls['candidateCount'].hidden}>{#if shellControls['candidateCount'].textContent !== undefined}{shellControls['candidateCount'].textContent}{:else}—{/if}</strong><small>ascn_candidates</small></article>
     </section>
 
     <nav class="tabs" aria-label="Antiscan Manager sections">
-      <button class={shellControls['rf-generated-1'].className} type="button" data-tab="overview" id="rf-generated-1" hidden={shellControls['rf-generated-1'].hidden} disabled={shellControls['rf-generated-1'].disabled} onclick={() => chooseTab("overview")}>{#if shellControls['rf-generated-1'].textContent !== undefined}{shellControls['rf-generated-1'].textContent}{:else}Обзор{/if}</button>
-      <button class={shellControls['rf-generated-2'].className} type="button" data-tab="diagnostics" id="rf-generated-2" hidden={shellControls['rf-generated-2'].hidden} disabled={shellControls['rf-generated-2'].disabled} onclick={() => chooseTab("diagnostics")}>{#if shellControls['rf-generated-2'].textContent !== undefined}{shellControls['rf-generated-2'].textContent}{:else}Диагностика{/if}</button>
-      <button class={shellControls['rf-generated-3'].className} type="button" data-tab="blocked" id="rf-generated-3" hidden={shellControls['rf-generated-3'].hidden} disabled={shellControls['rf-generated-3'].disabled} onclick={() => chooseTab("blocked")}>{#if shellControls['rf-generated-3'].textContent !== undefined}{shellControls['rf-generated-3'].textContent}{:else}Блокировки{/if}</button>
-      <button class={shellControls['rf-generated-4'].className} type="button" data-tab="lists" id="rf-generated-4" hidden={shellControls['rf-generated-4'].hidden} disabled={shellControls['rf-generated-4'].disabled} onclick={() => chooseTab("lists")}>{#if shellControls['rf-generated-4'].textContent !== undefined}{shellControls['rf-generated-4'].textContent}{:else}Списки{/if}</button>
+      <button class={shellControls['rf-generated-1'].className} type="button" data-tab="overview" id="rf-generated-1" hidden={shellControls['rf-generated-1'].hidden} disabled={shellControls['rf-generated-1'].disabled} onclick={() => chooseTab("overview")}>{#if shellControls['rf-generated-1'].textContent !== undefined}{shellControls['rf-generated-1'].textContent}{:else}{rfUi("Обзор","Overview")}{/if}</button>
+      <button class={shellControls['rf-generated-2'].className} type="button" data-tab="diagnostics" id="rf-generated-2" hidden={shellControls['rf-generated-2'].hidden} disabled={shellControls['rf-generated-2'].disabled} onclick={() => chooseTab("diagnostics")}>{#if shellControls['rf-generated-2'].textContent !== undefined}{shellControls['rf-generated-2'].textContent}{:else}{rfUi("Диагностика","Diagnostics")}{/if}</button>
+      <button class={shellControls['rf-generated-3'].className} type="button" data-tab="blocked" id="rf-generated-3" hidden={shellControls['rf-generated-3'].hidden} disabled={shellControls['rf-generated-3'].disabled} onclick={() => chooseTab("blocked")}>{#if shellControls['rf-generated-3'].textContent !== undefined}{shellControls['rf-generated-3'].textContent}{:else}{rfUi("Блокировки","Blocks")}{/if}</button>
+      <button class={shellControls['rf-generated-4'].className} type="button" data-tab="lists" id="rf-generated-4" hidden={shellControls['rf-generated-4'].hidden} disabled={shellControls['rf-generated-4'].disabled} onclick={() => chooseTab("lists")}>{#if shellControls['rf-generated-4'].textContent !== undefined}{shellControls['rf-generated-4'].textContent}{:else}{rfUi("Списки","Lists")}{/if}</button>
       <button class={shellControls['rf-generated-5'].className} type="button" data-tab="geo" id="rf-generated-5" hidden={shellControls['rf-generated-5'].hidden} disabled={shellControls['rf-generated-5'].disabled} onclick={() => chooseTab("geo")}>{#if shellControls['rf-generated-5'].textContent !== undefined}{shellControls['rf-generated-5'].textContent}{:else}Geo{/if}</button>
-      <button class={shellControls['rf-generated-6'].className} type="button" data-tab="schedule" id="rf-generated-6" hidden={shellControls['rf-generated-6'].hidden} disabled={shellControls['rf-generated-6'].disabled} onclick={() => chooseTab("schedule")}>{#if shellControls['rf-generated-6'].textContent !== undefined}{shellControls['rf-generated-6'].textContent}{:else}Расписание{/if}</button>
-      <button class={shellControls['rf-generated-7'].className} type="button" data-tab="config" id="rf-generated-7" hidden={shellControls['rf-generated-7'].hidden} disabled={shellControls['rf-generated-7'].disabled} onclick={() => chooseTab("config")}>{#if shellControls['rf-generated-7'].textContent !== undefined}{shellControls['rf-generated-7'].textContent}{:else}Настройки{/if}</button>
-      <button class={shellControls['rf-generated-8'].className} type="button" data-tab="history" id="rf-generated-8" hidden={shellControls['rf-generated-8'].hidden} disabled={shellControls['rf-generated-8'].disabled} onclick={() => chooseTab("history")}>{#if shellControls['rf-generated-8'].textContent !== undefined}{shellControls['rf-generated-8'].textContent}{:else}История{/if}</button>
+      <button class={shellControls['rf-generated-6'].className} type="button" data-tab="schedule" id="rf-generated-6" hidden={shellControls['rf-generated-6'].hidden} disabled={shellControls['rf-generated-6'].disabled} onclick={() => chooseTab("schedule")}>{#if shellControls['rf-generated-6'].textContent !== undefined}{shellControls['rf-generated-6'].textContent}{:else}{rfUi("Расписание","Schedule")}{/if}</button>
+      <button class={shellControls['rf-generated-7'].className} type="button" data-tab="config" id="rf-generated-7" hidden={shellControls['rf-generated-7'].hidden} disabled={shellControls['rf-generated-7'].disabled} onclick={() => chooseTab("config")}>{#if shellControls['rf-generated-7'].textContent !== undefined}{shellControls['rf-generated-7'].textContent}{:else}{rfUi("Настройки","Settings")}{/if}</button>
+      <button class={shellControls['rf-generated-8'].className} type="button" data-tab="history" id="rf-generated-8" hidden={shellControls['rf-generated-8'].hidden} disabled={shellControls['rf-generated-8'].disabled} onclick={() => chooseTab("history")}>{#if shellControls['rf-generated-8'].textContent !== undefined}{shellControls['rf-generated-8'].textContent}{:else}{rfUi("История","History")}{/if}</button>
     </nav>
 
     <section class={overviewControls['rf-generated-9'].className} data-page="overview" id="rf-generated-9" hidden={overviewControls['rf-generated-9'].hidden}>{#if overviewControls['rf-generated-9'].textContent !== undefined}{overviewControls['rf-generated-9'].textContent}{:else}
@@ -1623,9 +1624,9 @@ async function inspectIP() {
         <section class="panel">
           <div class="panel-head">
             <div>
-              <span class="section-kicker">ТЕКУЩЕЕ СОСТОЯНИЕ</span>
-              <h2>Что сейчас работает</h2>
-              <p>Текущее состояние Antiscan без каких-либо изменений системы.</p>
+              <span class="section-kicker">{rfUi("ТЕКУЩЕЕ СОСТОЯНИЕ","CURRENT STATUS")}</span>
+              <h2>{rfUi("Что сейчас работает","What is currently active")}</h2>
+              <p>{rfUi("Текущее состояние Antiscan без каких-либо изменений системы.","Current Antiscan status without making any system changes.")}</p>
             </div>
             <span id="ipsetBinary" class={overviewControls['ipsetBinary'].className} hidden={overviewControls['ipsetBinary'].hidden}>{#if overviewControls['ipsetBinary'].textContent !== undefined}{overviewControls['ipsetBinary'].textContent}{:else}ipset: —{/if}</span>
           </div>
@@ -1635,9 +1636,9 @@ async function inspectIP() {
         <section class="panel risk-panel">
           <div class="panel-head">
             <div>
-              <span class="section-kicker">РИСК ЛОЖНЫХ БЛОКИРОВОК</span>
-              <h2>Мобильные сети и /24</h2>
-              <p>Проверяем сочетания настроек, которые могут случайно зацепить динамические адреса оператора.</p>
+              <span class="section-kicker">{rfUi("РИСК ЛОЖНЫХ БЛОКИРОВОК","FALSE-POSITIVE RISK")}</span>
+              <h2>{rfUi("Мобильные сети и /24","Mobile networks and /24")}</h2>
+              <p>{rfUi("Проверяем сочетания настроек, которые могут случайно зацепить динамические адреса оператора.","Check setting combinations that may unintentionally block dynamic carrier IPs.")}</p>
             </div>
           </div>
           <div id="riskSummary" class={overviewControls['riskSummary'].className} hidden={overviewControls['riskSummary'].hidden}><AntiscanRiskSummary view={riskView} /></div>
@@ -1647,22 +1648,22 @@ async function inspectIP() {
       <section class="panel lifecycle-panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">УПРАВЛЕНИЕ</span>
-            <h2>Управление Antiscan</h2>
-            <p>Запуск, остановка и перечитывание настроек выполняются только штатным скриптом <span class="mono">S99ascn</span>. Правила Antiscan RouterForge не подменяет.</p>
+            <span class="section-kicker">{rfUi("УПРАВЛЕНИЕ","CONTROLS")}</span>
+            <h2>{rfUi("Управление Antiscan","Antiscan controls")}</h2>
+            <p>{rfUi("Запуск, остановка и перечитывание настроек выполняются только штатным скриптом","Start, stop, and reload use only the upstream service script")} <span class="mono">S99ascn</span>{rfUi(". Правила Antiscan RouterForge не подменяет.",". RouterForge does not replace Antiscan firewall rules.")}</p>
           </div>
-          <span id="lifecycleState" class={overviewControls['lifecycleState'].className} hidden={overviewControls['lifecycleState'].hidden}>{#if overviewControls['lifecycleState'].textContent !== undefined}{overviewControls['lifecycleState'].textContent}{:else}ПРОВЕРКА…{/if}</span>
+          <span id="lifecycleState" class={overviewControls['lifecycleState'].className} hidden={overviewControls['lifecycleState'].hidden}>{#if overviewControls['lifecycleState'].textContent !== undefined}{overviewControls['lifecycleState'].textContent}{:else}{rfUi("ПРОВЕРКА…","CHECKING…")}{/if}</span>
         </div>
         <div class="lifecycle-body">
           <div class="lifecycle-copy">
-            <strong>Безопасное управление</strong>
-            <span id="lifecycleHint" class={overviewControls['lifecycleHint'].className} hidden={overviewControls['lifecycleHint'].hidden}>{#if overviewControls['lifecycleHint'].textContent !== undefined}{overviewControls['lifecycleHint'].textContent}{:else}Состояние загружается…{/if}</span>
+            <strong>{rfUi("Безопасное управление","Safe controls")}</strong>
+            <span id="lifecycleHint" class={overviewControls['lifecycleHint'].className} hidden={overviewControls['lifecycleHint'].hidden}>{#if overviewControls['lifecycleHint'].textContent !== undefined}{overviewControls['lifecycleHint'].textContent}{:else}{rfUi("Состояние загружается…","Loading status…")}{/if}</span>
           </div>
           <div class="lifecycle-actions">
-            <button id="startAntiscan" class={overviewControls['startAntiscan'].className} type="button" disabled={overviewControls['startAntiscan'].disabled} hidden={overviewControls['startAntiscan'].hidden} onclick={() => performLifecycle('start')}>{#if overviewControls['startAntiscan'].textContent !== undefined}{overviewControls['startAntiscan'].textContent}{:else}▶ Запустить{/if}</button>
-            <button id="reloadAntiscan" class={overviewControls['reloadAntiscan'].className} type="button" disabled={overviewControls['reloadAntiscan'].disabled} hidden={overviewControls['reloadAntiscan'].hidden} onclick={() => performLifecycle('reload')}>{#if overviewControls['reloadAntiscan'].textContent !== undefined}{overviewControls['reloadAntiscan'].textContent}{:else}↻ Перечитать{/if}</button>
-            <button id="restartAntiscan" class={overviewControls['restartAntiscan'].className} type="button" disabled={overviewControls['restartAntiscan'].disabled} hidden={overviewControls['restartAntiscan'].hidden} onclick={() => performLifecycle('restart')}>{#if overviewControls['restartAntiscan'].textContent !== undefined}{overviewControls['restartAntiscan'].textContent}{:else}↻ Перезапустить{/if}</button>
-            <button id="stopAntiscan" class={overviewControls['stopAntiscan'].className} type="button" disabled={overviewControls['stopAntiscan'].disabled} hidden={overviewControls['stopAntiscan'].hidden} onclick={() => performLifecycle('stop')}>{#if overviewControls['stopAntiscan'].textContent !== undefined}{overviewControls['stopAntiscan'].textContent}{:else}■ Остановить{/if}</button>
+            <button id="startAntiscan" class={overviewControls['startAntiscan'].className} type="button" disabled={overviewControls['startAntiscan'].disabled} hidden={overviewControls['startAntiscan'].hidden} onclick={() => performLifecycle('start')}>{#if overviewControls['startAntiscan'].textContent !== undefined}{overviewControls['startAntiscan'].textContent}{:else}{rfUi("▶ Запустить","▶ Start")}{/if}</button>
+            <button id="reloadAntiscan" class={overviewControls['reloadAntiscan'].className} type="button" disabled={overviewControls['reloadAntiscan'].disabled} hidden={overviewControls['reloadAntiscan'].hidden} onclick={() => performLifecycle('reload')}>{#if overviewControls['reloadAntiscan'].textContent !== undefined}{overviewControls['reloadAntiscan'].textContent}{:else}{rfUi("↻ Перечитать","↻ Reload")}{/if}</button>
+            <button id="restartAntiscan" class={overviewControls['restartAntiscan'].className} type="button" disabled={overviewControls['restartAntiscan'].disabled} hidden={overviewControls['restartAntiscan'].hidden} onclick={() => performLifecycle('restart')}>{#if overviewControls['restartAntiscan'].textContent !== undefined}{overviewControls['restartAntiscan'].textContent}{:else}{rfUi("↻ Перезапустить","↻ Restart")}{/if}</button>
+            <button id="stopAntiscan" class={overviewControls['stopAntiscan'].className} type="button" disabled={overviewControls['stopAntiscan'].disabled} hidden={overviewControls['stopAntiscan'].hidden} onclick={() => performLifecycle('stop')}>{#if overviewControls['stopAntiscan'].textContent !== undefined}{overviewControls['stopAntiscan'].textContent}{:else}{rfUi("■ Остановить","■ Stop")}{/if}</button>
           </div>
         </div>
       </section>
@@ -1670,38 +1671,38 @@ async function inspectIP() {
       <section class="panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">СЕРВИСНЫЕ ОПЕРАЦИИ</span>
-            <h2>Обслуживание</h2>
-            <p>Восстановление правил, обработка кандидатов, импорт блокировок Keenetic и сохранение текущего состояния.</p>
+            <span class="section-kicker">{rfUi("СЕРВИСНЫЕ ОПЕРАЦИИ","SERVICE OPERATIONS")}</span>
+            <h2>{rfUi("Обслуживание","Maintenance")}</h2>
+            <p>{rfUi("Восстановление правил, обработка кандидатов, импорт блокировок Keenetic и сохранение текущего состояния.","Restore rules, process candidates, import Keenetic lockouts, and preserve current state.")}</p>
           </div>
-          <span id="operationState" class={overviewControls['operationState'].className} hidden={overviewControls['operationState'].hidden}>{#if overviewControls['operationState'].textContent !== undefined}{overviewControls['operationState'].textContent}{:else}ГОТОВО{/if}</span>
+          <span id="operationState" class={overviewControls['operationState'].className} hidden={overviewControls['operationState'].hidden}>{#if overviewControls['operationState'].textContent !== undefined}{overviewControls['operationState'].textContent}{:else}{rfUi("ГОТОВО","READY")}{/if}</span>
         </div>
         <div class="lifecycle-body">
           <div class="lifecycle-copy">
-            <strong>Сервисные действия</strong>
-            <span>Редкие операции, которые обычно нужны только при диагностике или восстановлении Antiscan.</span>
+            <strong>{rfUi("Сервисные действия","Service actions")}</strong>
+            <span>{rfUi("Редкие операции, которые обычно нужны только при диагностике или восстановлении Antiscan.","Infrequent operations usually needed only when diagnosing or recovering Antiscan.")}</span>
           </div>
           <div class="lifecycle-actions">
-            <button class={overviewControls['rf-generated-10'].className} type="button" data-operation="update_rules" id="rf-generated-10" hidden={overviewControls['rf-generated-10'].hidden} disabled={overviewControls['rf-generated-10'].disabled} onclick={() => performOperation("read_candidates","")}>{#if overviewControls['rf-generated-10'].textContent !== undefined}{overviewControls['rf-generated-10'].textContent}{:else}Восстановить правила{/if}</button>
-            <button class={overviewControls['rf-generated-11'].className} type="button" data-operation="read_candidates" id="rf-generated-11" hidden={overviewControls['rf-generated-11'].hidden} disabled={overviewControls['rf-generated-11'].disabled} onclick={() => performOperation("read_ndm_ipsets","")}>{#if overviewControls['rf-generated-11'].textContent !== undefined}{overviewControls['rf-generated-11'].textContent}{:else}Обработать кандидатов{/if}</button>
-            <button class={overviewControls['rf-generated-12'].className} type="button" data-operation="read_ndm_ipsets" id="rf-generated-12" hidden={overviewControls['rf-generated-12'].hidden} disabled={overviewControls['rf-generated-12'].disabled} onclick={() => performOperation("save_ipsets","")}>{#if overviewControls['rf-generated-12'].textContent !== undefined}{overviewControls['rf-generated-12'].textContent}{:else}Импорт Keenetic{/if}</button>
-            <button class={overviewControls['rf-generated-13'].className} type="button" data-operation="save_ipsets" id="rf-generated-13" hidden={overviewControls['rf-generated-13'].hidden} disabled={overviewControls['rf-generated-13'].disabled} onclick={() => performOperation("update_ipsets","geo")}>{#if overviewControls['rf-generated-13'].textContent !== undefined}{overviewControls['rf-generated-13'].textContent}{:else}Сохранить ipset{/if}</button>
+            <button class={overviewControls['rf-generated-10'].className} type="button" data-operation="update_rules" id="rf-generated-10" hidden={overviewControls['rf-generated-10'].hidden} disabled={overviewControls['rf-generated-10'].disabled} onclick={() => performOperation("read_candidates","")}>{#if overviewControls['rf-generated-10'].textContent !== undefined}{overviewControls['rf-generated-10'].textContent}{:else}{rfUi("Восстановить правила","Restore rules")}{/if}</button>
+            <button class={overviewControls['rf-generated-11'].className} type="button" data-operation="read_candidates" id="rf-generated-11" hidden={overviewControls['rf-generated-11'].hidden} disabled={overviewControls['rf-generated-11'].disabled} onclick={() => performOperation("read_ndm_ipsets","")}>{#if overviewControls['rf-generated-11'].textContent !== undefined}{overviewControls['rf-generated-11'].textContent}{:else}{rfUi("Обработать кандидатов","Process candidates")}{/if}</button>
+            <button class={overviewControls['rf-generated-12'].className} type="button" data-operation="read_ndm_ipsets" id="rf-generated-12" hidden={overviewControls['rf-generated-12'].hidden} disabled={overviewControls['rf-generated-12'].disabled} onclick={() => performOperation("save_ipsets","")}>{#if overviewControls['rf-generated-12'].textContent !== undefined}{overviewControls['rf-generated-12'].textContent}{:else}{rfUi("Импорт Keenetic","Import Keenetic")}{/if}</button>
+            <button class={overviewControls['rf-generated-13'].className} type="button" data-operation="save_ipsets" id="rf-generated-13" hidden={overviewControls['rf-generated-13'].hidden} disabled={overviewControls['rf-generated-13'].disabled} onclick={() => performOperation("update_ipsets","geo")}>{#if overviewControls['rf-generated-13'].textContent !== undefined}{overviewControls['rf-generated-13'].textContent}{:else}{rfUi("Сохранить ipset","Save ipset")}{/if}</button>
           </div>
         </div>
-        <div id="operationOutput" class={overviewControls['operationOutput'].className} hidden={overviewControls['operationOutput'].hidden}>{#if overviewControls['operationOutput'].textContent !== undefined}{overviewControls['operationOutput'].textContent}{:else}Последняя сервисная операция ещё не запускалась.{/if}</div>
+        <div id="operationOutput" class={overviewControls['operationOutput'].className} hidden={overviewControls['operationOutput'].hidden}>{#if overviewControls['operationOutput'].textContent !== undefined}{overviewControls['operationOutput'].textContent}{:else}{rfUi("Последняя сервисная операция ещё не запускалась.","No service operation has been run yet.")}{/if}</div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">НАБОРЫ IPSET</span>
-            <h2>Состояние наборов</h2>
-            <p>Количество записей во всех известных наборах ipset Antiscan.</p>
+            <span class="section-kicker">{rfUi("НАБОРЫ IPSET","IPSET SETS")}</span>
+            <h2>{rfUi("Состояние наборов","Set status")}</h2>
+            <p>{rfUi("Количество записей во всех известных наборах ipset Antiscan.","Entry counts across all known Antiscan ipsets.")}</p>
           </div>
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Набор</th><th>Назначение</th><th>Состояние</th><th>Записей</th></tr></thead>
+            <thead><tr><th>{rfUi("Набор","Set")}</th><th>{rfUi("Назначение","Purpose")}</th><th>{rfUi("Состояние","Status")}</th><th>{rfUi("Записей","Entries")}</th></tr></thead>
             <tbody id="sets" class={overviewControls['sets'].className} hidden={overviewControls['sets'].hidden}><AntiscanIPSetRows rows={ipsetRows} /></tbody>
           </table>
         </div>
@@ -1712,16 +1713,16 @@ async function inspectIP() {
       <section class="panel diagnostics-panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">ГОТОВНОСТЬ ANTISCAN</span>
-            <h2>Диагностика окружения</h2>
-            <p>Проверяем штатные файлы, зависимости, Netfilter, hook, cron, RCI и lock-состояние без изменения настроек.</p>
+            <span class="section-kicker">{rfUi("ГОТОВНОСТЬ ANTISCAN","ANTISCAN READINESS")}</span>
+            <h2>{rfUi("Диагностика окружения","Environment diagnostics")}</h2>
+            <p>{rfUi("Проверяем штатные файлы, зависимости, Netfilter, hook, cron, RCI и lock-состояние без изменения настроек.","Check upstream files, dependencies, netfilter, hooks, cron, RCI, and lock state without changing settings.")}</p>
           </div>
           <div class="diagnostics-head-actions">
-            <span id="diagnosticsState" class={diagnosticsControls['diagnosticsState'].className} hidden={diagnosticsControls['diagnosticsState'].hidden}>{#if diagnosticsControls['diagnosticsState'].textContent !== undefined}{diagnosticsControls['diagnosticsState'].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
-            <button id="reloadDiagnostics" class={diagnosticsControls['reloadDiagnostics'].className} type="button" hidden={diagnosticsControls['reloadDiagnostics'].hidden} disabled={diagnosticsControls['reloadDiagnostics'].disabled} onclick={loadDiagnostics}>{#if diagnosticsControls['reloadDiagnostics'].textContent !== undefined}{diagnosticsControls['reloadDiagnostics'].textContent}{:else}↻ Проверить{/if}</button>
+            <span id="diagnosticsState" class={diagnosticsControls['diagnosticsState'].className} hidden={diagnosticsControls['diagnosticsState'].hidden}>{#if diagnosticsControls['diagnosticsState'].textContent !== undefined}{diagnosticsControls['diagnosticsState'].textContent}{:else}{rfUi("НЕ ЗАГРУЖЕНО","NOT LOADED")}{/if}</span>
+            <button id="reloadDiagnostics" class={diagnosticsControls['reloadDiagnostics'].className} type="button" hidden={diagnosticsControls['reloadDiagnostics'].hidden} disabled={diagnosticsControls['reloadDiagnostics'].disabled} onclick={loadDiagnostics}>{#if diagnosticsControls['reloadDiagnostics'].textContent !== undefined}{diagnosticsControls['reloadDiagnostics'].textContent}{:else}{rfUi("↻ Проверить","↻ Check")}{/if}</button>
           </div>
         </div>
-        <div id="diagnosticsMeta" class={diagnosticsControls['diagnosticsMeta'].className} hidden={diagnosticsControls['diagnosticsMeta'].hidden}>{#if diagnosticsControls['diagnosticsMeta'].textContent !== undefined}{diagnosticsControls['diagnosticsMeta'].textContent}{:else}Откройте вкладку, чтобы выполнить read-only проверку.{/if}</div>
+        <div id="diagnosticsMeta" class={diagnosticsControls['diagnosticsMeta'].className} hidden={diagnosticsControls['diagnosticsMeta'].hidden}>{#if diagnosticsControls['diagnosticsMeta'].textContent !== undefined}{diagnosticsControls['diagnosticsMeta'].textContent}{:else}{rfUi("Откройте вкладку, чтобы выполнить read-only проверку.","Open this tab to run a read-only check.")}{/if}</div>
         <div id="diagnosticsChecks" class={diagnosticsControls['diagnosticsChecks'].className.replace(/\bempty-state\b/g, '').trim()} hidden={diagnosticsControls['diagnosticsChecks'].hidden}><AntiscanDiagnosticChecks checks={diagnosticChecks} emptyText={diagnosticChecksEmpty} /></div>
       </section>
 
@@ -1729,25 +1730,25 @@ async function inspectIP() {
         <div class="panel-head">
           <div>
             <span class="section-kicker">RCI / KEENETIC</span>
-            <h2>RCI-токен</h2>
-            <p>Статус token-flow Antiscan и безопасное управление штатными командами <span class="mono">token set/check/delete</span>.</p>
+            <h2>{rfUi("RCI-токен","RCI token")}</h2>
+            <p>{rfUi("Статус token-flow Antiscan и безопасное управление штатными командами","Antiscan token flow status and safe control through upstream commands")} <span class="mono">token set/check/delete</span>.</p>
           </div>
           <div class="diagnostics-head-actions">
-            <span id="rciTokenState" class={diagnosticsControls['rciTokenState'].className} hidden={diagnosticsControls['rciTokenState'].hidden}>{#if diagnosticsControls['rciTokenState'].textContent !== undefined}{diagnosticsControls['rciTokenState'].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
-            <button id="reloadRCIToken" class={diagnosticsControls['reloadRCIToken'].className} type="button" hidden={diagnosticsControls['reloadRCIToken'].hidden} disabled={diagnosticsControls['reloadRCIToken'].disabled} onclick={loadRCITokenStatus}>{#if diagnosticsControls['reloadRCIToken'].textContent !== undefined}{diagnosticsControls['reloadRCIToken'].textContent}{:else}↻ Обновить{/if}</button>
+            <span id="rciTokenState" class={diagnosticsControls['rciTokenState'].className} hidden={diagnosticsControls['rciTokenState'].hidden}>{#if diagnosticsControls['rciTokenState'].textContent !== undefined}{diagnosticsControls['rciTokenState'].textContent}{:else}{rfUi("НЕ ЗАГРУЖЕНО","NOT LOADED")}{/if}</span>
+            <button id="reloadRCIToken" class={diagnosticsControls['reloadRCIToken'].className} type="button" hidden={diagnosticsControls['reloadRCIToken'].hidden} disabled={diagnosticsControls['reloadRCIToken'].disabled} onclick={loadRCITokenStatus}>{#if diagnosticsControls['reloadRCIToken'].textContent !== undefined}{diagnosticsControls['reloadRCIToken'].textContent}{:else}{rfUi("↻ Обновить","↻ Refresh")}{/if}</button>
           </div>
         </div>
         <div class="rci-token-body">
           <div class="rci-token-copy">
-            <strong id="rciTokenSummary" class={diagnosticsControls['rciTokenSummary'].className} hidden={diagnosticsControls['rciTokenSummary'].hidden}>{#if diagnosticsControls['rciTokenSummary'].textContent !== undefined}{diagnosticsControls['rciTokenSummary'].textContent}{:else}Состояние RCI-токена ещё не загружено.{/if}</strong>
-            <span id="rciTokenMeta" class={diagnosticsControls['rciTokenMeta'].className} hidden={diagnosticsControls['rciTokenMeta'].hidden}>{#if diagnosticsControls['rciTokenMeta'].textContent !== undefined}{diagnosticsControls['rciTokenMeta'].textContent}{:else}Значение токена RouterForge не читает и не показывает.{/if}</span>
-            <span class="rci-token-security">Токен передаётся upstream только через stdin. Он не попадает в argv, URL, ответ API или журнал операций.</span>
+            <strong id="rciTokenSummary" class={diagnosticsControls['rciTokenSummary'].className} hidden={diagnosticsControls['rciTokenSummary'].hidden}>{#if diagnosticsControls['rciTokenSummary'].textContent !== undefined}{diagnosticsControls['rciTokenSummary'].textContent}{:else}{rfUi("Состояние RCI-токена ещё не загружено.","RCI token status has not been loaded yet.")}{/if}</strong>
+            <span id="rciTokenMeta" class={diagnosticsControls['rciTokenMeta'].className} hidden={diagnosticsControls['rciTokenMeta'].hidden}>{#if diagnosticsControls['rciTokenMeta'].textContent !== undefined}{diagnosticsControls['rciTokenMeta'].textContent}{:else}{rfUi("Значение токена RouterForge не читает и не показывает.","RouterForge never reads or displays the token value.")}{/if}</span>
+            <span class="rci-token-security">{rfUi("Токен передаётся upstream только через stdin. Он не попадает в argv, URL, ответ API или журнал операций.","The token is passed to the upstream process only through stdin. It never appears in argv, URLs, API responses, or operation logs.")}</span>
           </div>
           <div class="rci-token-controls">
-            <input id="rciTokenInput" type="password" autocomplete="new-password" spellcheck="false" placeholder="Новый RCI-токен" aria-label="Новый RCI-токен" class={diagnosticsControls['rciTokenInput'].className} hidden={diagnosticsControls['rciTokenInput'].hidden} disabled={diagnosticsControls['rciTokenInput'].disabled} bind:value={diagnosticsControls['rciTokenInput'].value} onkeydown={(event) => {if(event.key === 'Enter') performRCITokenAction('set');}}>
-            <button id="setRCIToken" class={diagnosticsControls['setRCIToken'].className} type="button" disabled={diagnosticsControls['setRCIToken'].disabled} hidden={diagnosticsControls['setRCIToken'].hidden} onclick={() => performRCITokenAction('set')}>{#if diagnosticsControls['setRCIToken'].textContent !== undefined}{diagnosticsControls['setRCIToken'].textContent}{:else}Сохранить токен{/if}</button>
-            <button id="checkRCIToken" class={diagnosticsControls['checkRCIToken'].className} type="button" disabled={diagnosticsControls['checkRCIToken'].disabled} hidden={diagnosticsControls['checkRCIToken'].hidden} onclick={() => performRCITokenAction('check')}>{#if diagnosticsControls['checkRCIToken'].textContent !== undefined}{diagnosticsControls['checkRCIToken'].textContent}{:else}Проверить{/if}</button>
-            <button id="deleteRCIToken" class={diagnosticsControls['deleteRCIToken'].className} type="button" disabled={diagnosticsControls['deleteRCIToken'].disabled} hidden={diagnosticsControls['deleteRCIToken'].hidden} onclick={() => performRCITokenAction('delete')}>{#if diagnosticsControls['deleteRCIToken'].textContent !== undefined}{diagnosticsControls['deleteRCIToken'].textContent}{:else}Удалить{/if}</button>
+            <input id="rciTokenInput" type="password" autocomplete="new-password" spellcheck="false" placeholder={rfUi("Новый RCI-токен","New RCI token")} aria-label={rfUi("Новый RCI-токен","New RCI token")} class={diagnosticsControls['rciTokenInput'].className} hidden={diagnosticsControls['rciTokenInput'].hidden} disabled={diagnosticsControls['rciTokenInput'].disabled} bind:value={diagnosticsControls['rciTokenInput'].value} onkeydown={(event) => {if(event.key === 'Enter') performRCITokenAction('set');}}>
+            <button id="setRCIToken" class={diagnosticsControls['setRCIToken'].className} type="button" disabled={diagnosticsControls['setRCIToken'].disabled} hidden={diagnosticsControls['setRCIToken'].hidden} onclick={() => performRCITokenAction('set')}>{#if diagnosticsControls['setRCIToken'].textContent !== undefined}{diagnosticsControls['setRCIToken'].textContent}{:else}{rfUi("Сохранить токен","Save token")}{/if}</button>
+            <button id="checkRCIToken" class={diagnosticsControls['checkRCIToken'].className} type="button" disabled={diagnosticsControls['checkRCIToken'].disabled} hidden={diagnosticsControls['checkRCIToken'].hidden} onclick={() => performRCITokenAction('check')}>{#if diagnosticsControls['checkRCIToken'].textContent !== undefined}{diagnosticsControls['checkRCIToken'].textContent}{:else}{rfUi("Проверить","Check")}{/if}</button>
+            <button id="deleteRCIToken" class={diagnosticsControls['deleteRCIToken'].className} type="button" disabled={diagnosticsControls['deleteRCIToken'].disabled} hidden={diagnosticsControls['deleteRCIToken'].hidden} onclick={() => performRCITokenAction('delete')}>{#if diagnosticsControls['deleteRCIToken'].textContent !== undefined}{diagnosticsControls['deleteRCIToken'].textContent}{:else}{rfUi("Удалить","Delete")}{/if}</button>
           </div>
         </div>
       </section>
@@ -1755,16 +1756,16 @@ async function inspectIP() {
       <section class="panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">СОВМЕСТИМОСТЬ</span>
-            <h2>Совместимость и обновления</h2>
-            <p>Учтённый функционал upstream привязан к проверенной версии. RouterForge не устанавливает обновления Antiscan: здесь только read-only состояние пакета, update cache, прошивки, Netfilter и hook.</p>
+            <span class="section-kicker">{rfUi("СОВМЕСТИМОСТЬ","COMPATIBILITY")}</span>
+            <h2>{rfUi("Совместимость и обновления","Compatibility and updates")}</h2>
+            <p>{rfUi("Учтённый функционал upstream привязан к проверенной версии. RouterForge не устанавливает обновления Antiscan: здесь только read-only состояние пакета, update cache, прошивки, Netfilter и hook.","Available upstream features are based on the verified version. RouterForge does not install Antiscan updates here; this screen only shows package, update cache, firmware, Netfilter, and hook status.")}</p>
           </div>
           <div class="diagnostics-head-actions">
-            <span id="compatibilityState" class={diagnosticsControls['compatibilityState'].className} hidden={diagnosticsControls['compatibilityState'].hidden}>{#if diagnosticsControls['compatibilityState'].textContent !== undefined}{diagnosticsControls['compatibilityState'].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
-            <button id="reloadCompatibility" class={diagnosticsControls['reloadCompatibility'].className} type="button" hidden={diagnosticsControls['reloadCompatibility'].hidden} disabled={diagnosticsControls['reloadCompatibility'].disabled} onclick={loadCompatibility}>{#if diagnosticsControls['reloadCompatibility'].textContent !== undefined}{diagnosticsControls['reloadCompatibility'].textContent}{:else}↻ Перечитать{/if}</button>
+            <span id="compatibilityState" class={diagnosticsControls['compatibilityState'].className} hidden={diagnosticsControls['compatibilityState'].hidden}>{#if diagnosticsControls['compatibilityState'].textContent !== undefined}{diagnosticsControls['compatibilityState'].textContent}{:else}{rfUi("НЕ ЗАГРУЖЕНО","NOT LOADED")}{/if}</span>
+            <button id="reloadCompatibility" class={diagnosticsControls['reloadCompatibility'].className} type="button" hidden={diagnosticsControls['reloadCompatibility'].hidden} disabled={diagnosticsControls['reloadCompatibility'].disabled} onclick={loadCompatibility}>{#if diagnosticsControls['reloadCompatibility'].textContent !== undefined}{diagnosticsControls['reloadCompatibility'].textContent}{:else}{rfUi("↻ Перечитать","↻ Reload")}{/if}</button>
           </div>
         </div>
-        <div id="compatibilityMeta" class={diagnosticsControls['compatibilityMeta'].className} hidden={diagnosticsControls['compatibilityMeta'].hidden}>{#if diagnosticsControls['compatibilityMeta'].textContent !== undefined}{diagnosticsControls['compatibilityMeta'].textContent}{:else}Откройте вкладку, чтобы проверить совместимость без сетевых запросов и изменений системы.{/if}</div>
+        <div id="compatibilityMeta" class={diagnosticsControls['compatibilityMeta'].className} hidden={diagnosticsControls['compatibilityMeta'].hidden}>{#if diagnosticsControls['compatibilityMeta'].textContent !== undefined}{diagnosticsControls['compatibilityMeta'].textContent}{:else}{rfUi("Откройте вкладку, чтобы проверить совместимость без сетевых запросов и изменений системы.","Open this tab to check compatibility without network requests or system changes.")}{/if}</div>
         <div id="compatibilityGrid" class={diagnosticsControls['compatibilityGrid'].className} hidden={diagnosticsControls['compatibilityGrid'].hidden}><AntiscanKeyValueRows rows={compatibilityRows} /></div>
         <div id="compatibilityWarnings" class={diagnosticsControls['compatibilityWarnings'].className} hidden={diagnosticsControls['compatibilityWarnings'].hidden}>{#if compatibilityError}<div class="empty-state bad-text">{compatibilityError}</div>{:else if compatibilityLoaded}<AntiscanWarningItems messages={compatibilityWarnings} emptyText="Версия, package metadata, Netfilter и hook согласованы с проверенным контрактом RouterForge." />{/if}</div>
         <div id="diagnosticsContract" class={diagnosticsControls['diagnosticsContract'].className} hidden={diagnosticsControls['diagnosticsContract'].hidden}><AntiscanKeyValueRows rows={diagnosticContractRows} /></div>
@@ -1774,14 +1775,14 @@ async function inspectIP() {
       <section class="panel inspector-panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">ДИАГНОСТИКА БЛОКИРОВКИ</span>
-            <h2>Почему заблокирован этот IP?</h2>
-            <p>Проверяем известные наборы <span class="mono">ascn_*</span> в том же порядке, в котором их учитывает Antiscan.</p>
+            <span class="section-kicker">{rfUi("ДИАГНОСТИКА БЛОКИРОВКИ","BLOCK DIAGNOSTICS")}</span>
+            <h2>{rfUi("Почему заблокирован этот IP?","Why is this IP blocked?")}</h2>
+            <p>{rfUi("Проверяем известные наборы","Check known sets")} <span class="mono">ascn_*</span> {rfUi("в том же порядке, в котором их учитывает Antiscan.","in the same order Antiscan evaluates them.")}</p>
           </div>
         </div>
         <div class="inspect-form">
-          <input id="inspectIp" autocomplete="off" inputmode="decimal" spellcheck="false" placeholder="Например, 100.64.10.77" class={inspectorControls['inspectIp'].className} hidden={inspectorControls['inspectIp'].hidden} disabled={inspectorControls['inspectIp'].disabled} bind:value={inspectorControls['inspectIp'].value} onkeydown={(event) => {if(event.key === "Enter") inspectIP();}}>
-          <button id="inspectButton" class={inspectorControls['inspectButton'].className} type="button" hidden={inspectorControls['inspectButton'].hidden} disabled={inspectorControls['inspectButton'].disabled} onclick={inspectIP}>{#if inspectorControls['inspectButton'].textContent !== undefined}{inspectorControls['inspectButton'].textContent}{:else}Проверить IP{/if}</button>
+          <input id="inspectIp" autocomplete="off" inputmode="decimal" spellcheck="false" placeholder={rfUi("Например, 100.64.10.77","For example, 100.64.10.77")} class={inspectorControls['inspectIp'].className} hidden={inspectorControls['inspectIp'].hidden} disabled={inspectorControls['inspectIp'].disabled} bind:value={inspectorControls['inspectIp'].value} onkeydown={(event) => {if(event.key === "Enter") inspectIP();}}>
+          <button id="inspectButton" class={inspectorControls['inspectButton'].className} type="button" hidden={inspectorControls['inspectButton'].hidden} disabled={inspectorControls['inspectButton'].disabled} onclick={inspectIP}>{#if inspectorControls['inspectButton'].textContent !== undefined}{inspectorControls['inspectButton'].textContent}{:else}{rfUi("Проверить IP","Check IP")}{/if}</button>
         </div>
         <div id="inspectResult" class={inspectorControls['inspectResult'].className} hidden={inspectorControls['inspectResult'].hidden}><AntiscanInspectorResult view={inspectorView} emptyText={inspectorEmpty} onExclude={entry => performListEntry('exclude', entry)} /></div>
       </section>
@@ -1789,15 +1790,15 @@ async function inspectIP() {
       <section class="panel mobile-help">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">МОБИЛЬНЫЕ СЕТИ</span>
-            <h2>Почему мобильный адрес может попасть под раздачу</h2>
+            <span class="section-kicker">{rfUi("МОБИЛЬНЫЕ СЕТИ","MOBILE NETWORKS")}</span>
+            <h2>{rfUi("Почему мобильный адрес может попасть под раздачу","Why a mobile IP may be blocked")}</h2>
           </div>
         </div>
         <div class="explain-grid">
-          <article><strong>1</strong><span>Antiscan запоминает адреса-кандидаты.</span></article>
-          <article><strong>2</strong><span>Несколько адресов одной /24 могут накопиться за период хранения.</span></article>
-          <article><strong>3</strong><span>После порога вся /24 попадает в <span class="mono">ascn_subnets</span>.</span></article>
-          <article><strong>4</strong><span>Новый легитимный мобильный IP из этой /24 тоже оказывается заблокирован.</span></article>
+          <article><strong>1</strong><span>{rfUi("Antiscan запоминает адреса-кандидаты.","Antiscan remembers candidate addresses.")}</span></article>
+          <article><strong>2</strong><span>{rfUi("Несколько адресов одной /24 могут накопиться за период хранения.","Multiple addresses from the same /24 may accumulate over the retention period.")}</span></article>
+          <article><strong>3</strong><span>{rfUi("После порога вся /24 попадает в","Once the threshold is reached, the entire /24 enters")} <span class="mono">ascn_subnets</span>.</span></article>
+          <article><strong>4</strong><span>{rfUi("Новый легитимный мобильный IP из этой /24 тоже оказывается заблокирован.","A new legitimate mobile IP within that /24 may then be blocked too.")}</span></article>
         </div>
       </section>
     {/if}</section>
@@ -1806,23 +1807,23 @@ async function inspectIP() {
       <section class="panel set-browser-panel">
         <div class="panel-head set-browser-head">
           <div>
-            <span class="section-kicker">ТЕКУЩИЕ БЛОКИРОВКИ</span>
-            <h2>Блокировки и кандидаты</h2>
-            <p>Реальные записи выбранного набора. Для блокировок Antiscan можно снять только одну конкретную запись; остальные записи не изменяются.</p>
+            <span class="section-kicker">{rfUi("ТЕКУЩИЕ БЛОКИРОВКИ","CURRENT BLOCKS")}</span>
+            <h2>{rfUi("Блокировки и кандидаты","Blocks and candidates")}</h2>
+            <p>{rfUi("Реальные записи выбранного набора. Для блокировок Antiscan можно снять только одну конкретную запись; остальные записи не изменяются.","Live entries in the selected set. A single Antiscan block can be removed without changing other entries.")}</p>
           </div>
           <div class="browser-controls">
-            <select id="blockedSet" aria-label="Выберите Antiscan set" class={blockedControls['blockedSet'].className} hidden={blockedControls['blockedSet'].hidden} disabled={blockedControls['blockedSet'].disabled} bind:value={blockedControls['blockedSet'].value} onchange={() => loadSet('blocked')}>
-              <option value="ascn_ips">Прямые IP · ascn_ips</option>
-              <option value="ascn_subnets">Подсети /24 · ascn_subnets</option>
-              <option value="ascn_honeypot">Ловушка · ascn_honeypot</option>
-              <option value="ascn_ndm_lockout">Блокировка Keenetic · ascn_ndm_lockout</option>
-              <option value="ascn_candidates">Кандидаты · ascn_candidates</option>
+            <select id="blockedSet" aria-label={rfUi("Выберите Antiscan set","Select an Antiscan set")} class={blockedControls['blockedSet'].className} hidden={blockedControls['blockedSet'].hidden} disabled={blockedControls['blockedSet'].disabled} bind:value={blockedControls['blockedSet'].value} onchange={() => loadSet('blocked')}>
+              <option value="ascn_ips">{rfUi("Прямые IP · ascn_ips","Direct IPs · ascn_ips")}</option>
+              <option value="ascn_subnets">{rfUi("Подсети /24 · ascn_subnets","/24 subnets · ascn_subnets")}</option>
+              <option value="ascn_honeypot">{rfUi("Ловушка · ascn_honeypot","Honeypot · ascn_honeypot")}</option>
+              <option value="ascn_ndm_lockout">{rfUi("Блокировка Keenetic · ascn_ndm_lockout","Keenetic lockout · ascn_ndm_lockout")}</option>
+              <option value="ascn_candidates">{rfUi("Кандидаты · ascn_candidates","Candidates · ascn_candidates")}</option>
             </select>
-            <button id="reloadBlocked" class={blockedControls['reloadBlocked'].className} type="button" hidden={blockedControls['reloadBlocked'].hidden} disabled={blockedControls['reloadBlocked'].disabled} onclick={() => loadSet('blocked')}>{#if blockedControls['reloadBlocked'].textContent !== undefined}{blockedControls['reloadBlocked'].textContent}{:else}Загрузить{/if}</button>
+            <button id="reloadBlocked" class={blockedControls['reloadBlocked'].className} type="button" hidden={blockedControls['reloadBlocked'].hidden} disabled={blockedControls['reloadBlocked'].disabled} onclick={() => loadSet('blocked')}>{#if blockedControls['reloadBlocked'].textContent !== undefined}{blockedControls['reloadBlocked'].textContent}{:else}{rfUi("Загрузить","Load")}{/if}</button>
           </div>
         </div>
         <div class="browser-toolbar">
-          <input id="blockedFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети" class={blockedControls['blockedFilter'].className} hidden={blockedControls['blockedFilter'].hidden} disabled={blockedControls['blockedFilter'].disabled} bind:value={blockedControls['blockedFilter'].value} oninput={() => renderSetPage('blocked')}>
+          <input id="blockedFilter" autocomplete="off" spellcheck="false" placeholder={rfUi("Фильтр по IP или подсети","Filter by IP or subnet")} class={blockedControls['blockedFilter'].className} hidden={blockedControls['blockedFilter'].hidden} disabled={blockedControls['blockedFilter'].disabled} bind:value={blockedControls['blockedFilter'].value} oninput={() => renderSetPage('blocked')}>
           <span id="blockedMeta" class={blockedControls['blockedMeta'].className} hidden={blockedControls['blockedMeta'].hidden}>{#if blockedControls['blockedMeta'].textContent !== undefined}{blockedControls['blockedMeta'].textContent}{:else}—{/if}</span>
         </div>
         <div id="blockedEntries" class={blockedControls['blockedEntries'].className} hidden={blockedControls['blockedEntries'].hidden}><AntiscanSetEntries entries={blockedRows} emptyText={blockedRowsEmpty} onUnban={(set, entry) => performUnban(set, entry)} onExclude={entry => performListEntry('exclude', entry)} /></div>
@@ -1831,34 +1832,34 @@ async function inspectIP() {
       <section class="panel flush-panel">
         <div class="panel-head set-browser-head">
           <div>
-            <span class="section-kicker">ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ</span>
-            <h2>Очистить набор Antiscan</h2>
-            <p>RouterForge вызывает только штатный <span class="mono">S99ascn flush</span>, заранее показывает затрагиваемые наборы и после операции проверяет фактическое состояние.</p>
+            <span class="section-kicker">{rfUi("ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ","UPSTREAM CLEANUP / RECOVERY")}</span>
+            <h2>{rfUi("Очистить набор Antiscan","Clear Antiscan set")}</h2>
+            <p>{rfUi("RouterForge вызывает только штатный","RouterForge invokes only the upstream")} <span class="mono">S99ascn flush</span>{rfUi(", заранее показывает затрагиваемые наборы и после операции проверяет фактическое состояние.",", previews affected sets, and verifies actual state after the operation.")}</p>
           </div>
           <div class="browser-controls">
-            <select id="flushTarget" aria-label="Выберите набор для очистки" class={blockedControls['flushTarget'].className} hidden={blockedControls['flushTarget'].hidden} disabled={blockedControls['flushTarget'].disabled} bind:value={blockedControls['flushTarget'].value} onchange={loadFlushPreview}>
-              <option value="ips">Прямые IP</option>
-              <option value="subnets">Подсети /24</option>
-              <option value="candidates">Кандидаты</option>
-              <option value="honeypot">Ловушка</option>
-              <option value="ndm_lockout">Блокировки Keenetic</option>
-              <option value="custom_blacklist">Пользовательский чёрный список</option>
-              <option value="custom_whitelist">Пользовательский белый список</option>
-              <option value="custom_exclude">Пользовательские исключения</option>
-              <option value="geo">Все Geo-наборы</option>
-              <option value="all">Upstream «все»</option>
+            <select id="flushTarget" aria-label={rfUi("Выберите набор для очистки","Select a set to clear")} class={blockedControls['flushTarget'].className} hidden={blockedControls['flushTarget'].hidden} disabled={blockedControls['flushTarget'].disabled} bind:value={blockedControls['flushTarget'].value} onchange={loadFlushPreview}>
+              <option value="ips">{rfUi("Прямые IP","Direct IPs")}</option>
+              <option value="subnets">{rfUi("Подсети /24","/24 subnets")}</option>
+              <option value="candidates">{rfUi("Кандидаты","Candidates")}</option>
+              <option value="honeypot">{rfUi("Ловушка","Honeypot")}</option>
+              <option value="ndm_lockout">{rfUi("Блокировки Keenetic","Keenetic lockouts")}</option>
+              <option value="custom_blacklist">{rfUi("Пользовательский чёрный список","User blocklist")}</option>
+              <option value="custom_whitelist">{rfUi("Пользовательский белый список","User allowlist")}</option>
+              <option value="custom_exclude">{rfUi("Пользовательские исключения","User exclusions")}</option>
+              <option value="geo">{rfUi("Все Geo-наборы","All Geo sets")}</option>
+              <option value="all">{rfUi("Upstream «все»","Upstream «all»")}</option>
             </select>
-            <button id="reloadFlushPreview" class={blockedControls['reloadFlushPreview'].className} type="button" hidden={blockedControls['reloadFlushPreview'].hidden} disabled={blockedControls['reloadFlushPreview'].disabled} onclick={loadFlushPreview}>{#if blockedControls['reloadFlushPreview'].textContent !== undefined}{blockedControls['reloadFlushPreview'].textContent}{:else}↻ Проверить{/if}</button>
+            <button id="reloadFlushPreview" class={blockedControls['reloadFlushPreview'].className} type="button" hidden={blockedControls['reloadFlushPreview'].hidden} disabled={blockedControls['reloadFlushPreview'].disabled} onclick={loadFlushPreview}>{#if blockedControls['reloadFlushPreview'].textContent !== undefined}{blockedControls['reloadFlushPreview'].textContent}{:else}{rfUi("↻ Проверить","↻ Check")}{/if}</button>
           </div>
         </div>
         <div class="flush-summary">
-          <span id="flushState" class={blockedControls['flushState'].className} hidden={blockedControls['flushState'].hidden}>{#if blockedControls['flushState'].textContent !== undefined}{blockedControls['flushState'].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
-          <div id="flushMeta" class={blockedControls['flushMeta'].className} hidden={blockedControls['flushMeta'].hidden}>{#if blockedControls['flushMeta'].textContent !== undefined}{blockedControls['flushMeta'].textContent}{:else}Выберите цель, чтобы увидеть точные последствия штатной команды flush.{/if}</div>
+          <span id="flushState" class={blockedControls['flushState'].className} hidden={blockedControls['flushState'].hidden}>{#if blockedControls['flushState'].textContent !== undefined}{blockedControls['flushState'].textContent}{:else}{rfUi("НЕ ЗАГРУЖЕНО","NOT LOADED")}{/if}</span>
+          <div id="flushMeta" class={blockedControls['flushMeta'].className} hidden={blockedControls['flushMeta'].hidden}>{#if blockedControls['flushMeta'].textContent !== undefined}{blockedControls['flushMeta'].textContent}{:else}{rfUi("Выберите цель, чтобы увидеть точные последствия штатной команды flush.","Select a target to preview the effects of the native clear operation.")}{/if}</div>
         </div>
-        <div id="flushWarnings" class={blockedControls['flushWarnings'].className} hidden={blockedControls['flushWarnings'].hidden}>{#if flushWarningRows.length}<AntiscanWarningItems messages={flushWarningRows} />{:else}<div class="empty-state">Дополнительных предупреждений для этой цели нет.</div>{/if}</div>
+        <div id="flushWarnings" class={blockedControls['flushWarnings'].className} hidden={blockedControls['flushWarnings'].hidden}>{#if flushWarningRows.length}<AntiscanWarningItems messages={flushWarningRows} />{:else}<div class="empty-state">{rfUi("Дополнительных предупреждений для этой цели нет.","No additional warnings for this target.")}</div>{/if}</div>
         <div class="flush-actions">
-          <button id="flushSelected" class={blockedControls['flushSelected'].className} type="button" disabled={blockedControls['flushSelected'].disabled} hidden={blockedControls['flushSelected'].hidden} onclick={performFlush}>{#if blockedControls['flushSelected'].textContent !== undefined}{blockedControls['flushSelected'].textContent}{:else}Очистить выбранное{/if}</button>
-          <span class="muted">Для активных whitelist с опасной комбинацией настроек операция блокируется до изменения конфигурации.</span>
+          <button id="flushSelected" class={blockedControls['flushSelected'].className} type="button" disabled={blockedControls['flushSelected'].disabled} hidden={blockedControls['flushSelected'].hidden} onclick={performFlush}>{#if blockedControls['flushSelected'].textContent !== undefined}{blockedControls['flushSelected'].textContent}{:else}{rfUi("Очистить выбранное","Clear selected")}{/if}</button>
+          <span class="muted">{rfUi("Для активных whitelist с опасной комбинацией настроек операция блокируется до изменения конфигурации.","With an active allowlist and potentially unsafe settings, the operation is blocked until the configuration is changed.")}</span>
         </div>
       </section>
     {/if}</section>
@@ -1867,28 +1868,28 @@ async function inspectIP() {
       <section class="panel set-browser-panel custom-source-panel">
         <div class="panel-head set-browser-head">
           <div>
-            <span class="section-kicker">ПОЛЬЗОВАТЕЛЬСКИЕ СПИСКИ</span>
-            <h2>Исходные списки Antiscan</h2>
-            <p>Полное управление файлами blacklist, whitelist и exclude. Изменения атомарные; активный список перечитывается штатной командой Antiscan и проверяется по runtime ipset.</p>
+            <span class="section-kicker">{rfUi("ПОЛЬЗОВАТЕЛЬСКИЕ СПИСКИ","USER LISTS")}</span>
+            <h2>{rfUi("Исходные списки Antiscan","Antiscan source lists")}</h2>
+            <p>{rfUi("Полное управление файлами blacklist, whitelist и exclude. Изменения атомарные; активный список перечитывается штатной командой Antiscan и проверяется по runtime ipset.","Manage blocklist, allowlist, and exclusion files. Changes are atomic; active lists are reloaded using upstream commands and verified against runtime ipset.")}</p>
           </div>
           <div class="browser-controls">
-            <select id="customListName" aria-label="Выберите пользовательский список" class={listsControls['customListName'].className} hidden={listsControls['customListName'].hidden} disabled={listsControls['customListName'].disabled} bind:value={listsControls['customListName'].value} onchange={loadCustomList}>
-              <option value="blacklist">Чёрный список</option>
-              <option value="whitelist">Белый список</option>
-              <option value="exclude">Исключения</option>
+            <select id="customListName" aria-label={rfUi("Выберите пользовательский список","Select a user list")} class={listsControls['customListName'].className} hidden={listsControls['customListName'].hidden} disabled={listsControls['customListName'].disabled} bind:value={listsControls['customListName'].value} onchange={loadCustomList}>
+              <option value="blacklist">{rfUi("Чёрный список","Blocklist")}</option>
+              <option value="whitelist">{rfUi("Белый список","Allowlist")}</option>
+              <option value="exclude">{rfUi("Исключения","Exclusions")}</option>
             </select>
-            <button id="reloadCustomList" class={listsControls['reloadCustomList'].className} type="button" hidden={listsControls['reloadCustomList'].hidden} disabled={listsControls['reloadCustomList'].disabled} onclick={loadCustomList}>{#if listsControls['reloadCustomList'].textContent !== undefined}{listsControls['reloadCustomList'].textContent}{:else}Загрузить{/if}</button>
+            <button id="reloadCustomList" class={listsControls['reloadCustomList'].className} type="button" hidden={listsControls['reloadCustomList'].hidden} disabled={listsControls['reloadCustomList'].disabled} onclick={loadCustomList}>{#if listsControls['reloadCustomList'].textContent !== undefined}{listsControls['reloadCustomList'].textContent}{:else}{rfUi("Загрузить","Load")}{/if}</button>
           </div>
         </div>
         <div class="browser-toolbar">
-          <input id="customListEntry" autocomplete="off" spellcheck="false" placeholder="IPv4 или CIDR, например 100.64.10.0/24" class={listsControls['customListEntry'].className} hidden={listsControls['customListEntry'].hidden} disabled={listsControls['customListEntry'].disabled} bind:value={listsControls['customListEntry'].value} onkeydown={(event) => {if(event.key === 'Enter') performCustomListMutation('add', listsControls['customListEntry'].value.trim());}}>
+          <input id="customListEntry" autocomplete="off" spellcheck="false" placeholder={rfUi("IPv4 или CIDR, например 100.64.10.0/24","IPv4 or CIDR, e.g. 100.64.10.0/24")} class={listsControls['customListEntry'].className} hidden={listsControls['customListEntry'].hidden} disabled={listsControls['customListEntry'].disabled} bind:value={listsControls['customListEntry'].value} onkeydown={(event) => {if(event.key === 'Enter') performCustomListMutation('add', listsControls['customListEntry'].value.trim());}}>
           <span class="entry-actions">
-            <button id="addCustomListEntry" class={listsControls['addCustomListEntry'].className} type="button" hidden={listsControls['addCustomListEntry'].hidden} disabled={listsControls['addCustomListEntry'].disabled} onclick={() => performCustomListMutation('add', listsControls['customListEntry'].value.trim())}>{#if listsControls['addCustomListEntry'].textContent !== undefined}{listsControls['addCustomListEntry'].textContent}{:else}Добавить адрес{/if}</button>
-            <button id="reloadCustomListRuntime" class={listsControls['reloadCustomListRuntime'].className} type="button" hidden={listsControls['reloadCustomListRuntime'].hidden} disabled={listsControls['reloadCustomListRuntime'].disabled} onclick={() => performCustomListMutation('reload')}>{#if listsControls['reloadCustomListRuntime'].textContent !== undefined}{listsControls['reloadCustomListRuntime'].textContent}{:else}Перечитать runtime{/if}</button>
-            <button id="clearCustomList" class={listsControls['clearCustomList'].className} type="button" hidden={listsControls['clearCustomList'].hidden} disabled={listsControls['clearCustomList'].disabled} onclick={() => performCustomListMutation('clear')}>{#if listsControls['clearCustomList'].textContent !== undefined}{listsControls['clearCustomList'].textContent}{:else}Очистить{/if}</button>
+            <button id="addCustomListEntry" class={listsControls['addCustomListEntry'].className} type="button" hidden={listsControls['addCustomListEntry'].hidden} disabled={listsControls['addCustomListEntry'].disabled} onclick={() => performCustomListMutation('add', listsControls['customListEntry'].value.trim())}>{#if listsControls['addCustomListEntry'].textContent !== undefined}{listsControls['addCustomListEntry'].textContent}{:else}{rfUi("Добавить адрес","Add address")}{/if}</button>
+            <button id="reloadCustomListRuntime" class={listsControls['reloadCustomListRuntime'].className} type="button" hidden={listsControls['reloadCustomListRuntime'].hidden} disabled={listsControls['reloadCustomListRuntime'].disabled} onclick={() => performCustomListMutation('reload')}>{#if listsControls['reloadCustomListRuntime'].textContent !== undefined}{listsControls['reloadCustomListRuntime'].textContent}{:else}{rfUi("Перечитать runtime","Reload service state")}{/if}</button>
+            <button id="clearCustomList" class={listsControls['clearCustomList'].className} type="button" hidden={listsControls['clearCustomList'].hidden} disabled={listsControls['clearCustomList'].disabled} onclick={() => performCustomListMutation('clear')}>{#if listsControls['clearCustomList'].textContent !== undefined}{listsControls['clearCustomList'].textContent}{:else}{rfUi("Очистить","Clear")}{/if}</button>
           </span>
         </div>
-        <div id="customListMeta" class={listsControls['customListMeta'].className} hidden={listsControls['customListMeta'].hidden}>{#if listsControls['customListMeta'].textContent !== undefined}{listsControls['customListMeta'].textContent}{:else}Выберите список и загрузите его исходный файл.{/if}</div>
+        <div id="customListMeta" class={listsControls['customListMeta'].className} hidden={listsControls['customListMeta'].hidden}>{#if listsControls['customListMeta'].textContent !== undefined}{listsControls['customListMeta'].textContent}{:else}{rfUi("Выберите список и загрузите его исходный файл.","Select a list and load its source file.")}{/if}</div>
         <div id="customListEntries" class={listsControls['customListEntries'].className} hidden={listsControls['customListEntries'].hidden}><AntiscanSetEntries entries={customRows} emptyText={customRowsEmpty} onDelete={entry => performCustomListMutation('delete', entry)} /></div>
       </section>
 
@@ -1896,16 +1897,16 @@ async function inspectIP() {
         <div class="panel-head set-browser-head">
           <div>
             <span class="section-kicker">RUNTIME IPSET</span>
-            <h2 id="runtimeListsTitle" class={listsControls['runtimeListsTitle'].className} hidden={listsControls['runtimeListsTitle'].hidden}>{#if listsControls['runtimeListsTitle'].textContent !== undefined}{listsControls['runtimeListsTitle'].textContent}{:else}Активные пользовательские списки{/if}</h2>
-            <p id="runtimeListsDescription" class={listsControls['runtimeListsDescription'].className} hidden={listsControls['runtimeListsDescription'].hidden}>{#if listsControls['runtimeListsDescription'].textContent !== undefined}{listsControls['runtimeListsDescription'].textContent}{:else}Текущее содержимое runtime ipset для blacklist, whitelist и exclude.{/if}</p>
+            <h2 id="runtimeListsTitle" class={listsControls['runtimeListsTitle'].className} hidden={listsControls['runtimeListsTitle'].hidden}>{#if listsControls['runtimeListsTitle'].textContent !== undefined}{listsControls['runtimeListsTitle'].textContent}{:else}{rfUi("Активные пользовательские списки","Active user lists")}{/if}</h2>
+            <p id="runtimeListsDescription" class={listsControls['runtimeListsDescription'].className} hidden={listsControls['runtimeListsDescription'].hidden}>{#if listsControls['runtimeListsDescription'].textContent !== undefined}{listsControls['runtimeListsDescription'].textContent}{:else}{rfUi("Текущее содержимое runtime ipset для blacklist, whitelist и exclude.","Current active ipsets for blocklists, allowlists, and exclusions.")}{/if}</p>
           </div>
           <div class="browser-controls">
-            <select id="listSet" aria-label="Выберите list set" class={listsControls['listSet'].className} hidden={listsControls['listSet'].hidden} disabled={listsControls['listSet'].disabled} bind:value={listsControls['listSet'].value} onchange={() => loadSet(currentRuntimeListMode())}>{#each listOptions as option (option[0])}<option value={option[0]}>{option[1]}</option>{/each}</select>
-            <button id="reloadList" class={listsControls['reloadList'].className} type="button" hidden={listsControls['reloadList'].hidden} disabled={listsControls['reloadList'].disabled} onclick={() => loadSet(currentRuntimeListMode())}>{#if listsControls['reloadList'].textContent !== undefined}{listsControls['reloadList'].textContent}{:else}Загрузить{/if}</button>
+            <select id="listSet" aria-label={rfUi("Выберите list set","Select a list set")} class={listsControls['listSet'].className} hidden={listsControls['listSet'].hidden} disabled={listsControls['listSet'].disabled} bind:value={listsControls['listSet'].value} onchange={() => loadSet(currentRuntimeListMode())}>{#each listOptions as option (option[0])}<option value={option[0]}>{option[1]}</option>{/each}</select>
+            <button id="reloadList" class={listsControls['reloadList'].className} type="button" hidden={listsControls['reloadList'].hidden} disabled={listsControls['reloadList'].disabled} onclick={() => loadSet(currentRuntimeListMode())}>{#if listsControls['reloadList'].textContent !== undefined}{listsControls['reloadList'].textContent}{:else}{rfUi("Загрузить","Load")}{/if}</button>
           </div>
         </div>
         <div class="browser-toolbar">
-          <input id="listFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети" class={listsControls['listFilter'].className} hidden={listsControls['listFilter'].hidden} disabled={listsControls['listFilter'].disabled} bind:value={listsControls['listFilter'].value} oninput={() => renderSetPage(currentRuntimeListMode())}>
+          <input id="listFilter" autocomplete="off" spellcheck="false" placeholder={rfUi("Фильтр по IP или подсети","Filter by IP or subnet")} class={listsControls['listFilter'].className} hidden={listsControls['listFilter'].hidden} disabled={listsControls['listFilter'].disabled} bind:value={listsControls['listFilter'].value} oninput={() => renderSetPage(currentRuntimeListMode())}>
           <span id="listMeta" class={listsControls['listMeta'].className} hidden={listsControls['listMeta'].hidden}>{#if listsControls['listMeta'].textContent !== undefined}{listsControls['listMeta'].textContent}{:else}—{/if}</span>
         </div>
         <div id="listEntries" class={listsControls['listEntries'].className} hidden={listsControls['listEntries'].hidden}><AntiscanSetEntries entries={listRows} emptyText={listRowsEmpty} /></div>
@@ -1915,12 +1916,12 @@ async function inspectIP() {
         <div class="panel-head">
           <div>
             <span class="section-kicker">GEO</span>
-            <h2>Обновление Geo-данных</h2>
-            <p>Штатные операции Antiscan для загрузки Geo-наборов и повторной попытки после ошибки. RouterForge не подменяет upstream-логику.</p>
+            <h2>{rfUi("Обновление Geo-данных","Geo data updates")}</h2>
+            <p>{rfUi("Штатные операции Antiscan для загрузки Geo-наборов и повторной попытки после ошибки. RouterForge не подменяет upstream-логику.","Upstream Antiscan operations to download Geo sets and retry after errors. RouterForge does not replace upstream behavior.")}</p>
           </div>
           <div class="lifecycle-actions">
-            <button class={geoControls['rf-generated-18'].className} type="button" data-operation="update_ipsets" data-scope="geo" id="rf-generated-18" hidden={geoControls['rf-generated-18'].hidden} disabled={geoControls['rf-generated-18'].disabled} onclick={() => performOperation("update_ipsets","geo")}>{#if geoControls['rf-generated-18'].textContent !== undefined}{geoControls['rf-generated-18'].textContent}{:else}Обновить Geo{/if}</button>
-            <button class={geoControls['rf-generated-19'].className} type="button" data-operation="retry_load_geo" id="rf-generated-19" hidden={geoControls['rf-generated-19'].hidden} disabled={geoControls['rf-generated-19'].disabled} onclick={() => performOperation("retry_load_geo","")}>{#if geoControls['rf-generated-19'].textContent !== undefined}{geoControls['rf-generated-19'].textContent}{:else}Повторить после ошибки{/if}</button>
+            <button class={geoControls['rf-generated-18'].className} type="button" data-operation="update_ipsets" data-scope="geo" id="rf-generated-18" hidden={geoControls['rf-generated-18'].hidden} disabled={geoControls['rf-generated-18'].disabled} onclick={() => performOperation("update_ipsets","geo")}>{#if geoControls['rf-generated-18'].textContent !== undefined}{geoControls['rf-generated-18'].textContent}{:else}{rfUi("Обновить Geo","Update Geo")}{/if}</button>
+            <button class={geoControls['rf-generated-19'].className} type="button" data-operation="retry_load_geo" id="rf-generated-19" hidden={geoControls['rf-generated-19'].hidden} disabled={geoControls['rf-generated-19'].disabled} onclick={() => performOperation("retry_load_geo","")}>{#if geoControls['rf-generated-19'].textContent !== undefined}{geoControls['rf-generated-19'].textContent}{:else}{rfUi("Повторить после ошибки","Retry after error")}{/if}</button>
           </div>
         </div>
       </section>
@@ -1931,9 +1932,9 @@ async function inspectIP() {
         <section class="panel">
           <div class="panel-head">
             <div>
-              <span class="section-kicker">ЗАЩИТА</span>
-              <h2>Активная политика</h2>
-              <p>Значения прочитаны из <span class="mono">ascn.conf</span>.</p>
+              <span class="section-kicker">{rfUi("ЗАЩИТА","PROTECTION")}</span>
+              <h2>{rfUi("Активная политика","Active policy")}</h2>
+              <p>{rfUi("Значения прочитаны из","Values read from")} <span class="mono">ascn.conf</span>.</p>
             </div>
           </div>
           <div id="protection" class={protectionControls['protection'].className} hidden={protectionControls['protection'].hidden}><AntiscanKeyValueRows rows={protectionRows} /></div>
@@ -1942,9 +1943,9 @@ async function inspectIP() {
         <section class="panel">
           <div class="panel-head">
             <div>
-              <span class="section-kicker">РИСКИ</span>
-              <h2>Что стоит проверить</h2>
-              <p>Не приговор, а подсказки по потенциально агрессивным сочетаниям параметров.</p>
+              <span class="section-kicker">{rfUi("РИСКИ","RISKS")}</span>
+              <h2>{rfUi("Что стоит проверить","What to check")}</h2>
+              <p>{rfUi("Не приговор, а подсказки по потенциально агрессивным сочетаниям параметров.","Warnings about potentially aggressive setting combinations, not definitive failures.")}</p>
             </div>
           </div>
           <div id="warnings" class={protectionControls['warnings'].className} hidden={protectionControls['warnings'].hidden}><AntiscanWarningItems messages={statusWarnings} symbol="!" emptyText="Явных признаков повышенного риска в текущем состоянии не найдено." /></div>
@@ -1971,15 +1972,15 @@ async function inspectIP() {
       <section class="panel history-panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">ИСТОРИЯ ОПЕРАЦИЙ</span>
-            <h2>Последние действия</h2>
-            <p>Ограниченный журнал последних действий: что было сделано, результат, длительность, откат и необходимость перезапуска. Значения формы ascn.conf в журнал не записываются.</p>
+            <span class="section-kicker">{rfUi("ИСТОРИЯ ОПЕРАЦИЙ","OPERATION HISTORY")}</span>
+            <h2>{rfUi("Последние действия","Recent actions")}</h2>
+            <p>{rfUi("Ограниченный журнал последних действий: что было сделано, результат, длительность, откат и необходимость перезапуска. Значения формы ascn.conf в журнал не записываются.","A bounded history of recent actions: operation, result, duration, rollback, and whether a restart is needed. Form values from ascn.conf are never logged.")}</p>
           </div>
-          <button id="reloadHistory" class={historyControls['reloadHistory'].className} type="button" hidden={historyControls['reloadHistory'].hidden} disabled={historyControls['reloadHistory'].disabled} onclick={loadHistory}>{#if historyControls['reloadHistory'].textContent !== undefined}{historyControls['reloadHistory'].textContent}{:else}↻ Обновить историю{/if}</button>
+          <button id="reloadHistory" class={historyControls['reloadHistory'].className} type="button" hidden={historyControls['reloadHistory'].hidden} disabled={historyControls['reloadHistory'].disabled} onclick={loadHistory}>{#if historyControls['reloadHistory'].textContent !== undefined}{historyControls['reloadHistory'].textContent}{:else}{rfUi("↻ Обновить историю","↻ Refresh history")}{/if}</button>
         </div>
         <div class="history-toolbar">
-          <span id="historyMeta" class={historyControls['historyMeta'].className} hidden={historyControls['historyMeta'].hidden}>{#if historyControls['historyMeta'].textContent !== undefined}{historyControls['historyMeta'].textContent}{:else}История ещё не загружена.{/if}</span>
-          <span class="state good">JSONL · 0600 · ограниченный размер</span>
+          <span id="historyMeta" class={historyControls['historyMeta'].className} hidden={historyControls['historyMeta'].hidden}>{#if historyControls['historyMeta'].textContent !== undefined}{historyControls['historyMeta'].textContent}{:else}{rfUi("История ещё не загружена.","History has not been loaded yet.")}{/if}</span>
+          <span class="state good">{rfUi("JSONL · 0600 · ограниченный размер","JSONL · 0600 · size-limited")}</span>
         </div>
         <div id="historyEntries" class={historyControls['historyEntries'].className} hidden={historyControls['historyEntries'].hidden}><AntiscanHistoryRows entries={historyRows} emptyText={historyRowsEmpty} /></div>
       </section>
@@ -1987,11 +1988,11 @@ async function inspectIP() {
       <section class="panel compact-panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">СОСТАВ ЖУРНАЛА</span>
-            <h2>Что попадает в историю</h2>
+            <span class="section-kicker">{rfUi("СОСТАВ ЖУРНАЛА","LOG CONTENTS")}</span>
+            <h2>{rfUi("Что попадает в историю","What is recorded")}</h2>
           </div>
         </div>
-        <p class="boundary-copy">Журнал хранит только тип операции, безопасную цель, HTTP-код, длительность, факт изменения и проверки, откат, необходимость перезапуска и короткие предупреждения. Тело запроса, значения конфигурации и токены подтверждения не сохраняются.</p>
+        <p class="boundary-copy">{rfUi("Журнал хранит только тип операции, безопасную цель, HTTP-код, длительность, факт изменения и проверки, откат, необходимость перезапуска и короткие предупреждения. Тело запроса, значения конфигурации и токены подтверждения не сохраняются.","The log records operation type, safe target, HTTP status, duration, change and verification outcomes, rollback, restart requirements, and short warnings. Request bodies, configuration values, and confirmation tokens are not stored.")}</p>
       </section>
     {/if}</section>
 

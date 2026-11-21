@@ -1,11 +1,12 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {onMount} from 'svelte';
   import {configFlow} from './DnsRuntimeCommands.js';
   import {draft,feedback} from './DnsRuntimeStore.svelte.js';
   let {kind} = $props();
   let busy=$state(false);
   let error=$state('');
-  let outcome=$state('Нет импорта');
+  let outcome=$state(rfUi('Нет импорта',"No import"));
   let domainText=$state('');
   let upstream=$state('');
   let match=$state('suffix');
@@ -33,18 +34,18 @@
 </script>
 
 {#if kind==='save'}
-  <button id="saveButton" type="button" class="button primary" disabled={busy} onclick={()=>perform('save')}>Сохранить изменения</button>
+  <button id="saveButton" type="button" class="button primary" disabled={busy} onclick={()=>perform('save')}>{rfUi("Сохранить изменения","Save changes")}</button>
 {:else if kind==='reload'}
-  <button id="reloadButton" type="button" class="button" disabled={busy} onclick={()=>perform('reload')}>↻ Обновить</button>
+  <button id="reloadButton" type="button" class="button" disabled={busy} onclick={()=>perform('reload')}>{rfUi("↻ Обновить","↻ Refresh")}</button>
 {:else if kind==='import'}
   <form id="importForm" class="form-grid" onsubmit={e=>{e.preventDefault();void perform('import');}}>
-    <label class="span-all"><span>Домены — по одному на строку, комментарии через #</span><textarea name="text" rows="6" required placeholder="example.com&#10;another.net" bind:value={domainText}></textarea></label>
+    <label class="span-all"><span>{rfUi("Домены — по одному на строку, комментарии через #","One domain per line; use # for comments")}</span><textarea name="text" rows="6" required placeholder="example.com&#10;another.net" bind:value={domainText}></textarea></label>
     <label><span>Upstream</span><select name="upstream" id="importUpstream" required bind:value={upstream}>
       {#each upstreams as item (item)}<option value={item}>{item}</option>{/each}
     </select></label>
-    <label><span>Совпадение</span><select name="match" bind:value={match}><option value="suffix">Домен и поддомены</option><option value="exact">Точное</option><option value="subdomains">Только поддомены</option></select></label>
-    <label><span>Режим</span><select name="mode" bind:value={mode}><option value="append">Дополнить</option><option value="replace">Заменить правила</option></select></label>
-    <div class="form-actions"><button class="button" type="submit" disabled={busy||!upstream}>Предпросмотр импорта</button></div>
+    <label><span>{rfUi("Совпадение","Match type")}</span><select name="match" bind:value={match}><option value="suffix">{rfUi("Домен и поддомены","Domain and subdomains")}</option><option value="exact">{rfUi("Точное","Exact match")}</option><option value="subdomains">{rfUi("Только поддомены","Subdomains only")}</option></select></label>
+    <label><span>{rfUi("Режим","Mode")}</span><select name="mode" bind:value={mode}><option value="append">{rfUi("Дополнить","Append")}</option><option value="replace">{rfUi("Заменить правила","Replace rules")}</option></select></label>
+    <div class="form-actions"><button class="button" type="submit" disabled={busy||!upstream}>{rfUi("Предпросмотр импорта","Import preview")}</button></div>
   </form>
   <pre class="console" id="importResult">{outcome}</pre>
 {/if}

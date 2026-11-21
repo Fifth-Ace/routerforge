@@ -1,18 +1,19 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {evaluateDomain, exportSavedConfig} from './DnsRuntimeToolsLogic.js';
   import {feedback as showFeedback} from './DnsRuntimeStore.svelte.js';
   import {onMount} from 'svelte';
   let {kind} = $props();
   let busy = $state(false);
   let domain = $state('');
-  let output = $state('Ожидание запроса');
+  let output = $state(rfUi('Ожидание запроса',"Waiting for request"));
   let error = $state('');
   let stopped=false;
   onMount(()=>()=>{stopped=true;});
   async function request(path, options = {}) {
     const response = await fetch('../' + path, {cache:'no-store', credentials:'same-origin', ...options});
     let body;
-    try {body = await response.json();} catch {throw Error('Некорректный JSON · ' + path);}
+    try {body = await response.json();} catch {throw Error(rfUi('Некорректный JSON · ',"Invalid JSON ·") + path);}
     if (!response.ok) throw Error('HTTP ' + response.status + ': ' + (body?.error || 'unknown error'));
     return body;
   }
@@ -25,7 +26,7 @@
         output = JSON.stringify(await evaluateDomain(domain, request), null, 2);
       } else if (kind === 'export') {
         await exportSavedConfig(request, {BlobConstructor: Blob, URLObject: URL, documentObject: document});
-        notify('Экспортирована сохранённая конфигурация');
+        notify(rfUi('Экспортирована сохранённая конфигурация',"Saved configuration exported"));
       } else { throw Error('UNKNOWN_TOOL'); }
     } catch(e) {if(!stopped){error = String(e?.message || e);notify(error);}}
     finally {if(!stopped)busy = false;}
@@ -33,11 +34,11 @@
 </script>
 {#if kind === 'evaluate'}
   <form id="evaluateForm" class="form-grid form-search" onsubmit={(e) => {e.preventDefault(); void perform();}}>
-    <label><span>Домен для проверки</span><input name="domain" required placeholder="api.example.com" bind:value={domain}></label>
-    <div class="form-actions"><button class="button primary" type="submit" disabled={busy}>Проверить правило</button></div>
+    <label><span>{rfUi("Домен для проверки","Domain to test")}</span><input name="domain" required placeholder="api.example.com" bind:value={domain}></label>
+    <div class="form-actions"><button class="button primary" type="submit" disabled={busy}>{rfUi("Проверить правило","Check rule")}</button></div>
   </form>
   <pre class="console" id="decision">{output}</pre>
 {:else if kind === 'export'}
-  <button id="exportButton" type="button" class="button" disabled={busy} onclick={perform}>Экспорт JSON</button>
+  <button id="exportButton" type="button" class="button" disabled={busy} onclick={perform}>{rfUi("Экспорт JSON","Export JSON")}</button>
 {/if}
 {#if error}<p class="notice bad" role="alert">{error}</p>{/if}

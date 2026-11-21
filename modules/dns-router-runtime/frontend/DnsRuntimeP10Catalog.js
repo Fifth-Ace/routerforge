@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // R15: pure read-only P10 DNS group catalog. No fetch, DOM, mutation, or activation.
 // A native Svelte entry imports this module before the legacy draft bridge initializes.
 export function isSimpleRule(rule) {
@@ -7,14 +8,14 @@ export function isSimpleRule(rule) {
 }
 
 export function dnsName(upstream, nativeEntries=[]) {
-  if (!upstream) return {title:'НЕИЗВЕСТНЫЙ DNS',detail:'Ссылка на DNS-сервер отсутствует',scope:'broken'};
+  if (!upstream) return {title:rfUi('НЕИЗВЕСТНЫЙ DNS',"UNKNOWN DNS"),detail:rfUi('Ссылка на DNS-сервер отсутствует',"DNS server reference is missing"),scope:'broken'};
   if (upstream.transport === 'native') {
     const entries = Array.isArray(nativeEntries) ? nativeEntries : [];
     const current = entries.find(x => x.selector === upstream.address);
     const instance = String(upstream.address || '').split('/')[2] || '?';
-    return {title:current ? current.label : 'DNS Keenetic · ' + instance + ' (не подтверждён)',
-      detail:current ? 'Keenetic · зона ' + current.zone + ' · ' + (current.address || '') :
-        'Сохранённый селектор: ' + String(upstream.address || ''), scope:'native'};
+    return {title:current ? current.label : 'DNS Keenetic · ' + instance + rfUi(' (не подтверждён)',"(unverified)"),
+      detail:current ? rfUi('Keenetic · зона ',"Keenetic · zone") + current.zone + ' · ' + (current.address || '') :
+        rfUi('Сохранённый селектор: ',"Saved selector:") + String(upstream.address || ''), scope:'native'};
   }
   const transport = String(upstream.transport || 'unknown').toUpperCase();
   const name = String(upstream.server_name || upstream.address || upstream.id);
@@ -60,6 +61,6 @@ export function dnsSummary(config, nativeEntries=[]) {
   return [...counts].map(([id,count])=>{
     const u=byId.get(id),label=dnsName(u,nativeEntries);
     const domains=rules.filter(r=>r.upstream===id).slice(0,3).map(r=>r.domain).join(', ');
-    return '• '+label.title+' ['+id+']: '+count+' доменов ('+domains+(count>3?', …':'')+')';
+    return '• '+label.title+' ['+id+']: '+count+rfUi(' доменов (',"domains (")+domains+(count>3?', …':'')+')';
   }).join('\n');
 }

@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {draft,simple,nativeDNS,choices,groups,selectPolicy,chooseDNS,editDNS} from './DnsRuntimeStore.svelte.js';
   import {policyCards,inventoryCards,groupedCards} from './DnsRuntimeP88ViewModel.js';
   let {scope}=$props();
@@ -18,7 +19,7 @@
 {#if scope==='policies'}
   <div id="drSimplePolicies" class="dr-simple-policies" data-p88-native-policies="true">
     {#if !available}
-      <p>Список политик пока недоступен. Нажми «Обновить».</p>
+      <p>{rfUi("Список политик пока недоступен. Нажми «Обновить».","Policy list is unavailable. Click Refresh.")}</p>
     {:else}
       {#each policies as item (item.name)}
         <button type="button" class={item.selected ? 'dr-simple-policy selected' : 'dr-simple-policy'}
@@ -31,7 +32,7 @@
 {:else if scope==='inventory'}
   <div id="drSimpleDNSInventory" class="dr-p89-dns-catalog" data-p88-native-inventory="true">
     {#if !inventory.length}
-      <p>В этой политике DNS endpoints не обнаружены.</p>
+      <p>{rfUi("В этой политике DNS endpoints не обнаружены.","No DNS endpoints found in this policy.")}</p>
     {:else}
       {#each inventory as item (item.key)}
         <div class="dr-p89-dns-item">
@@ -43,7 +44,7 @@
 {:else if scope==='rules'}
   <div id="drSimpleRuleList" class="dr-simple-rules" data-p88-native-rules="true">
     {#if !groups.length}
-      <p>DNS ещё не добавлены. Выбери DNS в левой колонке и добавь список доменов.</p>
+      <p>{rfUi("DNS ещё не добавлены. Выбери DNS в левой колонке и добавь список доменов.","No DNS servers added yet. Select a DNS server on the left and add a domain list.")}</p>
     {:else}
       {#each items as group (group.id)}
         <section class={group.editing ? 'dr-ux-dns-card dr-ux-dns-editing' : 'dr-ux-dns-card'}>
@@ -52,17 +53,17 @@
               <strong>{group.title}</strong><small>{group.details}</small>
               <small class="dr-ux-dns-scope">{group.scope}</small>
             </div>
-            <span class="dr-ux-dns-count">{group.count} доменов</span>
+            <span class="dr-ux-dns-count">{group.count} {rfUi("доменов","domains")}</span>
           </div>
           <div class="dr-ux-dns-actions">
-            <button type="button" class="button" disabled={!group.available} onclick={()=>execute('chooseDNS',group.id)}>＋ Добавить домены</button>
-            <button type="button" class="button" disabled={!group.canEdit} onclick={()=>execute('editDNS',group.id)}>Редактировать список</button>
+            <button type="button" class="button" disabled={!group.available} onclick={()=>execute('chooseDNS',group.id)}>{rfUi("＋ Добавить домены","＋ Add domains")}</button>
+            <button type="button" class="button" disabled={!group.canEdit} onclick={()=>execute('editDNS',group.id)}>{rfUi("Редактировать список","Edit list")}</button>
           </div>
           <details class="dr-ux-domains">
             <summary>{group.count?'Показать список ('+group.count+')':'Список пуст'}</summary>
             <pre>{group.domains||'Доменов пока нет.'}</pre>
             {#if group.count&&group.hasExtended}
-              <p>Есть расширенные правила: изменения доступны в расширенном режиме.</p>
+              <p>{rfUi("Есть расширенные правила: изменения доступны в расширенном режиме.","Advanced rules are configured. Change them in advanced mode.")}</p>
             {/if}
           </details>
         </section>

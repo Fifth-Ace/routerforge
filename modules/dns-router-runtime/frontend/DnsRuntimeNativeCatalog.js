@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Read-only pure native endpoint catalog, extracted from the R15 legacy runtime.
 
   const hintRE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
@@ -26,10 +27,10 @@
       const loopback = ep && typeof ep.address === 'string' && loopbackRE.exec(ep.address);
       const numericPort = loopback ? Number(loopback[1]) : 0;
       let reason = '';
-      if (!complete) reason = 'Инвентаризация Keenetic неполная';
-      else if (!instance.valid) reason = 'DNS-инстанс содержит ошибки';
-      else if (!zoneValid(zone)) reason = 'Неизвестная DNS-зона';
-      else if (!loopback || numericPort < 1025 || numericPort > 65535) reason = 'Некорректный локальный endpoint';
+      if (!complete) reason = rfUi('Инвентаризация Keenetic неполная',"Keenetic inventory is incomplete");
+      else if (!instance.valid) reason = rfUi('DNS-инстанс содержит ошибки',"DNS instance has errors");
+      else if (!zoneValid(zone)) reason = rfUi('Неизвестная DNS-зона',"Unknown DNS zone");
+      else if (!loopback || numericPort < 1025 || numericPort > 65535) reason = rfUi('Некорректный локальный endpoint',"Invalid local endpoint");
       else if (!hintRE.test(selectorHint)) reason = 'Нет устойчивого идентификатора DNS-сервера';
       else if (counts.get(String(zone)+'\u0000'+hint) !== 1) reason = 'Неоднозначный DNS-сервер';
       const usable = reason === '';
@@ -40,18 +41,18 @@
         usable, reason,
         // Do NOT infer transport from a stubby port or a comment hint.
         transport: isDoH ? 'doh' : 'unknown', encryptionProven: false, source: 'ndnproxy',
-        label: (isDoH ? hint.slice(0,-5) : (hint || ('DNS #' + (index+1)))) + ' · ' + (zone === '.' ? 'все домены' : 'зона ' + zone)
+        label: (isDoH ? hint.slice(0,-5) : (hint || ('DNS #' + (index+1)))) + ' · ' + (zone === '.' ? rfUi('все домены',"all domains") : rfUi('зона ',"zone") + zone)
       };
     });
   }
   function acceptsDomains(entry, domains) {
-    if (!entry || !entry.usable) return {ok:false, reason:entry && entry.reason || 'DNS недоступен для выбора'};
-    if (!Array.isArray(domains) || !domains.length) return {ok:false, reason:'Нет доменов'};
+    if (!entry || !entry.usable) return {ok:false, reason:entry && entry.reason || rfUi('DNS недоступен для выбора',"DNS cannot be selected")};
+    if (!Array.isArray(domains) || !domains.length) return {ok:false, reason:rfUi('Нет доменов',"No domains")};
     const zone = entry.zone;
     if (zone === '.') return {ok:true, reason:''};
     for (const d of domains) {
       if (typeof d !== 'string' || (d !== zone && !d.endsWith('.' + zone))) {
-        return {ok:false, reason:'DNS привязан в Keenetic к зоне ' + zone + '. Домен ' + d + ' вне этой зоны. Для других доменов нужен DNS зоны «.» либо отдельно настроенный DoT/DoH.'};
+        return {ok:false, reason:rfUi('DNS привязан в Keenetic к зоне ',"DNS is bound in Keenetic to zone") + zone + rfUi('. Домен ',". Domain") + d + rfUi(' вне этой зоны. Для других доменов нужен DNS зоны «.» либо отдельно настроенный DoT/DoH.',"outside this zone. Other domains require a root-zone DNS (.) or a separately configured DoT/DoH server.")};
       }
     }
     return {ok:true, reason:''};

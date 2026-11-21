@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import {untrack} from 'svelte';
   import {draft,readDraft,commitDraft,feedback} from './DnsRuntimeStore.svelte.js';
   import {createPolicyManager} from './DnsRuntimePolicyLogic.js';
@@ -34,21 +35,21 @@
 </script>
 <div class="dr-p5-content" data-native-svelte-dns-groups="true">
   <div id="drGroupCards" class="dr-p5-list-rows">
-    {#if !groups.length}<p class="dr-p5-empty">Групп пока нет. Добавь DNS-пулы выше, затем создай строгую группу.</p>{/if}
+    {#if !groups.length}<p class="dr-p5-empty">{rfUi("Групп пока нет. Добавь DNS-пулы выше, затем создай строгую группу.","No groups yet. Add DNS pools above, then create a strict group.")}</p>{/if}
     {#each groups as group (group.id)}
       <div class="dr-p5-list-row">
         <div class="dr-p5-list-copy"><strong>{group.name}</strong><span>{(group.servers||[]).join(' → ')} · {group.encrypted_only?'только шифрование':'legacy/совместимость'} · fail-closed</span></div>
-        <div class="dr-p5-list-actions"><button class="button danger" type="button" onclick={()=>remove(group)} disabled={rules.some(r=>r.group_id===group.id)||lists.some(l=>l.group_id===group.id)}>Удалить</button></div>
+        <div class="dr-p5-list-actions"><button class="button danger" type="button" onclick={()=>remove(group)} disabled={rules.some(r=>r.group_id===group.id)||lists.some(l=>l.group_id===group.id)}>{rfUi("Удалить","Delete")}</button></div>
       </div>
     {/each}
   </div>
   <form id="drGroupForm" class="form-grid" onsubmit={submit}>
-    <label><span>ID группы</span><input required maxlength="40" pattern="[a-zA-Z0-9_-]+" placeholder="cloudflare-only" bind:value={id}></label>
-    <label><span>Название</span><input required maxlength="80" placeholder="Cloudflare · только свои DNS" bind:value={name}></label>
-    <label class="span-all"><input type="checkbox" bind:checked={encryptedOnly}> Только зашифрованные DNS (DoT/DoH/DoQ); запрет UDP/TCP и неявных резервов</label>
-    <label class="span-all"><span>DNS-серверы в порядке приоритета — ID через запятую</span><input id="drGroupServers" required placeholder="cloudflare-doh, cloudflare-dot" bind:value={servers}><small>Указанные DNS-пулы: {upstreams.length}. Неявные резервы не применяются.</small></label>
-    <div class="form-actions"><button class="button primary" type="submit">+ Создать DNS-группу</button></div>
+    <label><span>{rfUi("ID группы","Group ID")}</span><input required maxlength="40" pattern="[a-zA-Z0-9_-]+" placeholder="cloudflare-only" bind:value={id}></label>
+    <label><span>{rfUi("Название","Name")}</span><input required maxlength="80" placeholder={rfUi("Cloudflare · только свои DNS","Cloudflare · custom DNS only")} bind:value={name}></label>
+    <label class="span-all"><input type="checkbox" bind:checked={encryptedOnly}> {rfUi("Только зашифрованные DNS (DoT/DoH/DoQ); запрет UDP/TCP и неявных резервов","Encrypted DNS only (DoT/DoH/DoQ); no UDP/TCP or implicit fallback")}</label>
+    <label class="span-all"><span>{rfUi("DNS-серверы в порядке приоритета — ID через запятую","DNS servers by priority — comma-separated IDs")}</span><input id="drGroupServers" required placeholder="cloudflare-doh, cloudflare-dot" bind:value={servers}><small>{rfUi("Указанные DNS-пулы:","Selected DNS pools:")} {upstreams.length}{rfUi(". Неявные резервы не применяются.",". Implicit fallbacks are not used.")}</small></label>
+    <div class="form-actions"><button class="button primary" type="submit">{rfUi("+ Создать DNS-группу","+ Create DNS group")}</button></div>
   </form>
   {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-  <p class="dr-p6-note">Группы задают строгую цепочку DNS. Пока Keenetic не зарегистрировал доменную зону, правило не управляет запросами клиентов.</p>
+  <p class="dr-p6-note">{rfUi("Группы задают строгую цепочку DNS. Пока Keenetic не зарегистрировал доменную зону, правило не управляет запросами клиентов.","Groups define strict DNS chains. Until Keenetic registers the domain zone, the rule does not govern client requests.")}</p>
 </div>

@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Single reactive authority for the DNS Runtime draft, revision and UI.
 // Evaluation never fetches or mutates the router; all writes require explicit UI actions.
 import { dnsGroups, dnsChoice, dnsSummary, isSimpleRule } from './DnsRuntimeP10Catalog.js';
@@ -21,48 +22,48 @@ export const apiOperations=$state({config:false});
 
 export function feedback(message){draft.feedback=String(message||'');}
 export function readDraft(){return {revision:draft.revision,dirty:draft.dirty,generation:draft.generation,config:clone(draft.config)};}
-export function markDirty(message='Изменения не сохранены. DNS-трафик не затронут.'){
+export function markDirty(message=rfUi('Изменения не сохранены. DNS-трафик не затронут.',"Changes not saved. DNS traffic unaffected.")){
   draft.dirty=true;draft.generation++;simple.editingId=null;
   feedback(message);
 }
 export function commitDraft(action,payload){
-  if(!payload || payload.previousRevision!==draft.revision)throw Error('Черновик изменён: CAS или версия не совпадают');
+  if(!payload || payload.previousRevision!==draft.revision)throw Error(rfUi('Черновик изменён: CAS или версия не совпадают',"Draft changed: version does not match"));
   if(action==='saved'){
-    if(typeof payload.revision!=='string'||!payload.revision)throw Error('Нет ревизии сохранения');
+    if(typeof payload.revision!=='string'||!payload.revision)throw Error(rfUi('Нет ревизии сохранения',"Saved revision missing"));
     const stale=payload.generation!==draft.generation;
     draft.revision=payload.revision;draft.dirty=stale;draft.generation++;
     return {stale};
   }
-  if(payload.generation!==draft.generation)throw Error('Черновик изменён во время операции');
+  if(payload.generation!==draft.generation)throw Error(rfUi('Черновик изменён во время операции',"Draft changed during operation"));
   if(action==='loaded'){
-    if(draft.dirty!==payload.dirty||!payload.config||typeof payload.revision!=='string')throw Error('Черновик изменён во время загрузки');
+    if(draft.dirty!==payload.dirty||!payload.config||typeof payload.revision!=='string')throw Error(rfUi('Черновик изменён во время загрузки',"Draft changed while loading"));
     draft.config=clone(payload.config);draft.revision=payload.revision;draft.dirty=false;draft.loaded=true;draft.generation++;
     return {loaded:true};
   }
   if(action==='imported'){
-    if(draft.dirty||!payload.config)throw Error('Черновик не готов к импорту');
+    if(draft.dirty||!payload.config)throw Error(rfUi('Черновик не готов к импорту',"Draft is not ready for import"));
     draft.config=clone(payload.config);markDirty();return {staged:true};
   }
   if(action==='edited'){
-    if(!payload.config||!Array.isArray(payload.config.upstreams)||!Array.isArray(payload.config.rules))throw Error('Недопустимый черновик редактора');
+    if(!payload.config||!Array.isArray(payload.config.upstreams)||!Array.isArray(payload.config.rules))throw Error(rfUi('Недопустимый черновик редактора',"Invalid editor draft"));
     draft.config=clone(payload.config);markDirty();return {staged:true};
   }
   throw Error('UNKNOWN_CONFIG_COMMIT_ACTION');
 }
 export function editRow(scope,item){
-  if(!['upstream','rule'].includes(scope)||!item?.id)throw Error('Редактор DNS: объект не найден');
+  if(!['upstream','rule'].includes(scope)||!item?.id)throw Error(rfUi('Редактор DNS: объект не найден',"DNS editor: item not found"));
   draft.edit={scope,item:clone(item),version:draft.edit.version+1};
 }
 export function removeRow(scope,index){
   const config=clone(draft.config);
   const items=scope==='upstream'?config.upstreams:scope==='rule'?config.rules:null;
-  if(!items||!Number.isInteger(index)||index<0||index>=items.length)throw Error('Строка DNS изменилась');
+  if(!items||!Number.isInteger(index)||index<0||index>=items.length)throw Error(rfUi('Строка DNS изменилась',"The DNS entry changed"));
   if(scope==='upstream'){
     const id=items[index].id;
     if(config.service?.default_upstream===id||config.rules.some(r=>r.upstream===id)||
        items.some(u=>(u.fallbacks||[]).includes(id))||
        (config.dns_groups||[]).some(g=>(g.servers||[]).includes(id))) {
-      throw Error('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');
+      throw Error(rfUi('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.',"Cannot delete a pool in use. Remove rules and fallback references first."));
     }
   }
   items.splice(index,1);draft.config=config;markDirty();
@@ -74,25 +75,25 @@ export function formsSnapshot(){return {
 export function nativeDNS(){return nativeEntries(simple.inventory,simple.policy);}
 export function nativeChoices(){return nativeDNS().filter(x=>x.usable).map(x=>({value:x.selector,label:x.label,zone:x.zone,hint:x.hint,type:'native'}));}
 export function choices(){return nativeChoices().concat((draft.config.upstreams||[]).filter(x=>['doh','dot','udp','doq'].includes(x.transport)).map(x=>({
-  value:'manual:'+x.id,label:x.transport.toUpperCase()+' · '+(x.server_name||x.address)+' · DNS Router (не Keenetic)',zone:'.',type:'manual',upstreamId:x.id
+  value:'manual:'+x.id,label:x.transport.toUpperCase()+' · '+(x.server_name||x.address)+rfUi(' · DNS Router (не Keenetic)',"· DNS Router (not Keenetic)"),zone:'.',type:'manual',upstreamId:x.id
 })));}
 export function groups(){return dnsGroups(draft.config,simple.policy,nativeDNS());}
 export function summary(){return dnsSummary(draft.config,nativeDNS());}
 export function policyName(name){
-  if(name==='System')return 'Системная';
+  if(name==='System')return rfUi('Системная',"System");
   return simple.catalog?.available?(simple.catalog.policies||[]).find(x=>x.name===name)?.description||name:name;
 }
 export function policyRoute(name){
-  if(name==='System')return 'Системный DNS';
+  if(name==='System')return rfUi('Системный DNS',"System DNS");
   const policy=simple.catalog?.available?(simple.catalog.policies||[]).find(x=>x.name===name):null;
-  return policy?.ipv4_route_status==='default_absent'?'Нет маршрута по умолчанию':
-    policy?.ipv4_route_status==='default_present'?'Маршрут найден · DNS не проверен':'Маршрут не проверен';
+  return policy?.ipv4_route_status==='default_absent'?rfUi('Нет маршрута по умолчанию',"No default route"):
+    policy?.ipv4_route_status==='default_present'?rfUi('Маршрут найден · DNS не проверен',"Route found · DNS not checked"):rfUi('Маршрут не проверен',"Route not checked");
 }
 export function updateProbe(){
   const item=choices().find(x=>x.value===simple.selected);
   simple.probeEligible=!!(item&&item.zone==='.'&&item.type==='native');
-  simple.probeNotice=item?.type==='manual'?'Ручной DNS находится в конфигурации DNS Router; он НЕ привязан к выбранной политике Keenetic. Для проверки используй расширенную диагностику.':
-    item&&item.zone!=='.'?'DNS ограничен зоной '+item.zone+'. Проверка example.com для этой зоны недопустима.':'';
+  simple.probeNotice=item?.type==='manual'?rfUi('Ручной DNS находится в конфигурации DNS Router; он НЕ привязан к выбранной политике Keenetic. Для проверки используй расширенную диагностику.',"Manual DNS is saved in DNS Router configuration; it is NOT attached to the selected Keenetic policy. Use advanced diagnostics to test it."):
+    item&&item.zone!=='.'?rfUi('DNS ограничен зоной ',"DNS is limited to a zone")+item.zone+rfUi('. Проверка example.com для этой зоны недопустима.',". Testing example.com is not valid for this zone."):'';
 }
 export function refreshChoices(){
   const available=choices();
@@ -109,8 +110,8 @@ export function acceptScan(inventory,catalog){
   const instances=inventory?.available?(inventory.instances||[]).filter(x=>x.valid&&policyNameRE.test(x.name)):[];
   if(!instances.some(x=>x.name===simple.policy))simple.policy=instances.some(x=>x.name==='System')?'System':instances[0]?.name||'';
   refreshChoices();
-  simple.status=!inventory?.available?'DNS-инвентаризация недоступна. Создание правил заблокировано.':
-    !catalog?.available?'DNS найдены, но имена пользовательских политик недоступны; проверь выбранную политику.':'';
+  simple.status=!inventory?.available?rfUi('DNS-инвентаризация недоступна. Создание правил заблокировано.',"DNS inventory is unavailable. Rule creation is blocked."):
+    !catalog?.available?rfUi('DNS найдены, но имена пользовательских политик недоступны; проверь выбранную политику.',"DNS servers were found, but custom policy names are unavailable; check the selected policy."):'';
 }
 export function scanError(message){simple.inventory=null;simple.catalog=null;simple.status=message;refreshChoices();}
 export function cancelEditing(){simple.editingId=null;simple.domains='';simple.notice='';}
@@ -121,17 +122,17 @@ export function changeDNS(value){
 export function chooseDNS(id,confirmAction=()=>false){
   const g=groups().find(x=>x.id===id),selector=g?dnsChoice(g):'';
   if(!selector||!choices().some(x=>x.value===selector))return;
-  if(simple.domains.trim()&&!confirmAction('Очистить введённые, но не добавленные домены?'))return;
+  if(simple.domains.trim()&&!confirmAction(rfUi('Очистить введённые, но не добавленные домены?',"Clear entered domains that have not been added?")))return;
   cancelEditing();simple.selected=selector;updateProbe();
 }
 export function editDNS(id,confirmAction=()=>false){
   const g=groups().find(x=>x.id===id),selector=g?dnsChoice(g):'';
   if(!selector||!choices().some(x=>x.value===selector))return;
   if(g.rules.length>200||g.rules.some(r=>!isSimpleRule(r)))return;
-  if(simple.domains.trim()&&!confirmAction('Несохранённый текст в поле исчезнет.'))return;
+  if(simple.domains.trim()&&!confirmAction(rfUi('Несохранённый текст в поле исчезнет.',"Unsaved text in the field will be lost.")))return;
   simple.selected=selector;updateProbe();simple.editingId=g.id;
   simple.domains=g.rules.map(r=>r.domain).join('\n');
-  simple.notice='Редактируется только список DNS: '+g.info.title+'. Удаление строк изменит ЧЕРНОВИК; активный DNS отдельно не меняется.';
+  simple.notice=rfUi('Редактируется только список DNS: ',"Only this DNS list is being edited:")+g.info.title+rfUi('. Удаление строк изменит ЧЕРНОВИК; активный DNS отдельно не меняется.',". Removing entries changes the draft; active DNS remains unchanged.");
 }
 export function stageDomains(confirmAction=()=>false){
   const parsed=parseDomainBatch(simple.domains);
@@ -139,17 +140,17 @@ export function stageDomains(confirmAction=()=>false){
   if(simple.editingId){
     const chosen=choices().find(x=>x.value===simple.selected),id=simple.editingId;
     const plan=planGroupReplacement(draft.config,id,simple.selected,chosen,parsed.domains,acceptsDomains,draft.revision);
-    if(plan.changed&&!confirmAction('Обновить список только этого DNS?\nУдалить доменов: '+plan.removed+'\nДобавить доменов: '+plan.added+'\nИзменения останутся в черновике.'))return false;
-    if(id!==simple.editingId||plan.upstreamId!==id||plan.revision!==draft.revision||plan.baseRules!==JSON.stringify(draft.config.rules||[]))throw Error('DNS_GROUP_CAS_STALE: обнови черновик перед повтором');
-    if(plan.changed){draft.config.rules=clone(plan.rules);markDirty();simple.status='Список DNS '+id+' обновлён в черновике: '+plan.count+' доменов. Нажми «Сохранить черновик». ';}
-    else simple.status='Список уже совпадает с черновиком.';
+    if(plan.changed&&!confirmAction(rfUi('Обновить список только этого DNS?\nУдалить доменов: ',"Update the list for this DNS only?\\nDomains to remove:")+plan.removed+'\nДобавить доменов: '+plan.added+'\nИзменения останутся в черновике.'))return false;
+    if(id!==simple.editingId||plan.upstreamId!==id||plan.revision!==draft.revision||plan.baseRules!==JSON.stringify(draft.config.rules||[]))throw Error(rfUi('DNS_GROUP_CAS_STALE: обнови черновик перед повтором',"The DNS group draft is outdated; refresh before retrying"));
+    if(plan.changed){draft.config.rules=clone(plan.rules);markDirty();simple.status=rfUi('Список DNS ',"DNS list")+id+rfUi(' обновлён в черновике: ',"updated in draft:")+plan.count+rfUi(' доменов. Нажми «Сохранить черновик». ',"domains. Choose “Save draft”.");}
+    else simple.status=rfUi('Список уже совпадает с черновиком.',"List already matches the draft.");
     cancelEditing();return true;
   }
-  if(!parsed.domains.length){simple.status='Добавь хотя бы один домен.';return false;}
+  if(!parsed.domains.length){simple.status=rfUi('Добавь хотя бы один домен.',"Add at least one domain.");return false;}
   const chosen=choices().find(x=>x.value===simple.selected);
   const plan=planDomainAddition(clone(draft.config),simple.selected,chosen,parsed.domains,acceptsDomains);
   draft.config.upstreams=clone(plan.upstreams);draft.config.rules=clone(plan.rules);
-  const count=plan.count;simple.domains='';markDirty();simple.status='Добавлено '+count+' доменов в черновик. Нажми «Сохранить настройки». DNS Keenetic не изменён.';
+  const count=plan.count;simple.domains='';markDirty();simple.status=rfUi('Добавлено ',"Added")+count+rfUi(' доменов в черновик. Нажми «Сохранить настройки». DNS Keenetic не изменён.',"domains added to draft. Choose “Save settings”. Keenetic DNS unchanged.");
   return true;
 }
 
@@ -161,10 +162,10 @@ export async function loadConfig(request,signal) {
   // Guard even when a mock or an older fetch implementation ignores abort.
   if(signal?.aborted)return {cancelled:true};
   if(!response?.config||!Array.isArray(response.config.upstreams)||!Array.isArray(response.config.rules)||
-     typeof response.revision!=='string'||!response.revision)throw Error('Неверный ответ config');
+     typeof response.revision!=='string'||!response.revision)throw Error(rfUi('Неверный ответ config',"Invalid configuration response"));
   if(before.generation!==draft.generation||before.revision!==draft.revision||before.dirty!==draft.dirty)
-    throw Error('Черновик изменён во время загрузки; перезапись отменена');
+    throw Error(rfUi('Черновик изменён во время загрузки; перезапись отменена',"Draft changed while loading; overwrite cancelled"));
   commitDraft('loaded',{previousRevision:before.revision,generation:before.generation,
     dirty:before.dirty,config:response.config,revision:response.revision});
-  refreshChoices();feedback('Конфигурация загружена · runtime меняется только при ручном старте/применении');
+  refreshChoices();feedback(rfUi('Конфигурация загружена · runtime меняется только при ручном старте/применении',"Configuration loaded · service changes only after manual start/apply"));
 }

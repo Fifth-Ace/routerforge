@@ -1,3 +1,4 @@
+import { rfUi } from './rf-localization.js';
 // Pure read-only status projection: do not treat stale or incomplete API values as READY.
 export function dpiBytes(input){
   const n=Number(input);if(!Number.isSafeInteger(n)||n<=0)return '—';
@@ -14,16 +15,16 @@ export function dpiStatusProjection(snapshot,loading=false,error=''){
   const ready=!loading&&!failed&&installed&&d?.execution_ready===true;
   const state=loading?'LOADING':failed?'ERROR':!d?'IDLE':!installed?'NOT INSTALLED':ready?'READY':'INCOMPATIBLE';
   const tab=loading?'':installed?(ready?'READY':'CHECK'):'';
-  const items=loading?[]:failed?[{kind:'bad',title:'Status',detail:value(error,'Некорректный ответ DPI Detector API.')}]:!d?[]:installed?[
+  const items=loading?[]:failed?[{kind:'bad',title:'Status',detail:value(error,rfUi('Некорректный ответ DPI Detector API.',"Invalid DPI Detector API response."))}]:!d?[]:installed?[
     {kind:ready?'good':'warn',title:'Installed',detail:`${value(d.path,'path unknown')} · ${dpiBytes(d.size_bytes)}`},
     {kind:ready?'good':'warn',title:'Execution',detail:ready?'ready':value(d.compatibility_reason,value(d.warning,'not ready'))},
     {kind:'info',title:'Upstream',detail:`${value(d.upstream,'Runnin4ik/dpi-detector')} · arch ${value(d.host_arch,'unknown')}`},
     {kind:'info',title:'Required interpreter',detail:value(d.required_interpreter,'none / static')}
-  ]:[{kind:'info',title:'Optional module',detail:'DPI Detector v5 не установлен через App Center.'}];
-  const summary=loading?[{kind:'',text:'Загрузка состояния…'}]:failed?[{kind:'warn',text:'Не удалось проверить DPI Detector'}]:!d?[{kind:'',text:'Состояние не загружено'}]:installed?[
+  ]:[{kind:'info',title:'Optional module',detail:rfUi('DPI Detector v5 не установлен через App Center.',"DPI Detector v5 is not installed through App Center.")}];
+  const summary=loading?[{kind:'',text:rfUi('Загрузка состояния…',"Loading status…")}]:failed?[{kind:'warn',text:'Не удалось проверить DPI Detector'}]:!d?[{kind:'',text:'Состояние не загружено'}]:installed?[
     {kind:ready?'good':'warn',text:ready?'● READY':'● CHECK'},
     {kind:'',text:value(d.version,value(d.warning,'unknown'))},
     {kind:'mono',text:`${value(d.path,'unknown')} · ${dpiBytes(d.size_bytes)}`}
-  ]:[{kind:'warn',text:'DPI Detector v5 не установлен'}];
+  ]:[{kind:'warn',text:rfUi('DPI Detector v5 не установлен',"DPI Detector v5 is not installed")}];
   return {state,ready,tab,items,summary};
 }

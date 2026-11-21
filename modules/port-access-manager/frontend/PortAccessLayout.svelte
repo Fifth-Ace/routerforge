@@ -1,4 +1,5 @@
 <script>
+  import { rfUi } from './rf-localization.js';
   import { onMount, tick } from 'svelte';
   import PortAccessOdin from './PortAccessOdin.svelte';
   import PortAccessEngineWorkspace from './PortAccessEngineWorkspace.svelte';
@@ -10,20 +11,20 @@
   // All protected actions remain owned by PortAccessOdin and
   // PortAccessEngineWorkspace. This component never writes firewall rules.
   const pages = [
-    { id: 'protection', title: 'Обзор' },
-    { id: 'access', title: 'Доступ' },
-    { id: 'engines', title: 'Движки' },
-    { id: 'diagnostics', title: 'Диагностика' }
+    { id: 'protection', title: rfUi('Обзор',"Overview") },
+    { id: 'access', title: rfUi('Доступ',"Access") },
+    { id: 'engines', title: rfUi('Движки',"Engines") },
+    { id: 'diagnostics', title: rfUi('Диагностика',"Diagnostics") }
   ];
   const methods = [
-    { id: 'odin', title: 'odin · Keenetic', hint: 'Защита проброшенных портов без дополнительного демона' },
-    { id: 'knockd', title: 'knockd', hint: 'Последовательность TCP-стуков, служба Entware' },
-    { id: 'fwknopd', title: 'fwknopd / SPA', hint: 'Один зашифрованный пакет, служба Entware' }
+    { id: 'odin', title: 'odin · Keenetic', hint: rfUi('Защита проброшенных портов без дополнительного демона',"Protect forwarded ports without an additional daemon") },
+    { id: 'knockd', title: 'knockd', hint: rfUi('Последовательность TCP-стуков, служба Entware',"TCP knock sequence, Entware service") },
+    { id: 'fwknopd', title: 'fwknopd / SPA', hint: rfUi('Один зашифрованный пакет, служба Entware',"One encrypted packet, Entware service") }
   ];
   let active = $state('protection');
   let method = $state('odin');
-  let engineStatus = $state('Проверяем…');
-  let stateText = $state('Проверяем…');
+  let engineStatus = $state(rfUi('Проверяем…',"Checking…"));
+  let stateText = $state(rfUi('Проверяем…',"Checking…"));
   let configText = $state('—');
   let ndmText = $state('—');
   let statusKnown = $state(false);
@@ -31,18 +32,18 @@
   let latestDeploy = $state({});
   let latestPreview = $state({});
   let accessItems = $state([]);
-  let accessMessage = $state('Список ещё не загружен');
+  let accessMessage = $state(rfUi('Список ещё не загружен',"List has not been loaded yet"));
   let accessBusy = $state(false);
   let activeRequest = 0;
   let destroyed = false;
   let stateRequest = null;
   let accessRequest = null;
   let accessSerial = 0;
-  const health = $derived(!statusKnown ? 'ПРОВЕРКА…'
+  const health = $derived(!statusKnown ? rfUi('ПРОВЕРКА…',"CHECKING…")
     : /ожидает|watchdog/i.test(stateText) ? 'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ'
     : /включена|подтвержден|запущен/i.test(stateText) ? 'РАБОТАЕТ'
-    : 'НЕ АКТИВНА');
-  const healthClass = $derived(health === 'РАБОТАЕТ' ? 'good' : health === 'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ' ? 'warn' : '');
+    : rfUi('НЕ АКТИВНА',"INACTIVE"));
+  const healthClass = $derived(health === rfUi('РАБОТАЕТ',"RUNNING") ? 'good' : health === 'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ' ? 'warn' : '');
 
   function json(url, signal) {
     return fetch(url, { credentials:'same-origin', cache:'no-store', signal, headers:{Accept:'application/json'} })
@@ -50,7 +51,7 @@
         const raw = await response.text();
         let data;
         try { data = raw ? JSON.parse(raw) : {}; }
-        catch { throw Error('Некорректный JSON (HTTP ' + response.status + ')'); }
+        catch { throw Error(rfUi('Некорректный JSON (HTTP ',"Invalid JSON (HTTP") + response.status + ')'); }
         if (!response.ok) throw Error(data.error || 'HTTP ' + response.status);
         return data;
       });
@@ -96,25 +97,25 @@
       if (selected === 'odin') {
         const data = await json('/api/modules/port-access-manager/odin', controller.signal);
         if (destroyed || serial !== activeRequest || method !== selected) return;
-        if (typeof data.enabled !== 'boolean' || typeof data.confirmed !== 'boolean') throw Error('Неверный ответ odin API');
+        if (typeof data.enabled !== 'boolean' || typeof data.confirmed !== 'boolean') throw Error(rfUi('Неверный ответ odin API',"Invalid odin API response"));
         engineStatus = 'odin · Keenetic';
-        stateText = data.enabled ? (data.confirmed ? 'Включена · подтверждена' : 'Ожидает подтверждения · watchdog') : 'Выключена';
-        configText = data.configured ? 'Сохранена' : 'Не настроена';
-        ndmText = data.enabled ? (data.confirmed ? 'Подтверждено' : 'Watchdog · требует проверки') : 'Не активен';
+        stateText = data.enabled ? (data.confirmed ? rfUi('Включена · подтверждена',"Enabled · confirmed") : rfUi('Ожидает подтверждения · watchdog',"Awaiting confirmation · watchdog")) : rfUi('Выключена',"Disabled");
+        configText = data.configured ? rfUi('Сохранена',"Saved") : rfUi('Не настроена',"Not configured");
+        ndmText = data.enabled ? (data.confirmed ? rfUi('Подтверждено',"Confirmed") : rfUi('Watchdog · требует проверки',"Watchdog · verification required")) : rfUi('Не активен',"Inactive");
       } else {
         const data = await json('/api/modules/port-access-manager/engine-service?engine=' + encodeURIComponent(selected), controller.signal);
         if (destroyed || serial !== activeRequest || method !== selected) return;
-        if (typeof data.installed !== 'boolean' || typeof data.running !== 'boolean') throw Error('Неверный ответ службы');
+        if (typeof data.installed !== 'boolean' || typeof data.running !== 'boolean') throw Error(rfUi('Неверный ответ службы',"Invalid service response"));
         engineStatus = selected === 'knockd' ? 'knockd' : 'fwknopd / SPA';
-        stateText = !data.installed ? 'Не установлен' : data.running ? 'Запущен' : 'Остановлен';
-        configText = data.installed ? 'Служба установлена' : 'Служба отсутствует';
-        ndmText = data.installed ? 'Entware · отдельное управление защитой' : 'Не активен';
+        stateText = !data.installed ? 'Не установлен' : data.running ? 'Запущен' : rfUi('Остановлен',"Stopped");
+        configText = data.installed ? rfUi('Служба установлена',"Service installed") : rfUi('Служба отсутствует',"Service missing");
+        ndmText = data.installed ? rfUi('Entware · отдельное управление защитой',"Entware · separate protection management") : rfUi('Не активен',"Inactive");
       }
       statusKnown = true;
     } catch (error) {
       if (destroyed || serial !== activeRequest || method !== selected) return;
       engineStatus = selected;
-      stateText = 'Нет связи с API: ' + error.message;
+      stateText = rfUi('Нет связи с API: ',"Cannot reach the API:") + error.message;
       configText = '—'; ndmText = '—'; statusKnown = false;
     } finally {
       if (stateRequest === controller) stateRequest = null;
@@ -125,23 +126,23 @@
     const serial = ++accessSerial;
     const controller = new AbortController();
     accessRequest = controller;
-    accessBusy = true; accessMessage = 'Читаем KKD…';
+    accessBusy = true; accessMessage = rfUi('Читаем KKD…',"Reading KKD…");
     try {
       const data = await json('/api/modules/port-access-manager/odin-access', controller.signal);
       if (destroyed || method !== 'odin' || serial !== accessSerial) return;
-      if (typeof data.available !== 'boolean') throw Error('Неверный ответ API');
+      if (typeof data.available !== 'boolean') throw Error(rfUi('Неверный ответ API',"Invalid API response"));
       if (!data.available) {
         accessItems = [];
-        accessMessage = data.reason || 'Авторизации недоступны';
+        accessMessage = data.reason || rfUi('Авторизации недоступны',"Authorizations unavailable");
         return;
       }
       if (data.list !== 'KKD' || !Array.isArray(data.entries) ||
-          !data.entries.every(entry => typeof entry.ip === 'string')) throw Error('Неверный список KKD');
+          !data.entries.every(entry => typeof entry.ip === 'string')) throw Error(rfUi('Неверный список KKD',"Invalid KKD list"));
       accessItems = data.entries.map(entry => entry.ip);
-      accessMessage = 'Активных записей: ' + accessItems.length;
+      accessMessage = rfUi('Активных записей: ',"Active entries:") + accessItems.length;
     } catch (error) {
       if (!destroyed && method === 'odin' && serial === accessSerial) {
-        accessItems = []; accessMessage = 'Ошибка чтения: ' + error.message;
+        accessItems = []; accessMessage = rfUi('Ошибка чтения: ',"Read error:") + error.message;
       }
     } finally {
       if (accessRequest === controller) accessRequest = null;
@@ -165,19 +166,19 @@
     latestPreview = {...latestPreview,[method]:false};
   }
   const step = $derived.by(() => {
-    if (method === 'odin') return { text:'Защита odin', detail:'Проверь настройки, сохрани их и включай защиту только после проверки доступа.', target:'odin-manager', page:'protection' };
+    if (method === 'odin') return { text:rfUi('Защита odin',"odin protection"), detail:rfUi('Проверь настройки, сохрани их и включай защиту только после проверки доступа.',"Review and save settings; enable protection only after verifying access."), target:'odin-manager', page:'protection' };
     const service = latestService[method];
     const deploy = latestDeploy[method];
-    if (!service) return {text:'Проверяем службу',detail:'Ожидаем ответ Entware',target:'existing-engine-control',page:'engines'};
-    if (service.installation?.state === 'running') return {text:'Установка выполняется',detail:'Дождись завершения установки Entware',target:'existing-engine-control',page:'engines'};
-    if (!service.installed) return {text:'Установить ' + method,detail:'Установка отдельно от включения защиты',target:'existing-engine-control',page:'engines'};
-    if (!deploy) return {text:'Проверяем защиту',detail:'Ожидаем состояние управляемого шлюза',target:'rfpa-deploy-panel',page:'engines'};
-    if (deploy.enabled && !deploy.running) return {text:'Служба остановлена',detail:'Не подтверждай защиту, пока служба не работает',target:'existing-engine-control',page:'engines'};
-    if (deploy.enabled && deploy.confirmed) return {text:'Защита активна',detail:'Подтверждена; отключение доступно ниже',target:'rfpa-deploy-panel',page:'engines'};
-    if (deploy.enabled) return {text:'Подтверди после внешней проверки',detail:'Watchdog откатит правила без подтверждения',target:'rfpa-confirm',page:'engines'};
-    if (deploy.prepared) return {text:'Включить защиту',detail:'После включения начнётся окно автоматического отката',target:'rfpa-enable',page:'engines'};
-    if (latestPreview[method]) return {text:'Подготовить конфигурацию',detail:'Проверенный план не включает firewall',target:'rfpa-prepare',page:'engines'};
-    return {text:'Проверить план',detail:'Проверь WAN, порты и сервисы',target:'engine-wizard-preview',page:'engines'};
+    if (!service) return {text:rfUi('Проверяем службу',"Checking service"),detail:rfUi('Ожидаем ответ Entware',"Waiting for Entware response"),target:'existing-engine-control',page:'engines'};
+    if (service.installation?.state === 'running') return {text:rfUi('Установка выполняется',"Installing"),detail:rfUi('Дождись завершения установки Entware',"Wait for Entware installation to complete"),target:'existing-engine-control',page:'engines'};
+    if (!service.installed) return {text:rfUi('Установить ',"Install") + method,detail:rfUi('Установка отдельно от включения защиты',"Installation is separate from enabling protection"),target:'existing-engine-control',page:'engines'};
+    if (!deploy) return {text:rfUi('Проверяем защиту',"Checking protection"),detail:rfUi('Ожидаем состояние управляемого шлюза',"Waiting for managed gate status"),target:'rfpa-deploy-panel',page:'engines'};
+    if (deploy.enabled && !deploy.running) return {text:rfUi('Служба остановлена',"Service stopped"),detail:rfUi('Не подтверждай защиту, пока служба не работает',"Do not confirm protection while the service is stopped"),target:'existing-engine-control',page:'engines'};
+    if (deploy.enabled && deploy.confirmed) return {text:rfUi('Защита активна',"Protection active"),detail:rfUi('Подтверждена; отключение доступно ниже',"Confirmed; disable option available below"),target:'rfpa-deploy-panel',page:'engines'};
+    if (deploy.enabled) return {text:rfUi('Подтверди после внешней проверки',"Confirm after external verification"),detail:rfUi('Watchdog откатит правила без подтверждения',"Watchdog will revert unconfirmed rules"),target:'rfpa-confirm',page:'engines'};
+    if (deploy.prepared) return {text:rfUi('Включить защиту',"Enable protection"),detail:'После включения начнётся окно автоматического отката',target:'rfpa-enable',page:'engines'};
+    if (latestPreview[method]) return {text:rfUi('Подготовить конфигурацию',"Prepare configuration"),detail:rfUi('Проверенный план не включает firewall',"Verified plan does not modify the firewall"),target:'rfpa-prepare',page:'engines'};
+    return {text:rfUi('Проверить план',"Check plan"),detail:'Проверь WAN, порты и сервисы',target:'engine-wizard-preview',page:'engines'};
   });
 
   // Single Svelte root owns all five child views, polling and host callbacks.
@@ -201,28 +202,28 @@
   });
 </script>
 
-<div class="p54-root rf-pa-workspace" aria-label="Контроль доступа">
-  <section class="rf-pa-summary p55-panel" aria-label="Текущее состояние защиты">
+<div class="p54-root rf-pa-workspace" aria-label={rfUi("Контроль доступа","Access control")}>
+  <section class="rf-pa-summary p55-panel" aria-label={rfUi("Текущее состояние защиты","Current protection status")}>
     <div class="rf-pa-summary-heading">
-      <strong>Состояние защиты</strong>
-      <button type="button" onclick={refreshState}>↻ Обновить состояние</button>
+      <strong>{rfUi("Состояние защиты","Protection status")}</strong>
+      <button type="button" onclick={refreshState}>{rfUi("↻ Обновить состояние","↻ Refresh status")}</button>
     </div>
     <div class="rf-pa-metrics">
-      <div class="rf-pa-metric"><span>ДВИЖОК</span><b>{engineStatus}</b></div>
-      <div class="rf-pa-metric"><span>ЗАЩИТА</span><b>{stateText}</b></div>
-      <div class="rf-pa-metric"><span>КОНФИГУРАЦИЯ</span><b>{configText}</b></div>
+      <div class="rf-pa-metric"><span>{rfUi("ДВИЖОК","ENGINE")}</span><b>{engineStatus}</b></div>
+      <div class="rf-pa-metric"><span>{rfUi("ЗАЩИТА","PROTECTION")}</span><b>{stateText}</b></div>
+      <div class="rf-pa-metric"><span>{rfUi("КОНФИГУРАЦИЯ","CONFIGURATION")}</span><b>{configText}</b></div>
       <div class="rf-pa-metric"><span>WATCHDOG / NDM</span><b>{ndmText}</b></div>
     </div>
     <div class="p55-head-actions" role="status"><span class={'p55-state ' + healthClass}>{health}</span></div>
   </section>
-  <nav class="p54-navigation" aria-label="Разделы контроля доступа">
+  <nav class="p54-navigation" aria-label={rfUi("Разделы контроля доступа","Access control sections")}>
     {#each pages as page (page.id)}
       <button type="button" class="p54-tab p55-tab" class:active={active === page.id}
         aria-current={active === page.id ? 'page' : undefined} onclick={() => show(page.id)}>{page.title}</button>
     {/each}
   </nav>
-  <div class="rf-pa-selector p55-panel" aria-label="Выбор способа защиты">
-    <h2>Способ защиты</h2>
+  <div class="rf-pa-selector p55-panel" aria-label={rfUi("Выбор способа защиты","Choose protection method")}>
+    <h2>{rfUi("Способ защиты","Protection method")}</h2>
     <div class="rf-pa-choices">
       {#each methods as item (item.id)}
         <button type="button" class="rf-pa-choice" class:active={method === item.id} aria-pressed={method === item.id}
@@ -232,32 +233,32 @@
   </div>
   <div class="rf-pa-next-step p55-panel">
     <strong>{step.text}</strong><p>{step.detail}</p>
-    <button type="button" onclick={() => jump(step.target, step.page)}>Перейти к действию</button>
+    <button type="button" onclick={() => jump(step.target, step.page)}>{rfUi("Перейти к действию","Go to action")}</button>
   </div>
-  <section id="p54-protection" class="p54-page" aria-label="Обзор" hidden={active !== 'protection'}>
-    <div class="p54-heading p55-section-heading"><h2>Настроить защиту</h2><p>Для odin сохраняй настройки отдельно; включение и подтверждение требуют явного действия.</p></div>
-    <div id="pa-svelte-odin" aria-label="Управление защитой odin"><PortAccessOdin onStateChanged={refreshState} /></div>
+  <section id="p54-protection" class="p54-page" aria-label={rfUi("Обзор","Overview")} hidden={active !== 'protection'}>
+    <div class="p54-heading p55-section-heading"><h2>{rfUi("Настроить защиту","Configure protection")}</h2><p>{rfUi("Для odin сохраняй настройки отдельно; включение и подтверждение требуют явного действия.","Save odin settings separately; enabling and confirming protection require explicit actions.")}</p></div>
+    <div id="pa-svelte-odin" aria-label={rfUi("Управление защитой odin","Manage odin protection")}><PortAccessOdin onStateChanged={refreshState} /></div>
   </section>
-  <section id="p54-access" class="p54-page" aria-label="Доступ" hidden={active !== 'access'}>
-    <div class="p54-heading p55-section-heading"><h2>Авторизованные IP · odin</h2><p>Текущие разрешения KKD. Истечение доступа контролирует ядро; точное время не показано.</p></div>
+  <section id="p54-access" class="p54-page" aria-label={rfUi("Доступ","Access")} hidden={active !== 'access'}>
+    <div class="p54-heading p55-section-heading"><h2>{rfUi("Авторизованные IP · odin","Authorized IPs · odin")}</h2><p>{rfUi("Текущие разрешения KKD. Истечение доступа контролирует ядро; точное время не показано.","Current KKD permissions. Access expiration is handled by the kernel; the exact expiration time is not displayed.")}</p></div>
     <section class="panel rf-pa-odin-access">
-      <div class="refresh-bar"><button type="button" disabled={accessBusy} onclick={refreshAccess}>↻ Обновить IP</button><span role="status">{accessMessage}</span></div>
+      <div class="refresh-bar"><button type="button" disabled={accessBusy} onclick={refreshAccess}>{rfUi("↻ Обновить IP","↻ Refresh IPs")}</button><span role="status">{accessMessage}</span></div>
       <div class="rf-pa-access-list" aria-live="polite">
-        {#if method !== 'odin'}<p class="muted">Для текущего движка список доступен в разделе «Диагностика».</p>
-        {:else if !accessItems.length}<p class="muted">Авторизованных IP пока нет.</p>
+        {#if method !== 'odin'}<p class="muted">{rfUi("Для текущего движка список доступен в разделе «Диагностика».","For this engine, the list is available under Diagnostics.")}</p>
+        {:else if !accessItems.length}<p class="muted">{rfUi("Авторизованных IP пока нет.","No authorized IPs yet.")}</p>
         {:else}{#each accessItems as ip, i (ip + ':' + i)}<div class="rf-pa-access-ip">{ip}</div>{/each}{/if}
       </div>
     </section>
-    <button type="button" onclick={() => show('diagnostics')}>Диагностика и черновики</button>
+    <button type="button" onclick={() => show('diagnostics')}>{rfUi("Диагностика и черновики","Diagnostics and drafts")}</button>
   </section>
-  <section id="p54-engines" class="p54-page" aria-label="Движки" hidden={active !== 'engines'}>
-    <div class="p54-heading p55-section-heading"><h2>Движки Entware</h2><p>Установка, настройка, проверка плана и защищённое включение.</p></div>
+  <section id="p54-engines" class="p54-page" aria-label={rfUi("Движки","Engines")} hidden={active !== 'engines'}>
+    <div class="p54-heading p55-section-heading"><h2>{rfUi("Движки Entware","Entware engines")}</h2><p>{rfUi("Установка, настройка, проверка плана и защищённое включение.","Install, configure, validate the plan, and enable protection safely.")}</p></div>
     <div id="pa-svelte-engine-workspace"><PortAccessEngineWorkspace selectedEngine={method === 'odin' ? 'knockd' : method} onEngineChanged={(id) => { method = id; statusKnown = false; void refreshState(); }} onServiceState={updateService} onDeployState={updateDeploy} onPreviewReady={updatePreview} onPlanInvalidated={invalidatePreview} /></div>
   </section>
-  <section id="p54-diagnostics" class="p54-page" aria-label="Диагностика" hidden={active !== 'diagnostics'}>
-    <div class="p54-heading p55-section-heading"><h2>Диагностика и инструменты</h2><p>Read-only проверки, предпросмотр, журнал операций и экспериментальные черновики.</p></div>
-    <div id="pa-svelte-engineering" aria-label="Инженерная диагностика и черновики"><PortAccessEngineering /></div>
-    <div id="pa-svelte-status" aria-label="Диагностика доступа"><PortAccessStatus /></div>
-    <div id="pa-svelte-log" aria-label="Журнал операций"><PortAccessOperationLog /></div>
+  <section id="p54-diagnostics" class="p54-page" aria-label={rfUi("Диагностика","Diagnostics")} hidden={active !== 'diagnostics'}>
+    <div class="p54-heading p55-section-heading"><h2>{rfUi("Диагностика и инструменты","Diagnostics and tools")}</h2><p>{rfUi("Read-only проверки, предпросмотр, журнал операций и экспериментальные черновики.","Read-only checks, preview, operation log, and experimental drafts.")}</p></div>
+    <div id="pa-svelte-engineering" aria-label={rfUi("Инженерная диагностика и черновики","Advanced diagnostics and drafts")}><PortAccessEngineering /></div>
+    <div id="pa-svelte-status" aria-label={rfUi("Диагностика доступа","Access diagnostics")}><PortAccessStatus /></div>
+    <div id="pa-svelte-log" aria-label={rfUi("Журнал операций","Operation log")}><PortAccessOperationLog /></div>
   </section>
 </div>

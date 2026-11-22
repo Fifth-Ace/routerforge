@@ -139,7 +139,11 @@ def selftest():
     # Protect the workflow dispatch contract itself against accidental drift.
     workflow = (Path(__file__).resolve().parents[1] / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
     assert workflow.count('      beta_validate_only:') == 1
-    assert workflow.count("inputs.publish_beta != true && inputs.beta_validate_only != true") == 3
+    # Check the three preparation gates and the independently gated publisher.
+    stable_candidate_gate = "if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true"
+    assert workflow.count(stable_candidate_gate) == 3
+    stable_publish_gate = "if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.full_release == true && inputs.publish_beta != true && inputs.beta_validate_only != true && needs.test.result == 'success'"
+    assert workflow.count(stable_publish_gate) == 1
     assert workflow.count("inputs.publish_beta == true && inputs.beta_validate_only != true") == 1
     assert 'BETA_VALIDATE_FORBIDS_PUBLICATION' in workflow
     assert 'BETA_VALIDATE_REQUIRES_FULL_RELEASE' in workflow

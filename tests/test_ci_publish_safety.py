@@ -20,9 +20,17 @@ class PublishSafetyContract(unittest.TestCase):
         self.assertIn("github.ref == 'refs/heads/dev'", snippet)
         self.assertIn("github.event_name == 'push'", snippet)
 
-    def test_existing_stable_conditions_not_weakened(self):
+    def test_stable_release_requires_explicit_full_dispatch_and_completed_test(self):
         section = self.workflow.split('\n  publish_stable:\n', 1)[1]
-        self.assertIn("github.event_name == 'push' && github.ref == 'refs/heads/main'", section)
+        self.assertIn("github.event_name == 'workflow_dispatch'", section)
+        self.assertIn("github.ref == 'refs/heads/main'", section)
+        self.assertIn("inputs.full_release == true", section)
+        self.assertIn("inputs.publish_beta != true", section)
+        self.assertIn("inputs.beta_validate_only != true", section)
+        self.assertIn("needs.test.result == 'success'", section)
+        self.assertIn("name: routerforge-stable-promotion", section)
+        self.assertIn("uses: actions/download-artifact@v4", section)
+        self.assertNotIn("event_name == 'push' && github.ref == 'refs/heads/main'", section)
 
     def test_full_validation_can_be_nonpublishing(self):
         self.assertIn('beta_validate_only:', self.workflow)

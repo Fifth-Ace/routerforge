@@ -151,7 +151,7 @@ jobs:
 
   test:
     needs: [preflight, changes]
-    if: !(github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.changes.outputs.workflow_only == 'true')
+    if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.changes.outputs.workflow_only == 'true') }}
     runs-on: ubuntu-latest
 
     steps:

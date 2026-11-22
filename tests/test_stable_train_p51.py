@@ -17,6 +17,18 @@ class StableTrainP51Tests(unittest.TestCase):
         self.assertGreaterEqual(module.check_config(self.cfg()), (0, 14, 0))
         self.assertIn('dns-router', {x['id'] for x in self.cfg()['components']})
 
+    def test_first_stable_all_eleven_package_versions_exact(self):
+        cfg = self.cfg()
+        self.assertEqual(cfg['release_version'], '1.0.0')
+        self.assertEqual(len(cfg['components']), 11)
+        self.assertTrue(all(x['version'] == '1.0.0' for x in cfg['components']))
+        for i in range(1, 11):
+            wrong = self.cfg()
+            wrong['components'][i]['version'] = '0.99.9'
+            with self.subTest(component=wrong['components'][i]['id']):
+                with self.assertRaisesRegex(ValueError, 'ALL11_VERSION_REQUIRED'):
+                    module.check_config(wrong)
+
     def test_decline_regression(self):
         d = self.cfg()
         d['release_version'] = '0.13.0'

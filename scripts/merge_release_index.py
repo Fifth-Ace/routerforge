@@ -45,9 +45,19 @@ def main():
     final = dict(candidate)
     merged = []
     changed = []
-    for current in candidate.get("components", []):
+    # One-time complete rebuild of the first all-11 Stable 1.0.0.
+    # This explicitly replaces the previously published mixed-version rolling set.
+    # The immutable v1.0.0 tag must not exist before this build (separate preflight).
+    components = candidate.get("components", [])
+    force_all11_v100 = (
+        channel == 'stable'
+        and len(components) == 11
+        and len({item.get('id') for item in components}) == 11
+        and all(item.get('version') == '1.0.0' for item in components)
+    )
+    for current in components:
         old = old_by_id.get(current["id"])
-        if old and old.get("version") == current.get("version"):
+        if old and old.get("version") == current.get("version") and not force_all11_v100:
             # A freshly rebuilt IPK is not guaranteed to be byte-for-byte
             # identical because archive metadata can change between builds.
             # Same-version candidates therefore keep the already-published

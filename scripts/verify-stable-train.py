@@ -40,7 +40,9 @@ def check_config(cfg: dict, candidate: bool = False, tags: list[str] | None = No
     if rows[0].get('id') != 'routerforge-core' or parse_version(rows[0].get('version')) != version:
         raise ValueError('STABLE_CORE_RELEASE_VERSION_MISMATCH')
     for item in rows:
-        parse_version(item.get('version'))
+        component_version = parse_version(item.get('version'))
+        if version == (1, 0, 0) and component_version != (1, 0, 0):
+            raise ValueError('STABLE_1_0_0_ALL11_VERSION_REQUIRED: ' + item['id'])
         if item.get('min_core_version') and parse_version(item['min_core_version']) > version:
             raise ValueError('STABLE_MIN_CORE_TOO_NEW: ' + item['id'])
     if candidate:

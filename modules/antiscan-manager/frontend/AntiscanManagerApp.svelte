@@ -221,7 +221,7 @@ function updateConfigEditorState() {
   state.className = 'state';
   if (configBusy) {
     addUIClass(state, 'info');
-    state.textContent = rfUi('ПРИМЕНЕНИЕ…',"APPLYING…");
+    state.textContent = rfUi('Применяем настройки…',"Applying settings…");
     hint.textContent = rfUi('Создаём резервную копию → атомарно записываем → перечитываем Antiscan → проверяем результат. При ошибке выполняется откат.',"Backing up → writing atomically → reloading Antiscan → verifying. Failures trigger rollback.");
   } else if (stale) {
     addUIClass(state, 'bad');
@@ -557,7 +557,7 @@ function updateSchedulerState() {
     state.textContent = rfUi('ОШИБКА ФАЙЛА',"FILE ERROR");
   } else if (schedulerBusy) {
     state.className = 'state info';
-    state.textContent = rfUi('ПРИМЕНЕНИЕ…',"APPLYING…");
+    state.textContent = rfUi('Сохраняем расписание…',"Saving schedule…");
   } else if (schedulerDirty) {
     state.className = 'state warn';
     state.textContent = rfUi('ИЗМЕНЕНО',"MODIFIED");

@@ -42,7 +42,7 @@ test('Native picker availability is reactive and no network check happens on mou
 
 test('ARIA tablist uses a generic container, with keyboard-friendly Svelte tabs',()=>{
   const source=read('DnsRuntimeApp.svelte');
-  assert.match(source,/<div class="tabs" role="tablist" aria-label="Разделы DNS Router">/);
+  assert.match(source,/<div class="tabs" role="tablist" aria-label=\{rfUi\("Разделы DNS Router","DNS Router sections"\)\}>/);
   assert.doesNotMatch(source,/<nav class="tabs" role="tablist"/);
   for(const tab of ['overview','policies','testing','keenetic','diagnostics']){
     assert.match(source,new RegExp('id="dr-tab-'+tab+'" role="tab"'));

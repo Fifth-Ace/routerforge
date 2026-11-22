@@ -151,7 +151,7 @@ jobs:
 
   test:
     needs: [preflight, changes]
-    if: (github.event_name != 'push' || github.ref != 'refs/heads/main') && !(github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.changes.outputs.workflow_only == 'true')
+    if: !(github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.changes.outputs.workflow_only == 'true')
     runs-on: ubuntu-latest
 
     steps:
@@ -177,8 +177,10 @@ jobs:
           DOCS=false
           FULL_RELEASE=false
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] &&
-             [ "${{ inputs.full_release }}" = "true" ]; then
+          if { [ "${{ github.event_name }}" = "workflow_dispatch" ] &&
+               [ "${{ inputs.full_release }}" = "true" ]; } ||
+             { [ "${{ github.event_name }}" = "push" ] &&
+               [ "${{ github.ref }}" = "refs/heads/main" ]; }; then
 
             CORE_FRONTEND=true
             DNS_FRONTEND=true
@@ -315,7 +317,11 @@ jobs:
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
         run: |
           set -eu
-          BASE="$(git merge-base origin/main "$GITHUB_SHA")"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            BASE="$(git rev-parse "$GITHUB_SHA^")"
+          else
+            BASE="$(git merge-base origin/main "$GITHUB_SHA")"
+          fi
           python3 scripts/verify-commit-identity.py range "$BASE" "$GITHUB_SHA"
       - name: Verify Port Access UI contract (P40A)
         run: python3 scripts/verify-port-access-ui.py
@@ -1493,7 +1499,8 @@ jobs:
 
   publish_stable:
     name: Publish validated stable promotion
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'docs:')
+    needs: [preflight, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:')
     runs-on: ubuntu-latest
 
     permissions:
@@ -1511,53 +1518,8 @@ jobs:
           PREVIOUS_MAIN_SHA: ${{ github.event.before }}
         run: python3 scripts/verify-commit-identity.py range "$PREVIOUS_MAIN_SHA" "$GITHUB_SHA"
 
-      - name: Find successful dev validation for exact SHA
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-
-          RUNS=/tmp/routerforge-dev-runs.json
-
-          gh api --method GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f head_sha="$GITHUB_SHA" \
-            -f event=workflow_dispatch \
-            -f status=success \
-            -f per_page=20 \
-            > "$RUNS"
-
-          DEV_RUN_ID=$(
-            python3 - "$RUNS" "$GITHUB_SHA" <<'PY'
-          import json
-          import sys
-
-          path, sha = sys.argv[1:3]
-
-          with open(path, "r", encoding="utf-8") as fh:
-              doc = json.load(fh)
-
-          matches = [
-              run for run in doc.get("workflow_runs", [])
-              if run.get("head_sha") == sha
-              and (run.get("head_branch") == "dev" or str(run.get("head_branch", "")).startswith("release/stable-"))
-              and run.get("event") == "workflow_dispatch"
-              and run.get("status") == "completed"
-              and run.get("conclusion") == "success"
-          ]
-
-          if matches:
-              print(matches[0]["id"])
-          PY
-          )
-
-          if [ -z "$DEV_RUN_ID" ]; then
-            echo "No successful dev CI run found for exact SHA $GITHUB_SHA" >&2
-            exit 1
-          fi
-
-          echo "Validated dev run: $DEV_RUN_ID"
-          echo "DEV_RUN_ID=$DEV_RUN_ID" >> "$GITHUB_ENV"
+      - name: Pin verified artifact to this exact workflow run
+        run: echo "DEV_RUN_ID=$GITHUB_RUN_ID" >> "$GITHUB_ENV"
 
       - name: Download exact stable promotion artifact
         env:

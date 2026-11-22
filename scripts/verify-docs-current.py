@@ -51,8 +51,7 @@ for channel in ("stable", "beta"):
     if len(packages) != len(set(packages)):
         raise SystemExit(f"duplicate {channel} component package")
     allowed_packages = required_base + required_security
-    if channel == "beta":
-        allowed_packages.append("routerforge-dns-router")
+    allowed_packages.append("routerforge-dns-router")
     if not set(required_base).issubset(packages) or not set(packages).issubset(allowed_packages):
         raise SystemExit(f"unexpected {channel} component topology")
     if not set(required_security).issubset(packages):

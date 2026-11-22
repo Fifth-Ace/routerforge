@@ -227,6 +227,7 @@ def main():
             "antiscan-manager",
             "port-access-manager",
             "crowdsec-manager",
+            "dns-router",
             "profiling",
         ]
     else:
@@ -273,8 +274,8 @@ def main():
         elif cid == "crowdsec-manager":
             run(["./scripts/build-crowdsec-manager-opkg.sh", version], env=env)
         elif cid == "dns-router":
-            if channel not in {"dev", "beta"}:
-                raise SystemExit("DNS Router service is not a Stable package")
+            if channel not in {"dev", "beta", "stable"}:
+                raise SystemExit("DNS Router service is not supported by this release channel")
             # Reuse the tested independent-DNS service packaging path.
             run(["./scripts/build-dns-router-experimental.sh", version, target],
                 env={**env, "ROUTERFORGE_CHANNEL": "dev"})

@@ -13,7 +13,7 @@ from pathlib import Path
 FLOOR = (0, 14, 0)
 IDS = frozenset({'routerforge-core', 'dns', 'admin', 'monitoring',
                  'network-tools', 'nfqws-manager', 'antiscan-manager',
-                 'port-access-manager', 'crowdsec-manager', 'profiling'})
+                 'port-access-manager', 'crowdsec-manager', 'dns-router', 'profiling'})
 SEMVER = re.compile(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\Z')
 TAG = re.compile(r'routerforge-v(\d+\.\d+\.\d+)\Z')
 
@@ -33,7 +33,7 @@ def check_config(cfg: dict, candidate: bool = False, tags: list[str] | None = No
         raise ValueError('STABLE_VERSION_REGRESSION_BELOW_0_14_0')
     rows = cfg.get('components', [])
     if not isinstance(rows, list) or len(rows) != len(IDS) or {r.get('id') for r in rows} != IDS:
-        raise ValueError('STABLE_TEN_COMPONENT_POLICY_MISMATCH')
+        raise ValueError('STABLE_ELEVEN_COMPONENT_POLICY_MISMATCH')
     packages = [r.get('package') for r in rows]
     if len(set(packages)) != len(packages) or any(not p for p in packages):
         raise ValueError('DUPLICATE_STABLE_PACKAGE')

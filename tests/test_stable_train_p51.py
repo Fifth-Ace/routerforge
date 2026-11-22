@@ -13,9 +13,9 @@ class StableTrainP51Tests(unittest.TestCase):
     def cfg(self):
         return json.loads((Path(__file__).resolve().parents[1] / 'release' / 'channels' / 'stable.json').read_text(encoding='utf-8'))
 
-    def test_current_floor_and_ten_component_policy(self):
+    def test_current_floor_and_eleven_component_policy(self):
         self.assertGreaterEqual(module.check_config(self.cfg()), (0, 14, 0))
-        self.assertNotIn('dns-router', {x['id'] for x in self.cfg()['components']})
+        self.assertIn('dns-router', {x['id'] for x in self.cfg()['components']})
 
     def test_decline_regression(self):
         d = self.cfg()
@@ -27,18 +27,18 @@ class StableTrainP51Tests(unittest.TestCase):
     def test_no_duplicate_or_missing_component(self):
         d = self.cfg()
         d['components'] = d['components'][:-1]
-        with self.assertRaisesRegex(ValueError, 'TEN_COMPONENT'):
+        with self.assertRaisesRegex(ValueError, 'ELEVEN_COMPONENT'):
             module.check_config(d)
 
     def test_reject_republishing_same_version(self):
         with self.assertRaisesRegex(ValueError, 'NOT_NEWER'):
-            module.check_config(self.cfg(), candidate=True, tags=['routerforge-v0.14.0', 'routerforge-v0.15.0-beta.5'])
+            module.check_config(self.cfg(), candidate=True, tags=['routerforge-v0.14.0', 'routerforge-v1.0.0', 'routerforge-v0.15.0-beta.5'])
 
     def test_approve_newer_version_only(self):
         d = self.cfg()
-        d['release_version'] = '0.15.0'
-        d['components'][0]['version'] = '0.15.0'
-        self.assertEqual(module.check_config(d, candidate=True, tags=['routerforge-v0.14.0']), (0, 15, 0))
+        d['release_version'] = '1.0.1'
+        d['components'][0]['version'] = '1.0.1'
+        self.assertEqual(module.check_config(d, candidate=True, tags=['routerforge-v0.14.0']), (1, 0, 1))
 
     def test_missing_release_tag_evidence_is_not_permission_to_publish(self):
         with self.assertRaisesRegex(ValueError, 'FLOOR_MISSING'):

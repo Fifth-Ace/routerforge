@@ -6,6 +6,7 @@ Core обеспечивает единый Web UI, авторизацию, на�
 | --- | --- |
 | `routerforge-core` | Основной интерфейс и управление платформой |
 | `routerforge-dns` | DNS, DoT, DoH и диагностика резолверов |
+| `routerforge-dns-router` | Самостоятельный DNS с доменными списками, правилами устройств и DNS Gate |
 | `routerforge-admin` | Процессы, службы, файлы, терминал и обслуживание |
 | `routerforge-monitoring` | CPU, память, температура, накопители и сеть |
 | `routerforge-network-tools` | Маршруты, потоки, сетевые проверки |

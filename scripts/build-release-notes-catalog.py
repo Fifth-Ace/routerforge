@@ -32,9 +32,14 @@ def build(channel: str, docs: Path, dest: Path):
         if channel == 'beta':
             items.append(('summary', summary if summary.is_file() else source))
         else:
-            if summary.is_file():
-                items.append(('summary', summary))
-            items.append(('story', source))
+            if int(version.split('.')[0]) >= 1:
+                # 1.x+: GitHub Releases never carry the in-app author story.
+                items.append(('summary', summary if summary.is_file() else source))
+            else:
+                # Historical Stable notes retain their published legacy contract.
+                if summary.is_file():
+                    items.append(('summary', summary))
+                items.append(('story', source))
         for kind, filepath in items:
             data = filepath.read_bytes().replace(b'\r\n', b'\n')
             if not data or len(data) > 262144:

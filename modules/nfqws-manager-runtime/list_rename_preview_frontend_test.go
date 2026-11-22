@@ -1,27 +1,21 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestNF5G1FrontendReadOnlyRenamePreview(t *testing.T) {
-	data, err := os.ReadFile("../nfqws-manager/frontend/index.html")
-	if err != nil {
-		t.Fatal(err)
+	ui := nfqwsNativeOwner(t, "NfqwsListEditor.svelte")
+	policy := nfqwsNativeOwner(t, "NfqwsListEditorModel.js")
+	for _, marker := range []string{`id="previewRenameList"`, `id="renamePreviewModal"`, "async function renamePreview()", "expected_sha256:ref.sha256", "request('/list/rename-preview?'+query.toString())", "checkedRenamePreview(ref,next,response)", "baseline?.sha256!==ref.sha256", "renamePlan=verified"} {
+		if !strings.Contains(ui, marker) {
+			t.Fatalf("native read-only rename preview lacks %s", marker)
+		}
 	}
-	s := string(data)
-	for _, marker := range []string{
-		`id="previewRenameList"`,
-		`id="renamePreviewModal"`,
-		`async function previewListRename()`,
-		`'/list/rename-preview?'`,
-		`expected_sha256:listMeta.sha256`,
-		`p.preview_only||p.mutation_performed`,
-	} {
-		if !strings.Contains(s, marker) {
-			t.Fatalf("NF5G1 frontend marker missing: %s", marker)
+	for _, marker := range []string{"!p?.ok||!p.preview_only||p.mutation_performed", "p.old_list_sha256!==reference.sha256", "NFQWS_LIST_RENAME_PREVIEW_STALE_OR_INVALID"} {
+		if !strings.Contains(policy, marker) {
+			t.Fatalf("read-only rename policy lacks %s", marker)
 		}
 	}
 }

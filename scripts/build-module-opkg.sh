@@ -210,7 +210,16 @@ build_nfqws_manager() {
     sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-nfqws-manager"
     cp "$ROOT/modules/nfqws-manager-runtime/packaging/S96routerforge-nfqws-manager" "$WORK/data/opt/etc/init.d/S96routerforge-nfqws-manager"
     chmod 0755 "$WORK/data/opt/etc/init.d/S96routerforge-nfqws-manager"
-    cp -R "$UI"/. "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/"
+    # NFQWS source is Svelte 5. Dependencies and bundle are built locally in CI
+    # and NEVER downloaded or installed on Keenetic.
+    [ -s "$UI/package-lock.json" ] || { echo NFQWS_SVELTE_LOCKFILE_REQUIRED >&2; exit 1; }
+    (cd "$UI" && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
+    test -s "$UI/build/svelte-mode.js"
+    for file in index.html module.css; do
+        cp "$UI/$file" "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/$file"
+    done
+    cp "$UI/build/svelte-mode.js" "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/svelte-mode.js"
+    test -s "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/svelte-mode.js"
 
     cat > "$WORK/data/opt/share/routerforge/modules/nfqws-manager/manifest.json" <<MANIFEST
 {
@@ -269,9 +278,10 @@ build_antiscan_manager() {
     cp "$ROOT/modules/antiscan-manager-runtime/packaging/S98routerforge-antiscan-manager" "$WORK/data/opt/etc/init.d/S98routerforge-antiscan-manager"
     chmod 0755 "$WORK/data/opt/etc/init.d/S98routerforge-antiscan-manager"
 
-    for file in index.html app.js module.css; do
-        cp "$UI/$file" "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui/$file"
-    done
+    sh "$ROOT/scripts/build-standalone-svelte-frontend.sh" antiscan-manager
+    UI_BUILD="$UI/build"
+    cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui/"
+    python3 "$ROOT/scripts/verify-standalone-svelte-ui.py" --module antiscan-manager --dir "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui"
 
     cat > "$WORK/data/opt/share/routerforge/modules/antiscan-manager/manifest.json" <<MANIFEST
 {

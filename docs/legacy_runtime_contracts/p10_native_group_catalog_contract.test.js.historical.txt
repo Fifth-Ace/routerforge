@@ -1,0 +1,39 @@
+'use strict';
+const fs=require('node:fs'),p=require('node:path'),t=require('node:test'),a=require('node:assert/strict');
+const root=p.resolve(__dirname,'../modules/dns-router-runtime/frontend');
+const app=fs.readFileSync(p.join(root,'app.js'),'utf8');
+const main=fs.readFileSync(p.join(root,'main.js'),'utf8');
+const model=fs.readFileSync(p.join(root,'DnsRuntimeP10Catalog.js'),'utf8');
+const views=fs.readFileSync(p.join(root,'DnsRuntimeP88Views.svelte'),'utf8');
+const p10Logic=fs.readFileSync(p.join(root,'DnsRuntimeP10Logic.js'),'utf8');
+t('R15 group catalogs are owned by the Svelte entry, with fail-closed legacy adapters',()=>{
+ a.match(main,/import \* as P10Catalog from '\.\/DnsRuntimeP10Catalog\.js'/);
+ a.match(main,/__rfDNSRuntimeP10Catalog=Object\.freeze/);
+ a.match(app,/function p10UXCatalog\(\)/);
+ a.match(app,/DNS_RUNTIME_R15_CATALOG_MISSING/);
+ a.match(app,/p10UXCatalog\(\)\.groups\(config,p88\.policy,p89NativeEntries\(\)\)/);
+ a.match(app,/p10UXCatalog\(\)\.summary\(config,p89NativeEntries\(\)\)/);
+ a.match(app,/p10UXCatalog\(\)\.simpleRule\(r\)/);
+ a.match(views,/groupedCards\(snapshot\.groups/);
+});
+t('R15 removes duplicate group calculations from legacy app.js',()=>{
+ a.doesNotMatch(app,/groups\.sort\(\(a,b\)=>/);
+ a.doesNotMatch(app,/const counts=new Map\(\);for\(const r of config\.rules/);
+ a.match(model,/export function dnsGroups/);
+ a.match(model,/export function dnsSummary/);
+ a.match(model,/export function dnsName/);
+ a.match(model,/export function isSimpleRule/);
+ a.match(model,/export function dnsChoice/);
+ a.doesNotMatch(model,/\bfetch\s*\(|\brequest\s*\(|\bdocument\.|\bwindow\.|\bndmc\b|durable\/apply|shadow\/control/);
+});
+t('R15 retains group editor CAS and P10 activate without implicit IO',()=>{
+ a.match(app,/commitGroup:\(plan,id\)=>/);
+ a.match(app,/plan\.revision!==revision/);
+ a.match(app,/plan\.baseRules!==JSON\.stringify\(config\.rules\|\|\[\]\)/);
+ a.match(app,/function p10UXStartEditing\(g\)/);
+ a.match(app,/function p10UXReplaceDraft\(chosenDNS,parsed\)/);
+ a.match(app,/function p88RenderRules\(\)/);
+ a.match(p10Logic,/request\('keenetic\/durable\/prepare'/);
+ a.match(p10Logic,/request\('keenetic\/durable\/apply'/);
+ a.match(model,/new Set\(rules\.filter\(r=>!known\.has\(r\.upstream\)\)/);
+});

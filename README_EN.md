@@ -7,7 +7,7 @@
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.13.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Stable](https://img.shields.io/badge/stable-1.0.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
 [![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -112,6 +112,11 @@ Web UI, authentication, settings, App Center, updates, module lifecycle and basi
 
 DNS, DoT and DoH configuration, resolver health, latency, errors and fallback; temporarily disable resolvers without removing them. **Use it for** advanced DNS management.
 
+### DNS Router — independent DNS routing
+`routerforge-dns-router`
+
+A separate UDP/TCP/DoT/DoH/DoQ DNS service with domain lists, per-device policies, optional DNS Gate and query logs. DNS Gate is enabled explicitly by the user.
+
 ### Management — router administration
 `routerforge-admin`
 
@@ -138,12 +143,12 @@ Manage an existing `nfqws2-keenetic` installation: configuration, profiles, list
 Manage an installed Antiscan service: configuration, diagnostics, lists, ipset, scheduling and recovery. **Use it if** you run Antiscan.
 
 ### Port Access Manager — protected access
-`routerforge-port-access-manager` · **Beta**
+`routerforge-port-access-manager`
 
 Access management for network services and forwarded ports through knockd, fwknopd / SPA and iptables recent / odin. **Use it for** port knocking and access control.
 
 ### CrowdSec Manager — Firewall Bouncer management
-`routerforge-crowdsec-manager` · **Beta**
+`routerforge-crowdsec-manager`
 
 CrowdSec LAPI connectivity, Firewall Bouncer lifecycle, ipset/iptables diagnostics and block statistics. **Use it if** you deploy CrowdSec protection.
 

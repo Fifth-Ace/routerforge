@@ -41,3 +41,25 @@ test('parses markdown tables and bullet lists', () => {
 test('plainMarkdown removes presentation markers but keeps text', () => {
   assert.equal(plainMarkdown('**Core** `0.10.2` [notes](https://example.test)'), 'Core 0.10.2 notes');
 });
+
+
+// P41: release-notes route must participate in the same native Svelte Core
+// page grid as App Center. Never implement a second HTML shell or DOM patch.
+test('P41: release notes use native Core page margins and responsive Svelte layout', async () => {
+  const { readFileSync } = await import('node:fs');
+  const route = readFileSync(new URL('../src/routes/release-notes/+page.svelte', import.meta.url), 'utf8');
+  const appCenter = readFileSync(new URL('../src/routes/apps/+page.svelte', import.meta.url), 'utf8');
+  const shell = readFileSync(new URL('../src/admin-shell.css', import.meta.url), 'utf8');
+  assert.match(route, /<div class="page rf-release-page">/);
+  assert.match(route, /<div class="page-head rf-release-heading">/);
+  assert.match(route, /<span class="page-kicker">ROUTERFORGE \/ RELEASE NOTES<\/span>/);
+  assert.match(route, /<ReleaseNotesBrowser \{locale\}\s*\/>/);
+  assert.match(route, /\$derived\(\$settings\.locale/);
+  assert.match(appCenter, /<div class="page catalog-page app-center-page">/);
+  assert.match(appCenter, /<div class="page-head">/);
+  assert.match(shell, /\.page\s*\{[^}]*padding:\s*var\(--page-pad\)/s);
+  assert.match(route, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
+  assert.match(route, /@media\s*\(max-width:\s*760px\)/);
+  assert.match(route, /\.rf-release-view\s*\{[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(route, /<iframe\b|<script\s+src=|document\.querySelector|innerHTML\s*=|onMount\(/i);
+});

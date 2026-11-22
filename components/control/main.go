@@ -219,6 +219,8 @@ func main() {
 	registerAdminTerminalRoutes(mux)
 	registerAdminMaintenanceRoutes(mux)
 	registerAdminIntegrationRoutes(mux)
+	registerAdminSyslogRoutes(mux)
+	go rfSyslogRetentionLoop()
 
 	uiFS := http.FileServer(http.Dir(*uiPath))
 	mux.HandleFunc("/v1/ui", func(w http.ResponseWriter, r *http.Request) {

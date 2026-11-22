@@ -1,0 +1,750 @@
+:root{color-scheme:dark light;--bg:var(--rf-bg,#0b0e12);--surface:var(--rf-surface,#15191f);--surface2:var(--rf-surface-2,#1c232b);--text:var(--rf-text,#f1f4f7);--muted:var(--rf-muted,#9ba8b6);--border:var(--rf-border,#36404c);--accent:var(--rf-accent,#49bcf1);--accent-soft:var(--rf-accent-soft,rgba(73,188,241,.13));--bad:#f27b77;--good:#4cc38a;--radius:var(--rf-radius-card,9px);font-family:Inter,'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;background:transparent;color:var(--text);font-size:13px;line-height:1.52}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}[hidden]{display:none!important}input,select,textarea{color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;max-width:100%;outline-offset:2px}select,textarea,input:not([type=checkbox]){width:100%}textarea{resize:vertical;font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;font-size:12px;line-height:1.65}input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent)}h1,h2,h3,p{margin:0}h1{font-size:20px}h2{font-size:15px}h3{font-size:14px}small,.muted,.hint{color:var(--muted);font-size:11px}.page{display:grid;gap:13px;padding:2px 0 24px;width:100%;min-width:0}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;min-width:0}.identity,.top-actions,.actions,.section-title,.log-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.identity strong{font-size:15px}.identity small{display:block}.brandmark{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;color:var(--accent);border:1px solid var(--border);font-size:19px;font-weight:800}.top-actions{justify-content:flex-end}.status{font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:16px;padding:5px 10px;white-space:nowrap}.status[data-tone=good]{color:var(--good)}.status[data-tone=bad]{color:var(--bad)}.tabs{display:flex;gap:15px;border-bottom:1px solid var(--border)}.tab{background:transparent;color:var(--muted);padding:11px 3px;border:0;border-bottom:2px solid transparent;font-weight:650}.tab.selected{border-color:var(--accent);color:var(--text)}.counter{border-radius:12px;background:var(--surface2);font-size:11px;color:var(--muted);padding:2px 7px}.notice{border:1px solid var(--border);background:var(--surface2);border-radius:8px;padding:9px 12px;overflow-wrap:anywhere}.notice[data-tone=bad]{color:var(--bad)}.notice[data-tone=good]{color:var(--good)}#pageDns{display:grid;gap:13px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-width:0}.section-title{align-items:start;justify-content:space-between;margin-bottom:14px}.section-title p{font-size:12px;color:var(--muted);margin-top:3px}.button{padding:8px 12px;min-height:34px;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:7px;white-space:normal}.button:hover:not(:disabled){border-color:var(--accent)}.button.primary{background:var(--accent-soft);border-color:var(--accent);font-weight:700}.button.danger{color:var(--bad)}.button.subtle{background:transparent}.fields{display:grid;gap:12px}.fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}.field{display:grid;gap:5px;min-width:0}.field>span{font-weight:600;font-size:12px}.field small{font-size:11px}.required{color:var(--bad)}.summary-box{display:grid;gap:4px;padding:9px 12px;border:1px solid var(--border);border-radius:8px}.summary-box>span{font-size:12px;color:var(--muted)}.summary-box strong{overflow-wrap:anywhere}.result{padding:9px 11px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);margin-top:12px;overflow-wrap:anywhere}.result[data-tone=bad],.warning{border-color:var(--bad);color:var(--bad)}.actions{margin-top:12px}.help summary,.inner-details summary,.dns-card summary{cursor:pointer;font-weight:650}.help summary{display:flex;justify-content:space-between;gap:12px}.help[open] summary{margin-bottom:10px}.help li{margin:6px 0}.help ol{padding-left:20px}.help p{margin-top:10px}.dns-cards{display:grid;gap:10px}.dns-card{border:1px solid var(--border);border-radius:8px;background:var(--surface2);padding:12px;display:grid;gap:10px}.dns-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.dns-title{min-width:0;display:grid;gap:3px}.dns-title strong{overflow-wrap:anywhere;font-size:14px}.dns-title small{overflow-wrap:anywhere}.dns-count{white-space:nowrap;color:var(--muted)}.dns-bottom{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.dns-bottom .button{min-height:30px;font-size:11px}.dns-domain-preview{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;padding:9px;background:var(--surface);border-radius:6px;max-height:125px;overflow:auto}.dns-card .field{max-width:280px}.warning{border:1px solid;padding:12px;border-radius:8px;margin-bottom:10px;display:grid;gap:8px}.warning small{color:inherit}.editor{background:var(--surface2);padding:15px;border:1px solid var(--accent);border-radius:9px;margin-top:12px}.editor textarea{min-height:150px}.check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}.check input{width:auto}.inner-details{border-top:1px solid var(--border);padding-top:12px;margin-top:14px}.inner-details[open] summary{margin-bottom:13px}.cert-details{max-height:170px;overflow:auto;font:11px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.metrics>div{background:var(--surface2);border:1px solid var(--border);padding:11px;border-radius:7px;display:grid;gap:4px}.metrics strong{font-size:18px}.log-toolbar{margin:13px 0;justify-content:flex-end;align-items:end}.log-toolbar .search{flex:1 1 240px}.log-head,.log-row{display:grid;grid-template-columns:120px minmax(130px,2fr) minmax(145px,1.5fr) 90px 75px;align-items:center;gap:10px}.log-head{font-size:11px;color:var(--muted);padding:10px;border-bottom:1px solid var(--border)}.log-row{font-size:12px;padding:10px;border-bottom:1px solid var(--border);min-width:0}.log-row:nth-child(2n){background:var(--surface2)}.log-row>*{min-width:0;overflow-wrap:anywhere}.log-row.error{color:var(--bad)}.log-rows{max-height:70vh;overflow:auto;min-height:160px}.log-rows p{padding:12px}.log-rows~p{margin-top:10px}.badge-tiny{font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:2px 6px}.dns-select{min-width:150px}@media(max-width:750px){.fields.two{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.log-head{display:none}.log-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.log-row .col-domain{grid-column:1/-1;font-weight:650}.page{gap:10px}.panel{padding:12px}}@media(prefers-reduced-motion:no-preference){.button,.tab{transition:background .14s,border-color .14s}}
+
+/* P13 — visual parity with the former Simple mode. DEV Lite only. */
+:root {
+  --rf-lite-inset: var(--rf-border-strong, var(--border));
+  --rf-lite-selection: var(--accent-soft);
+}
+.page { gap: 10px; padding-bottom: 22px; }
+#pageDns { gap: 11px; }
+.topbar { padding: 2px 1px 4px; }
+.identity { gap: 9px; }
+.identity strong { letter-spacing: -.018em; }
+.brandmark { width: 33px; height: 33px; border-radius: 7px; }
+.top-actions { gap: 8px; }
+.tabs { gap: 5px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.tab { flex: 0 0 auto; border: 0; padding: 8px 13px; border-radius: 6px; line-height: 1.3; }
+.tab.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+.notice { padding: 9px 12px; border-radius: 7px; background: var(--surface2); }
+.panel { padding: 15px; border-radius: var(--radius); }
+.eyebrow { display: block; margin-bottom: 5px; font-size: 10px; font-weight: 800; letter-spacing: .09em; color: var(--accent); }
+.section-title { align-items: center; gap: 12px; margin-bottom: 12px; }
+.section-title h2 { font-size: 15px; line-height: 1.3; }
+.section-title p { font-size: 11px; line-height: 1.55; max-width: 65ch; }
+.overview { padding: 16px; }
+.overview h1 { font-size: clamp(18px, 2.2vw, 21px); letter-spacing: -.015em; }
+.overview .section-title { align-items: center; }
+.overview .fields.two { grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr); gap: 10px; }
+.overview .field > span { font-size: 11px; color: var(--muted); }
+.overview .field select { min-height: 39px; font-weight: 650; }
+.summary-box { padding: 7px 11px; background: var(--surface2); border-radius: 7px; gap: 2px; }
+.summary-box > span { font-size: 11px; }
+.summary-box strong { font-size: 12px; }
+.summary-box small { line-height: 1.3; }
+.routing-workspace { display: grid; grid-template-columns: minmax(270px, 0.94fr) minmax(375px, 1.5fr); gap: 11px; align-items: stretch; min-width: 0; }
+.routing-workspace > * { min-width: 0; }
+.upstream-pane, .domain-pane { min-height: 420px; }
+.upstream-pane { display: flex; flex-direction: column; }
+.upstream-pane .section-title { flex: 0 0 auto; }
+.upstream-pane .dns-cards { min-height: 170px; max-height: 690px; overflow: auto; padding: 2px 4px 4px 1px; align-content: start; }
+.upstream-pane .dns-cards > p { padding: 14px; background: var(--surface2); border: 1px dashed var(--border); border-radius: 7px; }
+.dns-card { gap: 7px; padding: 11px 12px; background: var(--surface2); position: relative; border-color: var(--border); border-radius: 7px; }
+.dns-card.is-selected { border-color: var(--accent); background: var(--rf-lite-selection); box-shadow: inset 3px 0 0 var(--accent); }
+.dns-top { gap: 8px; align-items: flex-start; }
+.dns-title { gap: 2px; min-width: 0; }
+.dns-title strong { font-size: 12px; font-weight: 750; line-height: 1.45; }
+.dns-title small { font-size: 10px; overflow-wrap: anywhere; }
+.dns-count { font-size: 10px; flex: 0 0 auto; white-space: nowrap; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.dns-preview { color: var(--muted); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dns-card > .dns-edit { justify-self: start; padding: 6px 10px; min-height: 29px; font-size: 11px; text-align: left; }
+.dns-card > .dns-edit.primary { border-color: var(--accent); }
+.dns-advanced { border-top: 1px solid var(--border); padding-top: 7px; }
+.dns-advanced > summary { color: var(--muted); font-size: 10px; font-weight: 600; }
+.dns-advanced[open] > summary { margin-bottom: 7px; }
+.dns-advanced .dns-bottom { display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch; gap: 8px; }
+.dns-advanced .dns-bottom .field { max-width: none; }
+.dns-advanced .dns-bottom .button { justify-self: start; }
+.domain-pane { background: var(--surface); }
+.domain-pane .section-title { align-items: start; }
+#selectedDNSBadge { flex-shrink: 0; max-width: 46%; overflow-wrap: anywhere; white-space: normal; text-align: center; }
+.domain-empty { display: grid; gap: 10px; min-height: 290px; align-content: center; justify-items: center; padding: 24px; text-align: center; border-radius: 7px; border: 1px dashed var(--border); background: var(--surface2); }
+.domain-empty strong { font-size: 15px; }
+.domain-empty p { color: var(--muted); max-width: 35ch; font-size: 12px; }
+.domain-empty-symbol { width: 47px; height: 47px; border: 1px solid var(--border); border-radius: 10px; background: var(--accent-soft); display: grid; place-items: center; color: var(--accent); font-size: 22px; }
+.domain-pane .editor { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.domain-pane .editor .section-title h3 { font-size: 13px; }
+.domain-pane .editor textarea { min-height: 300px; width: 100%; padding: 12px; font-size: 12px; border-radius: 7px; background: var(--surface2); resize: vertical; }
+.editor-meta { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 7px; color: var(--muted); font-size: 10px; }
+.editor-meta > span:first-child { color: var(--text); font-weight: 700; }
+.editor-actions { display: flex; gap: 7px; margin: 12px 0 9px; }
+.editor-actions .button.primary { margin-left: auto; }
+.apply-panel > .actions { margin: 0; display: flex; gap: 8px; }
+.apply-panel > .actions .button.primary { padding-inline: 16px; }
+.apply-panel #runStatus { margin-top: 10px; }
+.help { padding: 12px 15px; background: var(--surface2); }
+.help summary { font-size: 12px; color: var(--text); }
+.help .hint { font-size: 10px; }
+.help ol { margin: 10px 0 0; }
+#dnsAddPanel { border-color: var(--accent); }
+#pageLogs .panel { padding: 15px; }
+#pageLogs .section-title { align-items: center; }
+.live-meta { display: grid; gap: 4px; justify-items: end; }
+.live-meta small { font-variant-numeric: tabular-nums; }
+#pageLogs .metrics > div { border-radius: 7px; }
+#pageLogs .metrics strong { font-variant-numeric: tabular-nums; }
+.log-toolbar { justify-content: flex-start; }
+.log-head { background: var(--surface2); border-radius: 7px 7px 0 0; padding-inline: 12px; font-weight: 750; }
+.log-row { padding: 11px 12px; font-variant-numeric: tabular-nums; }
+.log-row .col-domain { font-family: ui-monospace,'Cascadia Mono',Consolas,monospace; font-size: 11px; }
+.log-row.error { box-shadow: inset 3px 0 0 var(--bad); }
+.log-rows { border: 1px solid var(--border); border-radius: 0 0 7px 7px; max-height: 70vh; }
+@media (max-width: 980px) {
+  .routing-workspace { grid-template-columns: minmax(240px,1fr) minmax(300px,1.15fr); }
+  .dns-title strong { font-size: 11px; }
+}
+@media (max-width: 760px) {
+  .routing-workspace { grid-template-columns: minmax(0,1fr); }
+  .upstream-pane, .domain-pane { min-height: 0; }
+  .upstream-pane .dns-cards { max-height: 450px; }
+  .domain-pane .editor textarea { min-height: 245px; }
+  .overview .fields.two { grid-template-columns: minmax(0,1fr); }
+  .overview .section-title { align-items: flex-start; }
+  .editor-actions .button.primary { margin-left: 0; }
+  .topbar { flex-wrap: wrap; }
+}
+@media (max-width: 460px) {
+  .panel, .overview { padding: 12px; }
+  .dns-top { flex-wrap: wrap; }
+  .dns-count { order: -1; }
+  .editor-actions { flex-direction: column; }
+  .editor-actions .button { width: 100%; }
+  .tabs .tab { padding: 8px 9px; }
+  #selectedDNSBadge { max-width: 100%; }
+  #pageLogs .metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .apply-panel > .actions .button { flex: 1 1 120px; }
+}
+/* Embed-safe frame: use RouterForge theme tokens in standalone as well. */
+.page { background: var(--bg); }
+.topbar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:9px 12px; }
+
+/* P14: distinguish an active listener from proven client traffic. */
+.route-advice{border:1px solid var(--border);background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin:9px 0 12px;color:var(--muted);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.route-advice[data-tone="warn"]{border-color:var(--accent);color:var(--text)}
+.route-advice[data-tone="bad"]{border-color:var(--bad);color:var(--bad)}
+
+/* P15 global DNS Gate is a separate intentional opt-in. */
+.gate-panel{border-color:var(--border)}.gate-panel .section-title{align-items:flex-start}.gate-panel .actions{margin:12px 0}.gate-panel .route-advice{margin:8px 0}.gate-panel #gateBadge{font-weight:800}
+
+
+/* P16 — LAN-first workspace, shared RouterForge design tokens. */
+:root{
+  --bg:var(--rf-bg,#0b0d10);
+  --surface:var(--rf-surface,#12151a);
+  --surface2:var(--rf-surface-2,#171b21);
+  --text:var(--rf-text,#f5f7fa);
+  --muted:var(--rf-muted,#8d98a4);
+  --border:var(--rf-border,#29313a);
+  --border-strong:var(--rf-border-strong,#36414d);
+  --accent:var(--rf-accent,#38bdf8);
+  --accent-soft:var(--rf-accent-soft,rgba(56,189,248,.10));
+  --hover:var(--rf-hover,#1d2229);
+  --good:var(--rf-success,#34d399);
+  --bad:var(--rf-danger,#fb7185);
+  --radius:var(--rf-ui-panel-radius,var(--rf-radius-panel,8px));
+  --control-radius:var(--rf-ui-control-radius,var(--rf-radius-control,6px));
+  --control-height:var(--rf-ui-control-h,38px);
+  font-family:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+}
+html,body{font-family:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:13px}
+.page{gap:12px;padding:0 0 18px}
+.module-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;min-width:0;padding:2px 2px 8px}
+.module-heading-copy{min-width:0}
+.module-heading h1{margin:5px 0 4px;font-size:clamp(20px,2vw,25px);line-height:1.2;font-weight:700;letter-spacing:-.025em}
+.module-heading p{max-width:72ch;color:var(--muted);font-size:12px;line-height:1.5}
+.top-actions{gap:8px;flex:0 0 auto}
+.panel{padding:14px;border-radius:var(--rf-ui-panel-radius,var(--radius));box-shadow:none}
+.section-title{gap:12px;margin-bottom:12px}
+.section-title h2{font-size:15px;line-height:1.3;font-weight:650}
+.section-title p{max-width:68ch;font-size:11px;line-height:1.5}
+.button{min-height:var(--control-height);padding:7px 12px;border-radius:var(--control-radius);font-size:12px;line-height:1.25}
+.button:hover:not(:disabled){background:var(--hover);border-color:var(--border-strong)}
+.button.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+.button.danger{color:var(--bad)}
+input,select,textarea{border-radius:var(--control-radius)}
+input:not([type=checkbox]),select{min-height:var(--control-height)}
+.status{min-height:25px;padding:4px 9px;border-radius:999px;background:var(--surface2);font-size:10px}
+.status[data-tone=good]{color:var(--good);border-color:var(--border-strong)}
+.status[data-tone=bad]{color:var(--bad);border-color:var(--border-strong)}
+.tabs{gap:4px;padding:4px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.tab{min-height:34px;padding:7px 12px;border:1px solid transparent;border-radius:var(--control-radius);font-size:11px}
+.tab.selected{border:1px solid var(--accent);background:var(--accent-soft);color:var(--text)}
+#pageDns{gap:12px}
+.gate-panel{border-color:var(--border);background:var(--surface)}
+.gate-heading{align-items:flex-start;margin-bottom:13px}
+.gate-heading-copy{min-width:0}
+.gate-heading-copy h2{font-size:17px;line-height:1.3}
+.gate-heading-copy p{max-width:78ch;font-size:12px}
+.gate-panel #gateBadge{flex:0 0 auto;font-weight:700}
+.gate-panel[data-state=active] #gateBadge{color:var(--good)}
+.gate-panel[data-state=recovery] #gateBadge{color:var(--bad)}
+.gate-panel[data-state=recovery] #gateAdvice{border-color:var(--bad);color:var(--bad)}
+.gate-config{display:grid;grid-template-columns:minmax(260px,1.15fr) minmax(220px,.85fr);gap:12px;align-items:stretch}
+.gate-default{padding:11px 12px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface2)}
+.gate-default>span{font-size:11px;color:var(--muted)}
+.gate-default select{font-weight:650}
+.gate-default small{line-height:1.45}
+.gate-service-summary{display:grid;align-content:center;gap:5px;min-width:0;padding:11px 12px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface2)}
+.gate-service-summary>span{font-size:11px;color:var(--muted)}
+.gate-service-summary strong{font-size:13px;overflow-wrap:anywhere}
+.gate-service-summary small{line-height:1.45}
+.gate-instruction{display:grid;gap:4px;margin-top:11px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface2)}
+.gate-instruction strong{font-size:12px;font-weight:700}
+.gate-instruction p{font-size:12px;line-height:1.5}
+.gate-instruction small{font-size:10px}
+.gate-panel .route-advice{margin:10px 0;padding:9px 11px;border-color:var(--border);background:var(--surface2);color:var(--muted)}
+.gate-panel .route-advice[data-tone=warn]{color:var(--text);border-color:var(--border-strong)}
+.gate-panel .route-advice[data-tone=bad]{color:var(--bad);border-color:var(--bad)}
+.gate-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:11px}
+.gate-actions .button.primary{font-weight:700}
+.gate-panel .result{margin-top:10px}
+.gate-panel .inner-details{margin-top:11px;padding-top:10px;border-top:1px solid var(--border)}
+.gate-panel .inner-details>summary{display:flex;align-items:center;flex-wrap:wrap;gap:7px;min-height:30px;color:var(--text);font-size:11px}
+.gate-panel .inner-details[open]>summary{margin-bottom:11px}
+.gate-panel .inner-details .actions{margin-top:10px}
+.gate-panel .legacy-test-device>p{margin:0 0 10px}
+.gate-panel .legacy-test-device .fields{margin:10px 0}
+.gate-panel .legacy-test-device .check{line-height:1.45}
+.server-head-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.server-head-actions .button{white-space:nowrap}
+.routing-workspace{grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:14px}
+.upstream-pane,.domain-pane{min-height:440px}
+.upstream-pane .dns-cards{max-height:720px}
+.dns-card{border-radius:var(--control-radius);border-color:var(--border)}
+.dns-card.is-selected{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.dns-card .dns-edit{border-radius:var(--control-radius)}
+.domain-pane .editor textarea{min-height:330px;border-radius:var(--control-radius);background:var(--surface2);font:12px/1.65 ui-monospace,"Cascadia Mono",Consolas,monospace}
+.domain-empty{border-color:var(--border);background:var(--surface2)}
+.editor-actions .button{min-height:var(--control-height)}
+#dnsAddPanel{border-color:var(--border)}
+#quickHelp{padding:12px 14px;background:var(--surface)}
+#quickHelp summary{font-size:12px}
+#quickHelp ol{padding-left:20px}
+#quickHelp li{margin:7px 0;line-height:1.5}
+#quickHelp p{margin-top:10px}
+.gate-panel [hidden],.service-tools [hidden]{display:none!important}
+@media(max-width:980px){
+  .routing-workspace{grid-template-columns:minmax(0,1fr)}
+  .upstream-pane,.domain-pane{min-height:0}
+  .upstream-pane .dns-cards{max-height:520px}
+}
+@media(max-width:760px){
+  .module-heading{align-items:flex-start;flex-direction:column}
+  .top-actions{width:100%;justify-content:space-between}
+  .gate-config{grid-template-columns:minmax(0,1fr)}
+  .gate-heading{align-items:flex-start}
+  .gate-actions .button{flex:1 1 180px}
+  .routing-workspace{gap:10px}
+  .domain-pane .editor textarea{min-height:260px}
+}
+@media(max-width:460px){
+  .panel{padding:11px}
+  .server-head-actions{width:100%;justify-content:space-between}
+  .gate-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+  .gate-actions .button{width:100%}
+  .editor-actions{flex-direction:column}
+  .editor-actions .button{width:100%}
+}
+
+/* P18: health overview and per-upstream DNS RTT are distinct from traffic p95. */
+.health-overview{display:grid;gap:10px}
+.health-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.health-metrics>div{min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:var(--control-radius);padding:11px;display:grid;gap:4px}
+.health-metrics small{color:var(--muted);font-size:11px}
+.health-metrics strong{font-size:20px;line-height:1.2;font-variant-numeric:tabular-nums}
+.health-metrics span{font-size:10px;color:var(--muted)}
+.health-native{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border);padding-top:9px}
+.health-native>span{display:grid;gap:3px}.health-native small{font-size:10px}
+.health-native .button{text-decoration:none}
+.dns-health{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;font-size:11px;color:var(--muted)}
+.dns-health-status{font-weight:700}.dns-health-status[data-state=up]{color:var(--good)}.dns-health-status[data-state=down]{color:var(--bad)}
+.dns-health button{padding:4px 8px;min-height:27px;font-size:10px;margin-left:auto}
+@media(max-width:1000px){.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.health-metrics{grid-template-columns:minmax(0,1fr)}.health-native{flex-direction:column;align-items:flex-start}.server-head-actions{flex-wrap:wrap}}
+
+/* P19.3: stable multiple-list editor, real endpoint journal parity */
+.dns-change{margin-top:5px;justify-self:start;font-size:11px}
+.list-toolbar{display:flex;align-items:end;flex-wrap:wrap;gap:8px;margin:10px 0}
+.list-toolbar .field{flex:1 1 170px;min-width:140px}
+.list-toolbar .button{min-height:var(--control-height)}
+.list-rename{padding-bottom:12px;border-bottom:1px solid var(--border)}
+.log-head,.log-row{display:grid!important;grid-template-columns:74px minmax(88px,1fr) minmax(160px,1.8fr) 60px minmax(200px,2.1fr) 110px 68px!important;align-items:center;gap:12px}
+.log-row>span{min-width:0;overflow-wrap:anywhere}
+.log-row .col-route{font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;font-size:11px}
+.log-row .col-result{font-weight:700}
+.log-rows{overflow-x:auto}
+.log-type-field{flex:0 0 130px}
+@media(max-width:1050px){.log-head,.log-row{min-width:940px}}
+@media(max-width:600px){.list-toolbar .field{flex-basis:100%}.list-toolbar .button{flex:1}}
+
+
+/* P19.4: Core/DNS typography and compact workspace. Existing shared tokens win. */
+:root{--rf-p194-pad:var(--rf-page-pad,18px);--rf-p194-control:var(--rf-ui-control-h,32px);--rf-p194-font:var(--font-sans,var(--rf-font-sans,'Inter','Segoe UI Variable Text','Segoe UI',sans-serif))}
+html,body{font:var(--ui-body,var(--rf-ui-body,14px))/1.4 var(--rf-p194-font);}
+.page{padding:var(--rf-p194-pad);gap:12px;max-width:none;}
+.panel{padding:14px 15px;}
+.section-title{gap:8px;margin-bottom:9px;}
+.section-title h2{font-size:var(--rf-ui-panel-title,13px);font-weight:650;}
+.section-title p{font-size:var(--rf-ui-small,12px);}
+.button{min-height:var(--rf-p194-control);padding:5px 10px;font-size:var(--rf-ui-xs,11px);font-weight:550;border-radius:var(--rf-ui-control-radius,5px);}
+input,select,textarea{min-height:var(--rf-p194-control);padding:6px 9px;border-radius:var(--rf-ui-control-radius,5px);}
+.routing-workspace{grid-template-columns:minmax(300px,440px) minmax(0,1fr);gap:12px;align-items:start;}
+.upstream-pane,.domain-pane{min-width:0;min-height:0;}
+.upstream-pane .dns-cards{min-height:0;max-height:620px;gap:7px;padding:0 3px 2px 0;}
+.dns-card{display:grid;gap:5px;padding:9px 11px;border-radius:var(--rf-ui-control-radius,5px);}
+.dns-title strong{font-size:var(--rf-ui-small,12px);line-height:1.3;}
+.dns-title small{font-size:var(--rf-ui-xs,11px);line-height:1.3;}
+.dns-count{font-size:var(--rf-ui-xs,11px);white-space:nowrap;padding:3px 6px;}
+.dns-preview{margin:0;font-size:var(--rf-ui-xs,11px);}
+.dns-health{font-size:var(--rf-ui-xs,11px);gap:9px;min-height:20px;}
+.dns-card-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:2px;}
+.dns-card-actions>.button{padding:5px 8px;min-height:29px;white-space:nowrap;}
+.dns-card-actions .dns-edit,.dns-card-actions .dns-change{margin:0;justify-self:auto;font-size:var(--rf-ui-xs,11px);}
+.dns-card-actions>.dns-advanced{border:0;padding:0;margin-left:auto;position:relative;}
+.dns-card-actions>.dns-advanced>summary{font-size:var(--rf-ui-xs,11px);line-height:29px;border:1px solid var(--border);padding:0 9px;border-radius:var(--rf-ui-control-radius,5px);list-style:none;}
+.dns-card-actions>.dns-advanced[open]{flex-basis:100%;margin:4px 0 0;}
+.dns-card-actions>.dns-advanced[open]>.dns-bottom{padding:9px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:end;flex-wrap:wrap;}
+.dns-card-actions>.dns-advanced .field{flex:1 1 165px;}
+.domain-empty{min-height:125px;padding:15px;gap:5px;}
+.domain-empty-symbol{width:28px;height:28px;font-size:15px;}
+.domain-empty strong{font-size:var(--rf-ui-small,12px);}
+.domain-empty p{font-size:var(--rf-ui-xs,11px);}
+.domain-pane .editor textarea{min-height:210px;}
+.list-toolbar{gap:6px;margin:7px 0;}
+.list-rename{padding-bottom:7px;}
+.editor-actions{margin-top:8px;}
+.draft-check-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px;}
+.draft-check-grid>div{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rf-ui-control-radius,5px);min-width:0;}
+.draft-check-grid span{font-size:var(--rf-ui-xs,11px);color:var(--muted);}
+.draft-check-grid strong{font-size:var(--rf-ui-small,12px);font-weight:600;overflow-wrap:anywhere;}
+.draft-check-grid strong[data-state=ok]{color:var(--good);}
+.draft-check-grid strong[data-state=bad],.draft-probe-error{color:var(--bad);}
+.draft-check-grid strong[data-state=pending]{color:var(--muted);}
+.draft-probe-error{margin-top:8px;font-size:var(--rf-ui-small,12px);overflow-wrap:anywhere;}
+#pageLogs .panel{padding:14px;}
+.log-head,.log-row{gap:8px!important;}
+.log-row{padding:7px 9px;font-size:var(--rf-ui-xs,11px);line-height:1.4;}
+.log-head{padding:8px 9px;font-size:var(--rf-ui-xs,11px);}
+@media(max-width:1040px){.routing-workspace{grid-template-columns:minmax(0,1fr);}}
+@media(max-width:650px){.page{padding:12px;}.draft-check-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.dns-card-actions>.button{flex:1 1 auto;}.dns-card-actions>.dns-advanced{margin-left:0;}.panel{padding:11px;}}
+
+/* P19.5: DNS-style compact workspace, no functional/control removal. */
+.module-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:3px}
+.module-heading-copy h1{font-size:25px;line-height:1.1;letter-spacing:-.025em}
+.module-heading-copy p{max-width:900px;margin:4px 0 0;font-size:12px}
+.top-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.top-actions a.button{text-decoration:none;white-space:nowrap}
+.page{gap:10px;padding:14px 16px}
+.tabs{margin:0;min-height:40px;padding:3px;background:var(--surface2)}
+.tab{min-height:30px}
+.health-overview{display:grid;gap:6px;padding:0;background:none;border:0;box-shadow:none}
+.health-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:17px;color:var(--muted);font-size:10px}
+.health-caption span{font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.health-metrics{gap:8px}
+.health-metrics>div{display:flex;flex-direction:column;justify-content:center;gap:3px;min-height:80px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--rf-ui-control-radius,5px);background:var(--surface2)}
+.health-metrics strong{font-size:20px}
+.health-metrics span{line-height:1.3}
+.health-native{border-top:0;padding:0 2px;min-height:16px;align-items:center;font-size:10px;color:var(--muted)}
+.health-native>span{display:inline;line-height:1.4}
+.health-native small{display:inline;font-size:10px}
+.gate-shell{border:1px solid var(--border);border-radius:var(--rf-ui-control-radius,5px);background:var(--surface);overflow:hidden}
+.gate-shell>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:8px 13px;cursor:pointer;list-style:none}
+.gate-shell>summary::-webkit-details-marker{display:none}
+.gate-shell>summary:before{content:'▸';color:var(--accent);font-size:14px;margin-right:2px}
+.gate-shell[open]>summary:before{content:'▾'}
+.gate-shell>summary>span:first-of-type{flex:1;display:flex;gap:2px;flex-direction:column}
+.gate-shell>summary b{font-size:12px}
+.gate-shell>summary small{font-size:10px;color:var(--muted)}
+.gate-shell>.gate-panel{border:0;border-top:1px solid var(--border);border-radius:0;margin:0}
+#gateCompactBadge{font-size:11px}
+.routing-workspace{grid-template-columns:minmax(340px,1fr) minmax(390px,1.08fr);gap:11px;align-items:start}
+.upstream-pane,.domain-pane{padding:12px;min-width:0}
+.upstream-heading,.domain-pane>.section-title{margin-bottom:10px}
+.upstream-pane .dns-cards{max-height:740px;gap:8px;overflow-y:auto}
+.dns-card{padding:11px 12px;gap:6px;background:var(--surface2);border:1px solid var(--border)}
+.dns-top{align-items:center}
+.dns-title strong{font-size:13px}
+.dns-health{gap:9px}
+.dns-health-status[data-state=up]{font-weight:750}
+.dns-card-metrics{display:flex;gap:11px;align-items:center;padding-top:6px;border-top:1px solid var(--border);font-size:11px;font-weight:600}
+.dns-card-metrics>span+span{border-left:1px solid var(--border);padding-left:11px}
+.dns-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+.dns-card-actions{gap:6px;margin-top:4px;padding-top:7px;border-top:1px solid var(--border)}
+.dns-card-actions>.button{min-height:30px}
+.domain-pane .editor textarea{min-height:265px}
+.domain-empty{min-height:200px}
+.notice{padding:7px 10px;font-size:11px;min-height:0}
+@media(max-width:1100px){.routing-workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.module-heading{align-items:flex-start;flex-direction:column}.top-actions{justify-content:flex-start}.page{padding:12px}.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.routing-workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:450px){.health-metrics{grid-template-columns:minmax(0,1fr)}.gate-shell>summary{padding:8px}}
+
+/* P19.5b — reference-render parity. Pure presentation: no DNS/Gate mutations. */
+:root {
+  --rf-p195b-radius: var(--rf-ui-panel-radius,var(--rf-radius-panel,8px));
+  --rf-p195b-control-radius: var(--rf-ui-control-radius,6px);
+  --rf-p195b-rule: var(--border);
+}
+#dnsLiteApp.page {
+  gap: 11px;
+  padding: 20px 20px 25px;
+  line-height: 1.43;
+}
+#dnsLiteApp .module-heading {
+  align-items: center;
+  padding: 0 0 5px;
+  min-height: 70px;
+}
+#dnsLiteApp .module-heading-copy .eyebrow {
+  letter-spacing: .065em;
+  margin-bottom: 6px;
+}
+#dnsLiteApp .module-heading-copy h1 {
+  font-size: 27px;
+  font-weight: 740;
+  line-height: 1.18;
+  letter-spacing: -.027em;
+  margin: 0 0 5px;
+}
+#dnsLiteApp .module-heading-copy p {
+  max-width: 92ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+#dnsLiteApp .top-actions { flex-wrap: nowrap; gap: 8px; }
+#dnsLiteApp .top-actions .button { min-height: 34px; font-size: 11px; }
+#dnsLiteApp .tabs {
+  min-height: 46px;
+  padding: 4px;
+  gap: 6px;
+  border-radius: var(--rf-p195b-radius);
+  border-color: var(--rf-p195b-rule);
+  background: var(--surface);
+}
+#dnsLiteApp .tabs .tab {
+  min-height: 35px;
+  padding: 7px 17px;
+  font-size: 12px;
+  font-weight: 670;
+}
+#dnsLiteApp .tabs .counter { color: var(--text); background: var(--surface2); margin-left: 5px; }
+#dnsLiteApp .notice {
+  padding: 7px 11px;
+  font-size: 11px;
+  border-radius: var(--rf-p195b-control-radius);
+}
+#dnsLiteApp #pageDns { gap: 12px; }
+#dnsLiteApp .health-overview { gap: 8px; }
+#dnsLiteApp .health-caption { min-height: 16px; }
+#dnsLiteApp .health-caption > span { letter-spacing: .035em; font-size: 10px; }
+#dnsLiteApp .health-metrics {
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 11px;
+}
+#dnsLiteApp .health-metrics > div {
+  min-height: 91px;
+  padding: 12px 15px;
+  gap: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--rf-p195b-radius);
+  box-shadow: none;
+}
+#dnsLiteApp .health-metrics small { font-size: 11px; }
+#dnsLiteApp .health-metrics strong {
+  font-size: 23px;
+  line-height: 1.21;
+  letter-spacing: -.025em;
+  font-weight: 750;
+}
+#dnsLiteApp .health-metrics span { font-size: 10px; line-height: 1.5; }
+#dnsLiteApp .health-native { min-height: 16px; padding-left: 2px; }
+#dnsLiteApp .gate-shell {
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface);
+}
+#dnsLiteApp .gate-shell > summary {
+  min-height: 45px;
+  padding: 9px 13px;
+}
+#dnsLiteApp .gate-shell > summary b { font-size: 12px; }
+#dnsLiteApp .gate-shell > summary small { font-size: 10px; }
+#dnsLiteApp .routing-workspace {
+  grid-template-columns: minmax(425px,1.16fr) minmax(400px,1fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+#dnsLiteApp .upstream-pane,
+#dnsLiteApp .domain-pane {
+  min-height: 0;
+  padding: 0;
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface);
+}
+#dnsLiteApp .upstream-pane > .section-title,
+#dnsLiteApp .domain-pane > .section-title {
+  min-height: 64px;
+  padding: 13px 15px 12px;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+#dnsLiteApp .upstream-pane > .section-title .eyebrow,
+#dnsLiteApp .domain-pane > .section-title .eyebrow {
+  display: none;
+}
+#dnsLiteApp .upstream-pane > .section-title h2,
+#dnsLiteApp .domain-pane > .section-title h2 {
+  font-size: 16px;
+  line-height: 1.28;
+  letter-spacing: -.014em;
+  font-weight: 730;
+}
+#dnsLiteApp .upstream-pane > .section-title p,
+#dnsLiteApp .domain-pane > .section-title p {
+  font-size: 11px;
+  margin-top: 3px;
+}
+#dnsLiteApp .server-head-actions { gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+#dnsLiteApp .server-head-actions .button { min-height: 33px; padding: 6px 10px; }
+#dnsLiteApp .server-head-actions #addDnsToggle { font-weight: 720; }
+#dnsLiteApp .server-head-actions #serverCount { white-space: nowrap; }
+#dnsLiteApp .upstream-pane .dns-cards {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  min-height: 0;
+  max-height: none;
+  overflow-y: visible;
+}
+#dnsLiteApp .upstream-pane > .warning { margin: 12px 12px 0; }
+#dnsLiteApp .dns-card {
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface2);
+  padding: 12px 13px 11px;
+  gap: 8px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+#dnsLiteApp .dns-card:hover { border-color: var(--border-strong); }
+#dnsLiteApp .dns-card.is-selected {
+  background: var(--surface2);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+#dnsLiteApp .dns-title { gap: 3px; }
+#dnsLiteApp .dns-title strong {
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+#dnsLiteApp .dns-title small { font-size: 11px; color: var(--muted); }
+#dnsLiteApp .dns-count {
+  font-size: 10px;
+  padding: 3px 7px;
+  color: var(--muted);
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+#dnsLiteApp .dns-health {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  font-size: 11px;
+}
+#dnsLiteApp .dns-health-status {
+  font-size: 10px;
+  font-weight: 750;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--muted);
+  background: var(--surface);
+}
+#dnsLiteApp .dns-health-status[data-state=up] { color: var(--good); }
+#dnsLiteApp .dns-health-status[data-state=down] { color: var(--bad); }
+#dnsLiteApp .dns-rtt,
+#dnsLiteApp .dns-p95 { font-variant-numeric: tabular-nums; }
+#dnsLiteApp .dns-card-metrics {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+  font-size: 11px;
+  font-weight: 720;
+}
+#dnsLiteApp .dns-card-metrics > span + span {
+  border-left: 1px solid var(--border);
+  padding-left: 18px;
+}
+#dnsLiteApp .dns-preview {
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--muted);
+  line-height: 1.42;
+  min-height: 15px;
+}
+#dnsLiteApp .dns-card-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 9px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+#dnsLiteApp .dns-card-actions > .button {
+  padding: 5px 11px;
+  min-height: 32px;
+  font-size: 11px;
+  font-weight: 580;
+}
+#dnsLiteApp .dns-card-actions > .dns-advanced { margin-left: 0; }
+#dnsLiteApp .dns-card-actions > .dns-advanced > summary {
+  min-height: 32px;
+  line-height: 30px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 590;
+  background: var(--surface);
+}
+#dnsLiteApp .dns-card-actions > .dns-advanced[open] { flex-basis: 100%; }
+#dnsLiteApp .domain-pane .editor {
+  padding: 0 15px 15px;
+  margin: 0;
+  border: 0;
+}
+#dnsLiteApp .editor-dns-switch { padding: 13px 15px 9px; }
+#dnsLiteApp .editor-dns-switch .field { gap: 6px; }
+#dnsLiteApp .editor-dns-switch .field > span {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+}
+#dnsLiteApp #editorDNSChoice { min-height: 37px; font-weight: 630; }
+#dnsLiteApp #selectedDNSBadge {
+  max-width: 38%;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#dnsLiteApp .domain-pane .editor > .section-title {
+  padding: 8px 0 9px;
+  margin-bottom: 6px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+#dnsLiteApp .domain-pane .editor > .section-title h3 {
+  font-size: 12px;
+  font-weight: 710;
+}
+#dnsLiteApp .domain-pane .editor > .section-title p { font-size: 10px; }
+#dnsLiteApp .domain-pane .list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  margin: 10px 0;
+  gap: 8px;
+}
+#dnsLiteApp .domain-pane .list-toolbar .field > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 620;
+}
+#dnsLiteApp .domain-pane .list-toolbar .field {
+  flex: 1 1 175px;
+  min-width: 0;
+}
+#dnsLiteApp .domain-pane .list-toolbar .button { min-height: 34px; padding: 5px 9px; font-size: 10px; }
+#dnsLiteApp .domain-pane .list-rename {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+#dnsLiteApp .domain-pane select,
+#dnsLiteApp .domain-pane input { min-height: 35px; }
+#dnsLiteApp .domain-pane .editor textarea {
+  width: 100%;
+  min-height: 315px;
+  max-height: 540px;
+  padding: 14px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--rf-p195b-radius);
+  font: 12px/1.8 ui-monospace,'Cascadia Mono',Consolas,monospace;
+  resize: vertical;
+}
+#dnsLiteApp .domain-pane .editor textarea:focus {
+  border-color: var(--accent);
+}
+#dnsLiteApp .domain-pane .editor-meta {
+  margin-top: 9px;
+  font-size: 10px;
+}
+#dnsLiteApp .domain-pane .editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 10px;
+}
+#dnsLiteApp .domain-pane .editor-actions .button { min-height: 35px; padding: 6px 12px; }
+#dnsLiteApp .domain-pane .editor-actions .button.primary { margin-left: auto; }
+#dnsLiteApp .domain-empty {
+  margin: 0 15px 15px;
+  min-height: 118px;
+  padding: 17px;
+  gap: 5px;
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface2);
+}
+#dnsLiteApp .domain-empty-symbol { width: 28px; height: 28px; font-size: 13px; }
+#dnsLiteApp .domain-empty strong { font-size: 12px; }
+#dnsLiteApp .domain-empty p { font-size: 10px; }
+@media (max-width: 1120px) {
+  #dnsLiteApp .routing-workspace { grid-template-columns: minmax(0,1fr); }
+  #dnsLiteApp .upstream-pane .dns-cards { max-height: 450px; overflow-y: auto; }
+}
+@media (max-width: 960px) {
+  #dnsLiteApp .health-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #dnsLiteApp .module-heading { align-items: flex-start; flex-wrap: wrap; }
+  #dnsLiteApp .top-actions { flex-wrap: wrap; justify-content: flex-start; }
+}
+@media (max-width: 670px) {
+  #dnsLiteApp.page { padding: 12px; }
+  #dnsLiteApp .health-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #dnsLiteApp .tabs .tab { padding: 7px 10px; }
+  #dnsLiteApp .dns-card-metrics { gap: 11px; }
+  #dnsLiteApp .dns-card-metrics > span + span { padding-left: 10px; }
+  #dnsLiteApp .upstream-pane > .section-title,
+  #dnsLiteApp .domain-pane > .section-title { align-items: flex-start; flex-wrap: wrap; }
+}
+@media (max-width: 430px) {
+  #dnsLiteApp .health-metrics { grid-template-columns: minmax(0,1fr); }
+  #dnsLiteApp .domain-pane .editor-actions .button.primary { margin-left: 0; }
+  #dnsLiteApp .editor-dns-switch,
+  #dnsLiteApp .domain-pane .editor { padding-left: 11px; padding-right: 11px; }
+}
+
+/* P21 additive advanced controls; the P19.5b DNS workspace stays intact. */
+.p21-mode-label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.p21-mode-label select{width:auto;min-height:30px;padding:4px 8px}
+#p21Page{display:grid;gap:11px} .p21-form{margin:12px 0}
+.p21-device-list{display:grid;gap:7px;margin-top:12px}
+.p21-device-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px;border:1px solid var(--border);border-radius:7px}
+.p21-device-row .p21-device-copy{display:grid;gap:3px;min-width:0;flex:1 1 240px;overflow-wrap:anywhere}
+.p21-device-row small{white-space:pre-wrap}.p21-device-row .actions{margin:0}
+.p21-explanation{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,Consolas,monospace;margin-top:12px}
+[data-dns-mode="basic"] .p21-advanced-only,[data-dns-mode="basic"] #clientConnection,[data-dns-mode="basic"] #additionalSettings{display:none!important}
+@media(max-width:750px){.p21-device-row{align-items:stretch}.p21-mode-label{flex-wrap:wrap}#p21Page .actions{flex-wrap:wrap}}
+/* Native Svelte-owned feedback content (host stays as an existing layout slot). */
+#feedback [data-tone="good"] { color: var(--good); }
+#feedback [data-tone="bad"] { color: var(--bad); }

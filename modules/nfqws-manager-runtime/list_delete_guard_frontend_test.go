@@ -1,21 +1,24 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestNF5BFrontendDeleteRequiresPreimage(t *testing.T) {
-	data, err := os.ReadFile("../nfqws-manager/frontend/index.html")
-	if err != nil {
-		t.Fatal(err)
+	ui := nfqwsNativeOwner(t, "NfqwsListEditor.svelte")
+	policy := nfqwsNativeOwner(t, "NfqwsListEditorModel.js")
+	for _, marker := range []string{"async function remove()", "!canManage||dirty", "window.confirm(`Удалить", "listMutation('delete',reference)", "request(cmd.path,cmd.body)", "!result?.status"} {
+		if !strings.Contains(ui, marker) {
+			t.Fatalf("native delete owner lacks %s", marker)
+		}
 	}
-	s := string(data)
-	if strings.Count(s, "api('/list/delete'") != 1 {
-		t.Fatal("all delete callsites need CAS coverage")
+	for _, marker := range []string{"if(reference.protected)", "expected_sha256:reference.sha256", "confirm:'NFQWS_LIST_DELETE'", "path:'/list/delete'", "NFQWS_LIST_INVALID_MUTATION_REFERENCE"} {
+		if !strings.Contains(policy, marker) {
+			t.Fatalf("delete policy lacks %s", marker)
+		}
 	}
-	if !strings.Contains(s, "name:selectedList,expected_sha256:listMeta.sha256,confirm:'NFQWS_LIST_DELETE'") {
-		t.Fatal("list deletion omitted exact preimage SHA")
+	if strings.Count(ui, "listMutation('delete'") != 1 {
+		t.Fatal("native delete must have one guarded command")
 	}
 }

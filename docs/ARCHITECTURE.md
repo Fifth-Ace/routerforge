@@ -10,6 +10,7 @@ Browser -> RouterForge Core :2233
            ├── Module API / UI host
            └── Unix-socket proxy
                 ├── routerforge-dns
+                ├── routerforge-dns-router
                 ├── routerforge-admin
                 ├── routerforge-monitoring
                 ├── routerforge-network-tools

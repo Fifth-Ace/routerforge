@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import {
     adminFileChmod, adminFileCopy, adminFileDelete, adminFileDownloadURL,
     adminFileMkdir, adminFileMove, adminFileWrite, getAdminFiles, getAdminFileVolumes, readAdminFile
@@ -30,6 +31,8 @@
 
   let view = 'commander';
   let busyCount = 0;
+  const fileReads = createReadSessions();
+  let actionClearTimer = null;
   let errorText = '';
   let actionText = '';
   let active = 'left';
@@ -168,12 +171,22 @@
   function setView(next) {
     view = next;
     localStorage.setItem(VIEW_KEY, next);
-    if (next === 'explorer') loadExplorer(explorerPath);
+    if (next === 'explorer') {
+      fileReads.cancel('panel-left');
+      fileReads.cancel('panel-right');
+      loadExplorer(explorerPath);
+    } else {
+      fileReads.cancel('explorer');
+    }
   }
 
   function setAction(value) {
+    if (actionClearTimer !== null) clearTimeout(actionClearTimer);
     actionText = value;
-    setTimeout(() => { if (actionText === value) actionText = ''; }, 3500);
+    actionClearTimer = setTimeout(() => {
+      actionClearTimer = null;
+      if (actionText === value) actionText = '';
+    }, 3500);
   }
 
   function rememberPanelPath(side, path) {
@@ -181,9 +194,11 @@
   }
 
   async function loadPanel(side, path, historyMode = 'push') {
+    const read = fileReads.begin(`panel-${side}`);
     busyCount += 1; errorText = '';
     try {
-      const result = await getAdminFiles(path);
+      const result = await getAdminFiles(path, false, read.signal);
+      if (!read.isCurrent()) return;
       const current = panelFor(side);
       const resolved = result.path || path;
       let history = current.history;
@@ -203,8 +218,8 @@
         historyIndex
       });
       rememberPanelPath(side, resolved);
-    } catch (error) { errorText = err(error); }
-    finally { busyCount -= 1; }
+    } catch (error) { if (read.isCurrent()) errorText = err(error); }
+    finally { busyCount = Math.max(0, busyCount - 1); read.finish(); }
   }
 
   async function navigateHistory(side, delta) {
@@ -224,18 +239,20 @@
   }
 
   async function loadExplorer(path = explorerPath) {
+    const read = fileReads.begin('explorer');
     busyCount += 1; errorText = '';
     try {
-      const result = await getAdminFiles(path, true);
+      const result = await getAdminFiles(path, true, read.signal);
+      if (!read.isCurrent()) return;
       explorerPath = result.path || path;
       explorerEntries = result.entries || [];
       explorerVolumeRoot = rootForPath(explorerPath);
       localStorage.setItem(EXPLORER_KEY, explorerPath);
       treeChildren = { ...treeChildren, [explorerPath]: explorerEntries.filter((entry) => entry.kind === 'directory') };
       treeLoaded = { ...treeLoaded, [explorerPath]: true };
-      await ensureTreePath(explorerPath);
-    } catch (error) { errorText = err(error); }
-    finally { busyCount -= 1; }
+      await ensureTreePath(explorerPath, read.isCurrent);
+    } catch (error) { if (read.isCurrent()) errorText = err(error); }
+    finally { busyCount = Math.max(0, busyCount - 1); read.finish(); }
   }
 
   function select(side, entry) {
@@ -250,15 +267,17 @@
       return loadPanel(side, entry.path);
     }
     if (entry.kind !== 'file') return;
+    const read = fileReads.begin('editor');
     editorBusy = true; errorText = '';
     try {
-      const result = await readAdminFile(entry.path);
+      const result = await readAdminFile(entry.path, read.signal);
+      if (!read.isCurrent()) return;
       selectedFile = result;
       editorContent = result.content || '';
       editorOriginal = editorContent;
       editorForceReadOnly = forceReadOnly;
-    } catch (error) { errorText = err(error); }
-    finally { editorBusy = false; }
+    } catch (error) { if (read.isCurrent()) errorText = err(error); }
+    finally { if (read.isCurrent()) editorBusy = false; read.finish(); }
   }
 
   async function saveEditor() {
@@ -349,16 +368,19 @@
 
   async function loadTreeChildren(path) {
     if (treeLoaded[path] || treeLoading[path]) return;
+    const read = fileReads.begin(`tree:${path}`);
     treeLoading = { ...treeLoading, [path]: true };
     try {
-      const result = await getAdminFiles(path, true);
+      const result = await getAdminFiles(path, true, read.signal);
+      if (!read.isCurrent()) return;
       const children = (result.entries || []).filter((entry) => entry.kind === 'directory');
       treeChildren = { ...treeChildren, [path]: children };
       treeLoaded = { ...treeLoaded, [path]: true };
     } catch (error) {
-      errorText = err(error);
+      if (read.isCurrent()) errorText = err(error);
     } finally {
-      treeLoading = { ...treeLoading, [path]: false };
+      if (read.isCurrent()) treeLoading = { ...treeLoading, [path]: false };
+      read.finish();
     }
   }
 
@@ -370,9 +392,10 @@
     treeExpanded = { ...treeExpanded, [path]: !Boolean(treeExpanded[path]) };
   }
 
-  async function ensureTreePath(path) {
+  async function ensureTreePath(path, isCurrent = () => true) {
     const root = rootForPath(path);
     await loadTreeChildren(root);
+    if (!isCurrent()) return;
     const parts = path.slice(root.length).split('/').filter(Boolean);
 
     if (parts.length === 0) {
@@ -387,6 +410,7 @@
       treeExpanded = { ...treeExpanded, [current]: true };
       const next = `${current.replace(/\/$/, '')}/${part}`;
       await loadTreeChildren(next);
+      if (!isCurrent()) return;
       current = next;
     }
   }
@@ -452,6 +476,8 @@
   }
 
   function swapPanels() {
+    fileReads.cancel('panel-left');
+    fileReads.cancel('panel-right');
     const oldLeft = left;
     left = right;
     right = oldLeft;
@@ -543,26 +569,32 @@
     // A service evidence path can disappear between inspection and navigation.
     // Try a direct read so the user gets the real backend error instead of
     // silently landing in the parent directory.
+    const read = fileReads.begin('editor');
     editorBusy = true;
     errorText = '';
     try {
-      const result = await readAdminFile(target);
+      const result = await readAdminFile(target, read.signal);
+      if (!read.isCurrent()) return;
       selectedFile = result;
       editorContent = result.content || '';
       editorOriginal = editorContent;
       editorForceReadOnly = true;
     } catch (error) {
-      errorText = err(error);
+      if (read.isCurrent()) errorText = err(error);
     } finally {
-      editorBusy = false;
+      if (read.isCurrent()) editorBusy = false;
+      read.finish();
     }
   }  onMount(() => {
     let disposed = false;
     (async () => {
       try {
-        const result = await getAdminFileVolumes();
-        if (!disposed && Array.isArray(result.volumes) && result.volumes.length) volumes = result.volumes;
-      } catch (error) { errorText = err(error); }
+        const read = fileReads.begin('volumes');
+        try {
+          const result = await getAdminFileVolumes(read.signal);
+          if (read.isCurrent() && Array.isArray(result.volumes) && result.volumes.length) volumes = result.volumes;
+        } finally { read.finish(); }
+      } catch (error) { if (!disposed) errorText = err(error); }
       if (disposed) return;
       if (openTarget) {
         await openExternalTarget(openTarget);
@@ -584,6 +616,8 @@
     window.addEventListener('keydown', handleCommanderKey);
     return () => {
       disposed = true;
+      fileReads.dispose();
+      if (actionClearTimer !== null) clearTimeout(actionClearTimer);
       window.removeEventListener('keydown', handleCommanderKey);
     };
   });

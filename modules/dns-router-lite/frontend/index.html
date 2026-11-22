@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>RouterForge · DNS</title>
+  <link rel="stylesheet" href="/design-system/routerforge-v1.css">
+  <link rel="stylesheet" href="module.css">
+  <link rel="stylesheet" href="p22-visual.css">
+  <link rel="stylesheet" href="p25-settings.css">
+</head>
+<body>
+<main class="page rfds-scope" id="dnsLiteApp">
+  <header class="module-heading">
+    <div class="module-heading-copy">
+      <span class="eyebrow">ROUTERFORGE · DNS</span>
+      <h1>DNS Router</h1>
+      <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
+    </div>
+    <div class="top-actions dns-toolbar" role="toolbar" aria-label="Режим, состояние и действия DNS Router">
+      <label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label>
+      <div id="rf-dns-lite-svelte-mode" style="display:contents"><div class="p22-mode-switch rfds-segmented" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div></div>
+      <div class="dns-toolbar-end">
+        <span class="dns-toolbar-label">Доступность и инструменты</span>
+        <div class="dns-toolbar-badges"><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span></div>
+        <div class="dns-toolbar-links"><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">DNS-аналитика <span aria-hidden="true">↗</span></a><span id="rf-lite-reload-slot" style="display:contents"></span></div>
+      </div>
+    </div>
+  </header>
+  <nav class="tabs rfds-tabs" aria-label="Разделы DNS">
+    <span id="rf-lite-dns-nav-slot" style="display:contents"></span>
+    <span id="rf-dns-lite-svelte-advanced-nav" style="display:contents"></span>
+    <span id="rf-dns-lite-settings-nav-slot" style="display:contents"></span>
+    <span id="rf-lite-log-nav-slot" style="display:contents"></span>
+  </nav>
+  <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
+
+  <section id="pageDns" aria-label="DNS и домены">
+    <section class="health-overview" id="healthOverview" aria-label="Состояние DNS Router">
+      <div class="health-caption"><span>Состояние DNS Router</span><small id="healthUpdated" class="muted">Нет измерений</small></div>
+      <div class="health-metrics">
+        <div><small>Основной DNS LAN</small><strong id="healthGate">—</strong><span>Маршрутизация UDP/TCP 53</span></div>
+        <div><small>DNS-серверы</small><strong id="healthServers">—</strong><span>Доступность по прямым проверкам</span></div>
+        <div><small>Запросы за 5 минут</small><strong id="healthRequests">—</strong><span>Только RouterForge · без тестов</span></div>
+        <div><small>Худший p95 upstream</small><strong id="healthP95">—</strong><span>Реальные ответы · до 1024 на DNS за 5 минут</span></div>
+      </div>
+      <div class="health-native"><span>Штатный DNS Keenetic: <small id="nativeDNSHealth">Проверяем модуль DNS…</small></span></div>
+    </section>
+    <details class="gate-shell" id="gateShell"><summary class="gate-summary"><span><b>Основной DNS для LAN</b><small>Управление перехватом DNS и применённой конфигурацией</small></span><span class="status" id="gateCompactBadge">Проверяем…</span></summary>
+    <section class="panel gate-panel" id="systemGatePanel" aria-label="Основной DNS для LAN" data-state="stock">
+      <div class="section-title gate-heading">
+        <div class="gate-heading-copy">
+          <span class="eyebrow">ОСНОВНОЙ DNS ДЛЯ LAN</span>
+          <h2>Один переключатель для всей локальной сети</h2>
+          <p>Обычные DNS-запросы устройств LAN (UDP/TCP 53) будут направляться через RouterForge. Штатные настройки Keenetic не переписываются.</p>
+        </div>
+        <span class="status" id="gateBadge" role="status">Выключен</span>
+      </div>
+      <div class="gate-config">
+        <label class="field gate-default"><span>DNS по умолчанию в RouterForge <b class="required">*</b></span><span id="rf-lite-default-dns-slot" style="display:contents"></span><small>Используется для доменов, которых нет в списках. Домены из списков идут на назначенный им DNS.</small></label>
+        <div class="gate-service-summary"><span>DNS-сервис</span><strong id="listenerSummary">—</strong><small id="connectionSummary">Для LAN-режима отдельное тестовое устройство не требуется.</small></div>
+      </div>
+      <div class="gate-instruction">
+        <strong>Как заменить DNS для всей LAN</strong>
+        <p>Выбери DNS по умолчанию → нажми «Сохранить и запустить DNS» → проверь готовность → нажми «Включить для LAN».</p>
+        <small>Подключать MAC-адрес отдельного устройства не нужно. Последний выбор ON/OFF сохраняется; DoH/DoT/DoQ приложений и DNS внутри VPN этим Gate не перехватываются.</small>
+      </div>
+      <p class="route-advice" id="gateAdvice">Системный DNS выключен. Сейчас запросы обрабатывает Keenetic.</p>
+      <div id="rf-lite-gate-actions-slot" style="display:contents"></div>
+      <div id="runStatus" class="result">Состояние DNS-сервиса загружается…</div>
+      <p id="routeAdvice" class="route-advice" role="status">Проверяем, доходят ли запросы до DNS Router…</p>
+      <details class="inner-details service-tools" id="serviceTools">
+        <summary>Другие действия с DNS-сервисом <span class="hint">Проверка и обслуживание</span></summary>
+        <div id="rf-lite-service-actions-slot" style="display:contents"></div>
+      </details>
+      <details class="inner-details legacy-test-device" id="clientConnection">
+        <summary>Тестовое подключение одного устройства <span class="hint">Необязательно · для диагностики</span></summary>
+        <p class="muted">Это отдельный точечный режим для диагностики через профиль Keenetic. Для замены DNS всей LAN он не нужен.</p>
+        <div id="rf-lite-client-fields-slot" style="display:contents"></div>
+        <div id="rf-lite-client-actions-slot" style="display:contents"></div>
+        <p class="muted">Для теста выключи Private DNS / DoH на устройстве. При недоступном Entware подключённое устройство может остаться без DNS — возврат делается по IP-адресу роутера.</p>
+      </details>
+      <details class="inner-details" id="additionalSettings">
+        <summary>Дополнительные настройки <span class="hint">Обычно не нужны</span></summary>
+        <div id="rf-dns-lite-basic-service-slot" style="display:contents"></div>
+        <div id="rf-dns-lite-basic-cache-slot" style="display:contents"></div>
+      </details>
+    </section>
+    </details>
+    <div id="rf-lite-dns-form-slot" style="display:contents"></div>
+    <div class="routing-workspace" aria-label="DNS-серверы и домены">
+      <aside class="panel upstream-pane" aria-label="DNS-серверы">
+        <div class="section-title upstream-heading"><div><span class="eyebrow">DNS ROUTER</span><h2>DNS-серверы</h2><p>Серверы и назначенные списки.</p></div><div class="server-head-actions"><span id="rf-lite-dns-buttons-slot" style="display:contents"></span></div></div>
+        <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <span id="rf-lite-native-migrate-slot" style="display:contents"></span><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
+        <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
+      </aside>
+      <section class="panel domain-pane" aria-label="Редактор доменов">
+        <div class="section-title"><div><span class="eyebrow">DNS ROUTER</span><h2>Списки доменов</h2><p>Все списки выбранного DNS в одном месте.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
+        <div class="editor-dns-switch"><label class="field" for="editorDNSChoice"><span>DNS-сервер</span><span id="rf-lite-editor-choice-slot" style="display:contents"></span></label></div>
+        <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS-сервер</strong><p>После выбора здесь появятся его списки и редактор доменов.</p></div>
+        <div id="rf-dns-lite-svelte-editor"></div>
+
+      </section>
+    </div>
+    <details class="help panel" id="quickHelp">
+      <summary>Как настроить за минуту? <span class="hint">Короткая инструкция</span></summary>
+      <ol>
+        <li>Добавь DNS и нажми <strong>«Проверить адрес и сертификат»</strong>.</li>
+        <li>Открой его список справа и добавь домены — по одному на строку.</li>
+        <li>Выбери DNS по умолчанию и нажми <strong>«Сохранить и запустить DNS»</strong>.</li>
+        <li>Нажми <strong>«Проверить готовность»</strong>, затем <strong>«Включить для LAN»</strong>. Готово — отдельное устройство подключать не нужно.</li>
+      </ol>
+      <p class="muted">Чтобы вернуть обычный DNS Keenetic, нажми «Вернуть штатный DNS» в верхнем блоке.</p>
+    </details>
+  </section>
+
+  <section id="p21Page" class="p21-advanced-only" hidden aria-label="Advanced DNS Router">
+    <div id="rf-dns-lite-settings-page-slot" style="display:contents"></div>
+    <div id="rf-dns-lite-svelte-p21-workspace" style="display:contents"></div>
+  </section>
+
+  <section id="pageLogs" hidden aria-label="Журнал DNS">
+    <section class="panel">
+      <div class="section-title"><div><h1>Журнал запросов</h1><p>DNS-маршруты в реальном времени: назначение, фактический сервер, ответ и задержка.</p></div><div class="live-meta"><span id="liveBadge" class="status">LIVE · ожидание</span><small id="logUpdated">Ждём запросов</small></div></div>
+      <p id="logGuide" class="route-advice" role="status">Проверяем путь DNS-запросов…</p>
+      <div class="metrics"><div><small>Запросов после запуска</small><strong id="metricRequests">0</strong></div><div><small>Из кэша</small><strong id="metricCache">0</strong></div><div><small>Ошибок</small><strong id="metricErrors">0</strong></div><div><small>Сервис</small><strong id="metricRunning">—</strong></div></div>
+      <div id="rf-lite-log-toolbar-slot" style="display:contents"></div>
+      <div class="log-head"><span>Время</span><span>Клиент</span><span>Домен</span><span>Тип</span><span>Назначен → использован</span><span>Ответ</span><span>мс</span></div>
+      <div id="logRows" class="log-rows" aria-live="polite"><div id="rf-dns-lite-svelte-log"><p class="muted">Здесь появятся запросы после запуска DNS.</p></div></div>
+      <p class="muted">Обновляется автоматически каждые 2 секунды (кнопка паузы фиксирует снимок). Только последние 128 запросов в памяти; на диск журнал не пишется. Кэшированные ответы не отправляются upstream повторно.</p>
+    </section>
+  </section>
+</main>
+<script defer src="svelte-mode.js"></script>
+
+
+
+</body>
+</html>

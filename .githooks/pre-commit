@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+# RouterForge proactive identity gate: checks effective Git identities, including env overrides.
+owner='Fifth-Ace <248300012+Fifth-Ace@users.noreply.github.com> '
+for kind in AUTHOR COMMITTER; do
+    actual="$(git var GIT_${kind}_IDENT 2>/dev/null)" || { echo "RF_IDENTITY: ${kind}_UNAVAILABLE" >&2; exit 1; }
+    case "$actual" in
+        "$owner"*) ;;
+        *) echo "RF_IDENTITY: DENIED_${kind}: $actual" >&2; exit 1 ;;
+    esac
+done
+printf '%s\n' 'RF_IDENTITY_PRE_COMMIT: PASS'

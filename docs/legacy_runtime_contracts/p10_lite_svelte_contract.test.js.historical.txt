@@ -1,0 +1,32 @@
+'use strict';
+const test=require('node:test'), assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'../');
+const ui=path.join(root,'modules/dns-router-runtime/frontend');
+const html=fs.readFileSync(path.join(ui,'index.html'),'utf8');
+const app=fs.readFileSync(path.join(ui,'app.js'),'utf8');
+const main=fs.readFileSync(path.join(ui,'main.js'),'utf8');
+const lite=fs.readFileSync(path.join(ui,'DnsRuntimeLite.svelte'),'utf8');
+const flow=fs.readFileSync(path.join(ui,'DnsRuntimeLiteLogic.js'),'utf8');
+test('R09 one native Lite mount, no old Lite markup in HTML',()=>{
+ assert.equal((html.match(/id="rf-dns-runtime-svelte-lite"/g)||[]).length,1);
+ assert.doesNotMatch(html,/id="drLitePanel"|id="drLiteApply"/);
+ assert.match(main,/DNS_RUNTIME_R09_MOUNT_MISSING/);
+ for(const id of ['drLitePanel','drLiteDefault','drLiteListen','drLiteCache','drLiteNetworks','drLiteApply','drLiteStop','drLiteRefresh','drLiteVerify','drLiteMAC','drLitePersist','drLiteConnect','drLiteDisconnect','drLiteStatus','drLiteTraces'])
+  assert.equal((lite.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+});
+test('R09 no imperative Lite event handlers or HTTP in app.js',()=>{
+ assert.doesNotMatch(app,/async function liteApply|async function liteStop|async function liteRefresh|function liteRender|el\('drLiteConnect'\)\.addEventListener/);
+ assert.match(app,/window\.__rfDNSRuntimeP10Bridge/);
+ assert.match(app,/routerforge:dns-runtime-lite-draft/);
+ assert.match(flow,/createLiteFlow/);
+ assert.match(flow,/service\/migrate-native/);
+ assert.match(flow,/service\/connect/);
+});
+test('R09 controls do not auto-start or auto-connect on mount',()=>{
+ const mount=lite.slice(lite.indexOf('  onMount('),lite.indexOf('</script>'));
+ assert.doesNotMatch(mount,/flow\.operate|request\('service\/control'|\bfetch\(/);
+ assert.match(lite,/onclick=\{\(\)=>execute\('apply'\)\}/);
+ assert.match(lite,/onclick=\{\(\)=>execute\('connect'\)\}/);
+ assert.match(flow,/if\(!confirmAction\('Назначить /);
+});

@@ -524,6 +524,12 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 		}
 	}
 
+	if item.ID == "dns-router" && item.Installed {
+		// Management supervisor stays alive when the DNS engine is explicitly OFF.
+		// Do not treat a process or socket alone as DNS-service RUNNING.
+		item.ServiceRunning = dnsRouterCatalogEngineActive()
+	}
+
 	if spec, ok := moduleLifecycleSpecFor(item.ID); ok {
 		item.LifecycleManaged = true
 		item.Service = moduleLifecycleServicePath(spec, exists)

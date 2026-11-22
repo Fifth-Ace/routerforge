@@ -1,8 +1,10 @@
 <script>
+  import { rfUi } from './rf-localization.js';
 
   import { onMount } from 'svelte';
 
-  import { getPlatformAlerts, getPlatformEvents } from '$lib/api.js';
+  import { getPlatformAlerts, getPlatformEvents, getModule } from '$lib/api.js';
+  import { createReadSessions } from '$lib/readSessions.js';
 
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
@@ -26,6 +28,7 @@
   let timer = null;
 
   let requestEpoch = 0;
+  const eventReads = createReadSessions();
 
   let category = 'all';
 
@@ -138,6 +141,25 @@
       text: textOf(`${key}Text`, vars)
     });
 
+    if (type.startsWith('storage.doctor.')) {
+      const kind = type.slice('storage.doctor.'.length);
+      const titles = {
+        usb_disconnect: [rfUi('USB-накопитель отключился',"USB storage device disconnected"),'USB drive disconnected'],
+        usb_reset: [rfUi('Сброс USB-подключения',"USB connection reset"),'USB connection reset'],
+        io_error: [rfUi('Ошибка чтения или записи',"Read/write error"),'Disk I/O error'],
+        fs_error: [rfUi('Ошибка файловой системы',"File system error"),'Filesystem error'],
+        read_only: [rfUi('Накопитель только для чтения',"Storage device is read-only"),'Filesystem switched to read-only'],
+        disappeared: [rfUi('Точка монтирования исчезла',"Mount point disappeared"),'Mount disappeared'],
+        appeared: [rfUi('Точка монтирования появилась',"Mount point appeared"),'Mount appeared'],
+        writable_again: [rfUi('Запись восстановлена',"Write access restored"),'Writable again'],
+        smart_degradation: [rfUi('SMART: ухудшение показателей',"SMART: indicators degraded"),'SMART counters increased'],
+        smart_critical: [rfUi('SMART: критический статус',"SMART: critical status"),'SMART critical health'],
+        overheat: [rfUi('Перегрев накопителя',"Storage device overheating"),'Drive overheating'],
+        cooled: [rfUi('Температура нормализовалась',"Temperature back to normal"),'Temperature recovered']
+      };
+      const translated = titles[kind] || [kind,kind];
+      return { title: locale === 'ru' ? translated[0] : translated[1], text: locale === 'ru' ? rfUi('Устройство: ',"Device:") + (object || rfUi('накопитель',"storage device")) + rfUi('. Подробности — в карточке события.',". See the event card for details.") : 'Device: ' + (object || 'drive') + '. Technical details are available below.' };
+    }
     if (type === 'module.health.down') return result('healthDown', { name });
     if (type === 'module.health.recovered') return result('healthRecovered', { name });
     if (type === 'module.health.up') return result('healthUp', { name });
@@ -246,6 +268,7 @@
   async function load({ quiet = false } = {}) {
 
     const epoch = ++requestEpoch;
+    const read = eventReads.begin('events');
 
     if (quiet) refreshing = true;
 
@@ -253,17 +276,28 @@
 
     try {
 
-      const [timeline, health] = await Promise.all([
+      const [timeline, health, doctor] = await Promise.all([
 
-        getPlatformEvents({ limit: 100 }),
+        getPlatformEvents({ limit: 100, signal: read.signal }),
 
-        getPlatformAlerts()
+        getPlatformAlerts(read.signal),
+
+        getModule('storage', 'doctor', read.signal).catch(() => null)
 
       ]);
 
-      if (epoch !== requestEpoch) return;
+      if (epoch !== requestEpoch || !read.isCurrent()) return;
 
-      events = Array.isArray(timeline?.events) ? timeline.events : [];
+      const coreEvents = Array.isArray(timeline?.events) ? timeline.events : [];
+      const storageEvents = (doctor?.history || []).map((e) => ({
+        id: e.id, time: e.at, component: 'storage', object_id: e.device,
+        type: 'storage.doctor.' + e.kind, severity: e.severity,
+        recovery: !!e.recovery, message: e.summary,
+        context: { origin: e.origin, detail: e.detail, observed_at: e.at }
+      }));
+      events = [...coreEvents, ...storageEvents]
+        .sort((a,b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 200);
 
       alerts = Array.isArray(health?.alerts) ? health.alerts : [];
 
@@ -271,19 +305,20 @@
 
     } catch (error) {
 
-      if (epoch !== requestEpoch) return;
+      if (epoch !== requestEpoch || !read.isCurrent()) return;
 
       errorText = error?.payload?.error || error?.message || copy.loadError;
 
     } finally {
 
-      if (epoch === requestEpoch) {
+      if (epoch === requestEpoch && read.isCurrent()) {
 
         loading = false;
 
         refreshing = false;
 
       }
+      read.finish();
 
     }
 
@@ -304,6 +339,7 @@
     return () => {
 
       requestEpoch += 1;
+      eventReads.dispose();
 
       if (timer) window.clearInterval(timer);
 

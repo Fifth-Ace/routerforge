@@ -86,12 +86,13 @@ jobs:
               "antiscan-manager",
               "port-access-manager",
               "crowdsec-manager",
+              "dns-router",
               "profiling",
           ]
           actual = [item.get("id") for item in doc.get("components", [])]
           if actual != expected:
               raise SystemExit(f"unexpected Dev component order: {actual!r}")
-          if doc.get("release_version") != "0.8.5~dev":
+          if doc.get("release_version") != "1~dev":
               raise SystemExit(f"unexpected Dev release train: {doc.get('release_version')!r}")
           print("DEV_NETWORK_TOOLS_TOPOLOGY=PASS")
           PY
@@ -142,16 +143,17 @@ jobs:
         run: |
           set -eu
           node --check modules/network-tools/frontend/runtime.js
-          node --check modules/network-tools/frontend/app.js
-          grep -Fq 'Network Doctor' modules/network-tools/frontend/index.html
-          grep -Fq 'Route Inspector' modules/network-tools/frontend/index.html
-          grep -Fq 'Flow Explorer' modules/network-tools/frontend/index.html
-          grep -Fq 'Active Probes' modules/network-tools/frontend/index.html
-          grep -Fq 'Доступность сети' modules/network-tools/frontend/index.html
-          grep -Fq 'Средняя задержка (RTT)' modules/network-tools/frontend/index.html
-          grep -Fq 'Потери пакетов' modules/network-tools/frontend/index.html
-          grep -Fq 'Активные сессии' modules/network-tools/frontend/index.html
-          grep -Fq 'Сохранить отчёт' modules/network-tools/frontend/index.html
+          node --check modules/network-tools/frontend/main.js
+          test -f modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'tabDoctor:' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'tabRoutes:' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'tabFlows:' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'tabProbes:' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'Доступность сети' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'Средняя задержка (RTT)' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'Потери пакетов' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'Активные сессии' modules/network-tools/frontend/NetworkToolsApp.svelte
+          grep -Fq 'Сохранить отчёт' modules/network-tools/frontend/NetworkToolsApp.svelte
           grep -Fq '/network-tools' components/core/catalog.go
 
       - name: Validate package shell
@@ -211,7 +213,7 @@ jobs:
         run: |
           set -eu
           SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-12)"
-          VERSION="0.8.5~dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          VERSION="1~dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
           ./scripts/build-network-tools-opkg.sh "$VERSION"
 
           file="dist/routerforge-network-tools_${VERSION}_aarch64-3.10.ipk"

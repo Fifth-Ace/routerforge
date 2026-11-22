@@ -16,8 +16,12 @@ func readLocalizationFixture(t *testing.T, path string) string {
 }
 
 func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
-	html := readLocalizationFixture(t, "../antiscan-manager/frontend/index.html")
-	js := readLocalizationFixture(t, "../antiscan-manager/frontend/app.js")
+	js := readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanManagerApp.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanScheduleEditor.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanConfigEditor.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanPresentationModel.js") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanIPSetRows.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanHistoryRows.svelte")
 
 	requiredHTML := []string{
 		"Управление Antiscan",
@@ -26,11 +30,11 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"RCI-токен",
 		"Токен передаётся upstream только через stdin",
 		"Расписание Antiscan",
-		"Автоматическая задача retry_load_geo",
 		"ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ",
 		"Совместимость и обновления",
 		"RouterForge не устанавливает обновления Antiscan",
-		"data-tab=\"geo\">Geo</button>",
+		"data-tab=\"geo\"",
+		"chooseTab(\"geo\")",
 		"Добавить адрес",
 		"Применение настроек",
 		"Учтённый функционал upstream",
@@ -39,7 +43,7 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"ИСТОРИЯ ОПЕРАЦИЙ",
 	}
 	for _, needle := range requiredHTML {
-		if !strings.Contains(html, needle) {
+		if !strings.Contains(js, needle) {
 			t.Fatalf("localized HTML contract missing %q", needle)
 		}
 	}
@@ -70,6 +74,14 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"Защита отключена до следующего запуска",
 		"нужен перезапуск",
 	}
+	// Scheduler copy moved to a reachable, Svelte-owned child during ALL11.
+	if !strings.Contains(js, "import AntiscanScheduleEditor from './AntiscanScheduleEditor.svelte'") || !strings.Contains(js, "<AntiscanScheduleEditor") {
+		t.Fatal("Antiscan native scheduler owner is not mounted")
+	}
+	scheduler := readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanScheduleEditor.svelte")
+	if !strings.Contains(scheduler, "Автоматическая задача retry_load_geo") || !strings.Contains(scheduler, "disabled={item.automatic}") {
+		t.Fatal("upstream automatic schedule cannot be renamed or manually changed")
+	}
 	for _, needle := range requiredJS {
 		if !strings.Contains(js, needle) {
 			t.Fatalf("localized UI contract missing %q", needle)
@@ -79,7 +91,7 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 
 func TestAntiscanFrontendRejectsRemovedOrDeveloperCopy(t *testing.T) {
 	combined := readLocalizationFixture(t, "../antiscan-manager/frontend/index.html") + "\n" +
-		readLocalizationFixture(t, "../antiscan-manager/frontend/app.js")
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanManagerApp.svelte")
 
 	forbidden := []string{
 		"ЗАЩИЩЁННОЕ УПРАВЛЕНИЕ",

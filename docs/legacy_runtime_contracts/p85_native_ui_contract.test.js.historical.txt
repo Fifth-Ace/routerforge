@@ -1,0 +1,44 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const base=path.join(root,'modules/dns-router-runtime/frontend');
+const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
+const app=fs.readFileSync(path.join(base,'app.js'),'utf8');
+const forms=fs.readFileSync(path.join(base,'DnsRuntimePolicyForms.svelte'),'utf8');
+const native=fs.readFileSync(path.join(base,'DnsRuntimeNative.svelte'),'utf8');
+const logic=fs.readFileSync(path.join(base,'DnsRuntimeNativeLogic.js'),'utf8');
+const readOnly=fs.readFileSync(path.join(base,'DnsRuntimeReadOnly.svelte'),'utf8');
+const api=fs.readFileSync(path.join(root,'modules/dns-router-runtime/api.go'),'utf8');
+
+test('P85 native DNS editor is fully Svelte-owned, not a hidden legacy form',()=>{
+ assert.match(forms,/import DnsRuntimeNative/);
+ assert.match(forms,/<DnsRuntimeNative bind:value=\{poolAddress\}/);
+ assert.match(forms,/createDraftEditor/);
+ assert.doesNotMatch(forms,/upstreamForm|nativeSubmit|submitLegacy|syncLegacyTransport/);
+ assert.doesNotMatch(html,/id="upstreamForm"|id="p8PlainProtocols"|id="p85NativePicker"/);
+ assert.doesNotMatch(app,/function p85ScanNative|function p85NativeVisibility|p5Options\(/);
+ for(const id of ['p85NativePicker','p85NativeEndpoint','p85NativeScan','p85NativeMessage'])
+   assert.match(native,new RegExp('id="'+id+'"'));
+ assert.match(readOnly,/id="p85NativeStatus"/);
+});
+
+test('P85 discovery GET is explicit; never touches ndmc or starts service',()=>{
+ assert.match(native,/onclick=\{scan\}/);
+ assert.match(logic,/get\('keenetic\/native-dns'\)/);
+ assert.match(logic,/get\('keenetic\/native-bridge\/status'\)/);
+ assert.match(logic,/get\('keenetic\/native-policies'\)/);
+ assert.match(api,/"\/v1\/keenetic\/native-bridge\/status"/);
+ assert.match(api,/http\.MethodGet/);
+ assert.doesNotMatch(native,/onMount\s*\(/);
+ assert.doesNotMatch(logic,/\bPOST\b|\bPUT\b|\bDELETE\b|ndmc|ip name-server/);
+ assert.doesNotMatch(native,/\.innerHTML\s*=/);
+});
+
+test('P85 native transport keeps TLS fields and fallback unavailable',()=>{
+ assert.match(forms,/poolSNI='';poolPath='';poolFallbacks=''/);
+ assert.match(forms,/transport:poolTransport/);
+ assert.match(forms,/poolAddress/);
+ assert.match(logic,/native:\/\//);
+ assert.match(logic,/parseNativeSelector/);
+ assert.match(html,/encrypted-only/);
+});

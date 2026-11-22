@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "qwdtt-server-keenetic",
+  "kind": "integration",
+  "name": "qWDTT Server Keenetic",
+  "category": "VPN / Routing",
+  "description": "Сервер защищённого туннеля qWDTT для Keenetic: WG/Raw-IP, профили, QR-ссылки, правила firewall и веб-статистика.",
+  "publisher": {
+    "id": "SemerDevLab",
+    "name": "SemerDevLab",
+    "url": "https://github.com/SemerDevLab"
+  },
+  "project_url": "https://github.com/SemerDevLab/qWDTT_Server_Keenetic",
+  "source": "project-official",
+  "version_source": "opkg",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "qwdtt"
+    ],
+    "services": [
+      "/opt/etc/init.d/S99qwdtt"
+    ],
+    "paths": [
+      "/opt/bin/qwdtt",
+      "/opt/etc/qwdtt/config.json"
+    ]
+  },
+  "process_names": [
+    "qwdtt"
+  ],
+  "web_port": 3333,
+  "web_port_source": "project-default; configurable",
+  "web": {
+    "scheme": "http",
+    "port": 3333,
+    "path": "/",
+    "mode": "external-only",
+    "embed": false
+  },
+  "compatibility": {
+    "status": "requirements",
+    "targets": [
+      "aarch64-3.10",
+      "mipsel-3.4"
+    ],
+    "hints": [
+      "Keenetic + Entware",
+      "AArch64 / ARMv7 / MIPSEL; no MIPS big-endian release asset",
+      "wireguard-tools, iptables, and TUN/WireGuard support or userspace backend",
+      "May configure firewall, routing and a WireGuard interface",
+      "Web UI listens on 0.0.0.0:3333 by default; check network exposure"
+    ]
+  },
+  "install": {
+    "method": "release-deploy",
+    "repository_url": "https://github.com/SemerDevLab/qWDTT_Server_Keenetic/releases",
+    "packages": [
+      "qwdtt"
+    ],
+    "notes": [
+      "Download the IPK matching the router architecture from the upstream GitHub release.",
+      "Package install may stop/restart qWDTT and update firewall or tunnel state.",
+      "No external IPK is auto-installed by RouterForge; installation is preview-only.",
+      "The upstream project currently does not expose a license file; do not redistribute binaries without permission."
+    ],
+    "preview_only": true
+  }
+}

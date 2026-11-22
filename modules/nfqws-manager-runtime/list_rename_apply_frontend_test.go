@@ -1,27 +1,21 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestNF5G2FrontendUsesVerifiedPreview(t *testing.T) {
-	data, err := os.ReadFile("../nfqws-manager/frontend/index.html")
-	if err != nil {
-		t.Fatal(err)
+	ui := nfqwsNativeOwner(t, "NfqwsListEditor.svelte")
+	policy := nfqwsNativeOwner(t, "NfqwsListEditorModel.js")
+	for _, marker := range []string{`id="applyRenameList"`, "if(!active||!canManage||dirty||!renamePlan)", "listRenameApply(plan,ref)", "window.confirm(`Переименовать", "renamePlan=null", "request(cmd.path,cmd.body)", "!result?.ok||result.rolled_back", "selectAfterMutation(plan.new_name)"} {
+		if !strings.Contains(ui, marker) {
+			t.Fatalf("native rename apply lacks %s", marker)
+		}
 	}
-	s := string(data)
-	for _, marker := range []string{
-		`id="applyRenameList"`,
-		`expected_config_changes:p.config_changes`,
-		`confirm:'ROUTERFORGE_LIST_RENAME_APPLY'`,
-		`'/list/rename-apply'`,
-		`nf5g2PreviewPlan=null`,
-		`if(!result.ok||result.rolled_back)`,
-	} {
-		if !strings.Contains(s, marker) {
-			t.Fatalf("missing rename apply marker: %s", marker)
+	for _, marker := range []string{"reference.sha256!==plan.old_list_sha256", "expected_config_changes:plan.config_changes", "confirm:'ROUTERFORGE_LIST_RENAME_APPLY'", "path:'/list/rename-apply'"} {
+		if !strings.Contains(policy, marker) {
+			t.Fatalf("rename apply policy lacks %s", marker)
 		}
 	}
 }

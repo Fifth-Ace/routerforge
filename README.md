@@ -7,7 +7,7 @@
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.13.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Stable](https://img.shields.io/badge/stable-1.0.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
 [![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -123,6 +123,11 @@ Web UI, авторизация, настройки, Центр приложен�
 
 DNS, DoT и DoH, состояние резолверов, задержки, ошибки и fallback, временное отключение серверов без удаления настроек. **Нужен, если:** хотите контролировать качество работы DNS.
 
+### DNS Router — самостоятельная маршрутизация DNS
+`routerforge-dns-router`
+
+Независимый DNS-сервис с UDP/TCP/DoT/DoH/DoQ, доменными списками, правилами устройств, DNS Gate и журналом запросов. DNS Gate включается вручную. **Нужен, если:** хотите маршрутизировать DNS в локальной сети по собственным правилам.
+
 ### Management — администрирование из браузера
 `routerforge-admin`
 
@@ -149,12 +154,12 @@ Network Doctor, Route Inspector, Flow Explorer и Active Probes: маршрут�
 Настройка установленного Antiscan, диагностика, списки, ipset, служба, планировщик и восстановление. **Нужен, если:** используете Antiscan и хотите управлять им через RouterForge.
 
 ### Port Access Manager — контроль доступа к портам
-`routerforge-port-access-manager` · **Beta**
+`routerforge-port-access-manager`
 
 Управление доступом к сервисам и проброшенным портам через knockd, fwknopd / SPA и iptables recent / odin. Настройки, состояние служб и защитные проверки. **Нужен, если:** хотите использовать Port Knocking или SPA для сетевых сервисов.
 
 ### CrowdSec Manager — управление Firewall Bouncer
-`routerforge-crowdsec-manager` · **Beta**
+`routerforge-crowdsec-manager`
 
 Подключение к CrowdSec LAPI, управление Firewall Bouncer, диагностика ipset/iptables и статистика блокировок. **Нужен, если:** используете CrowdSec для защиты сети.
 

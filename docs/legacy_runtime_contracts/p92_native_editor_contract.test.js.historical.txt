@@ -1,0 +1,48 @@
+'use strict';
+const test=require('node:test'), assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const prefix=path.join(root,'modules/dns-router-runtime/frontend');
+const html=fs.readFileSync(path.join(prefix,'index.html'),'utf8');
+const app=fs.readFileSync(path.join(prefix,'app.js'),'utf8');
+const main=fs.readFileSync(path.join(prefix,'main.js'),'utf8');
+const svelte=fs.readFileSync(path.join(prefix,'DnsRuntimeP92.svelte'),'utf8');
+const logic=fs.readFileSync(path.join(prefix,'DnsRuntimeP92Logic.js'),'utf8');
+test('P92 editor tools and preview have one Svelte owner and zero old HTML IDs',()=>{
+ for(const id of ['drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92Export','drP92File','drP92Message','drP92Count','drP92Preview']){
+  const re=new RegExp('id="'+id+'"','g');
+  assert.equal((svelte.match(re)||[]).length,1,id+' in Svelte');
+  assert.equal((html.match(re)||[]).length,0,id+' absent HTML');
+ }
+ assert.equal((html.match(/id="drSimpleDomains"/g)||[]).length,1);
+ assert.equal((html.match(/id="rf-dns-runtime-svelte-p92"/g)||[]).length,1);
+});
+test('P92 Svelte toolbar mounts once and legacy can only refresh/notify',()=>{
+ assert.match(main,/import DnsRuntimeP92/);
+ assert.match(main,/DNS_RUNTIME_R12_MOUNT_MISSING/);
+ assert.match(main,/mount\(DnsRuntimeP92,\{target:p92Target\}\)/);
+ assert.match(svelte,/onMount\(\(\)=>\{/);
+ assert.match(svelte,/field\.addEventListener\('input',onInput\)/);
+ assert.match(svelte,/field\.removeEventListener\('input',onInput\)/);
+ assert.match(svelte,/window\.__rfDNSRuntimeP92=api/);
+ assert.match(app,/window\.__rfDNSRuntimeP92/);
+ assert.match(app,/function p92Preview\(\)/);
+ assert.doesNotMatch(app,/p88Id\('drP92(?:Check|Clear|Import|Export|Normalize|Deduplicate|File)'\)\.addEventListener/);
+});
+test('P92 owner performs no implicit API or runtime mutation',()=>{
+ assert.doesNotMatch(svelte,/\bfetch\(|\brequest\(|\bXMLHttpRequest\b|\bndmc\b|shadow\/control|durable\/apply|service\/control/);
+ assert.doesNotMatch(logic,/\bfetch\(|\brequest\(|\bndmc\b/);
+ assert.match(svelte,/onclick=\{check\}/);
+ assert.match(svelte,/onclick=\{clear\}/);
+ assert.match(svelte,/onclick=\{exportFile\}/);
+ assert.match(svelte,/onchange=\{importFile\}/);
+ assert.match(svelte,/if\(file\.size>256\*1024\)throw Error/);
+ assert.match(svelte,/if\(!confirm\('Очистить только текстовое поле/);
+});
+test('P92 parser contract preserves limits and rejects IP, URL and filter syntax',()=>{
+ for(const fragment of ['lines.length>500','found.length>200','domain.length>253','item.toLowerCase()','item.split']){
+  if(fragment!=='item.split')assert.ok(logic.includes(fragment),fragment);
+ }
+ assert.match(logic,/export function parseDomainBatch/);
+ assert.match(logic,/export function mergeDomainFile/);
+ assert.match(logic,/export function exportDomainText/);
+});

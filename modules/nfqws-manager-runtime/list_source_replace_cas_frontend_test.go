@@ -1,17 +1,13 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestNF5DFrontendSendsOldAndNewListSHA(t *testing.T) {
-	data, err := os.ReadFile("../nfqws-manager/frontend/index.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(data)
+	source := nfqwsFrontendSource(t)
+	s := source
 	if strings.Count(s, "api('/list-sources/install'") != 1 {
 		t.Fatal("upstream list source installer callsites changed; review all callers")
 	}

@@ -1,0 +1,132 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const test=require('node:test');
+const vm=require('node:vm');
+const base=path.resolve(__dirname,'..','modules','dns-router-runtime','frontend');
+const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
+const js=fs.readFileSync(path.join(base,'app.js'),'utf8');
+const css=fs.readFileSync(path.join(base,'module.css'),'utf8');
+const actionUI=fs.readFileSync(path.join(base,'DnsRuntimeP88Actions.svelte'),'utf8');
+const actionLogic=fs.readFileSync(path.join(base,'DnsRuntimeP88ActionLogic.js'),'utf8');
+const views=fs.readFileSync(path.join(base,'DnsRuntimeP88Views.svelte'),'utf8');
+const viewModel=fs.readFileSync(path.join(base,'DnsRuntimeP88ViewModel.js'),'utf8');
+
+test('P8.8 starts in simple mode, with original advanced pages retained',()=>{
+ for(const id of ['drSimpleWorkspace','drAdvancedWorkspace','drModeSimple','drModeAdvanced','drSimpleDNS','drSimpleDomains','drSimpleState']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,'ID once: '+id);
+ }
+ for(const id of ['drSimplePolicies','drSimpleDNSInventory','drSimpleRuleList']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0,'no legacy DOM ID '+id);
+  assert.equal((views.match(new RegExp('id="'+id+'"','g'))||[]).length,1,'native DOM ID once '+id);
+ }
+ for(const id of ['drSimpleScan','drSimpleProbe','drSimpleProbeResult','drSimpleAdd','drP10CancelListEdit','drSimpleSave','drSimpleAdvanced']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0,'HTML old ID '+id);
+  assert.equal((actionUI.match(new RegExp('id="'+id+'"','g'))||[]).length,1,'native P88 ID '+id);
+ }
+ assert.match(html,/<div id="drAdvancedWorkspace" hidden>/);
+ assert.match(html,/id="drSimpleWorkspace"/);
+ assert.ok(html.indexOf('id="drSimpleWorkspace"') < html.indexOf('id="drAdvancedWorkspace"'));
+ for(const id of ['dr-tab-overview','dr-tab-policies','dr-tab-testing','dr-tab-keenetic','dr-tab-diagnostics'])assert.match(html,new RegExp('id="'+id+'"'));
+ // R03: keep exact one-click trial contract, now owned by shipped Svelte.
+ const managed=fs.readFileSync(path.join(base,'DnsRuntimeManagedTrial.svelte'),'utf8');
+ const entry=fs.readFileSync(path.join(base,'main.js'),'utf8');
+ assert.match(html,/id="rf-dns-runtime-svelte-managed"/);
+ assert.doesNotMatch(html,/id="managedTrialN"/);
+ assert.doesNotMatch(html,/id="managedPrepareN"/);
+ assert.match(managed,/id="managedPrepareN"/);
+ assert.match(managed,/id="managedTrialN"/);
+ assert.match(managed,/id="managedStatusN"/);
+ assert.match(managed,/createManagedFlow/);
+ assert.match(entry,/DnsRuntimeManagedTrial/);
+ assert.match(entry,/rf-dns-runtime-svelte-managed/);
+ // R04: explicit save/reload/import are native Svelte owners.
+ const configUi=fs.readFileSync(path.join(base,'DnsRuntimeConfigActions.svelte'),'utf8');
+ const configLogic=fs.readFileSync(path.join(base,'DnsRuntimeConfigLogic.js'),'utf8');
+ for(const kind of ['save','reload','import'])assert.match(html,new RegExp('id="rf-dns-runtime-svelte-'+kind+'"'));
+ for(const id of ['saveButton','reloadButton','importForm','importUpstream']) {
+   assert.doesNotMatch(html,new RegExp('id="'+id+'"'));
+   assert.match(configUi,new RegExp('id="'+id+'"'));
+ }
+ assert.match(configLogic,/If-Match/);
+ assert.match(configLogic,/import-preview/);
+ assert.match(entry,/DnsRuntimeConfigActions/);
+ assert.doesNotMatch(html,/<h1>[^<]*2\.0/);
+ assert.match(html,/<h1>DNS Router<\/h1>/);
+ assert.match(css,/#drAdvancedWorkspace\[hidden\]/);
+ // R06: these forms live inside Svelte, not legacy HTML.
+ const groupSvelte=fs.readFileSync(path.join(base,'DnsRuntimeGroups.svelte'),'utf8');
+ const listsSvelte=fs.readFileSync(path.join(base,'DnsRuntimeLists.svelte'),'utf8');
+ const tableSvelte=fs.readFileSync(path.join(base,'DnsRuntimeTables.svelte'),'utf8');
+ for(const name of ['groups','lists'])assert.match(html,new RegExp('id="rf-dns-runtime-svelte-'+name+'"'));
+ for(const id of ['drListForm','drGroupForm','drListCards','drGroupCards'])assert.doesNotMatch(html,new RegExp('id="'+id+'"'));
+ assert.match(groupSvelte,/id="drGroupForm"/);
+ assert.match(listsSvelte,/id="drListForm"/);
+ assert.match(tableSvelte,/routerforge:dns-runtime-form-edit/);
+ assert.match(tableSvelte,/drRuleSearch/);
+ const nativeSvelte=fs.readFileSync(path.join(base,'DnsRuntimeNative.svelte'),'utf8');
+ assert.doesNotMatch(html,/id="upstreamForm"|id="p85NativePicker"/);
+ assert.match(nativeSvelte,/id="p85NativePicker"/);
+ assert.match(nativeSvelte,/onclick=\{scan\}/);
+ assert.match(nativeSvelte,/onclick=\{probe\}/);
+ assert.match(js,/p88Id\('drModeAdvanced'\)\.addEventListener\('click'/);
+ assert.match(js,/p88Id\('drModeSimple'\)\.addEventListener\('click'/);
+});
+
+test('P8.8 is policy-first and never implies DNS activation on save',()=>{
+ assert.match(actionUI,/getJSON\('keenetic\/native-dns'\)/);
+ assert.match(actionUI,/getJSON\('keenetic\/native-policies'\)/);
+ assert.match(viewModel,/policy\?\.description/);
+ assert.match(viewModel,/ipv4_route_status===/);
+ assert.match(js,/RFNativeCatalogP89\.entries/);
+ assert.match(js,/native:\/\//);
+ // R05 owns the advanced form; P88 simple/native draft logic MUST survive.
+ const editorLogic=fs.readFileSync(path.join(base,'DnsRuntimeDraftEditorLogic.js'),'utf8');
+ const policyForm=fs.readFileSync(path.join(base,'DnsRuntimePolicyForms.svelte'),'utf8');
+ assert.match(editorLogic,/config\.upstreams\.push\(next\)/);
+ assert.match(policyForm,/routerforge:dns-runtime-form-edit/);
+ assert.match(actionLogic,/upstream=upstreams\.find\(u=>u\.transport==='native'&&u\.address===selected\)/);
+ assert.match(actionLogic,/if\(!upstream\)\{/);
+ assert.match(actionUI,/const plan=planDomainAddition\(s\.config,s\.selected,choice,parsed\.domains,api\.acceptsDomains\)/);
+ assert.match(actionUI,/api\.commit\(plan\)/);
+ assert.doesNotMatch(js,/if\(!upstream && chosenDNS\.type==='native'\)/);
+ assert.match(actionLogic,/upstreams\.push\(upstream\)/);
+ assert.doesNotMatch(js,/el\('upstreamForm'\)\.addEventListener\('submit'/);
+ assert.doesNotMatch(js,/el\('ruleForm'\)\.addEventListener\('submit'/);
+ assert.doesNotMatch(js,/el\('listenerForm'\)\.addEventListener\('submit'/);
+ assert.match(actionLogic,/rules\.push\(\{id,domain/);
+ assert.match(js,/p88Id\('saveButton'\)\.click\(\)/);
+ assert.match(js,/Маршрутизация клиентского DNS автоматически НЕ включалась/);
+ assert.match(html,/Активное подключение DNS — отдельный этап/);
+ assert.doesNotMatch(js,/\.innerHTML\s*=/);
+ assert.doesNotMatch(js,/ndmc.*(set|remove|save)/);
+});
+
+test('P8.8 performs DNS probe only after user explicitly clicks',()=>{
+ const start=js.indexOf('  // P8.8: simple policy -> native DNS -> domain list.');
+ const finish=js.indexOf('  load().catch(',start);
+ assert.ok(start!==-1&&finish>start);
+ const feature=js.slice(start,finish);
+ assert.match(actionUI,/onclick=\{probe\}/);
+ assert.match(actionLogic,/keenetic\/native-dns\/probe\?/);
+ const scan=feature.slice(feature.indexOf('async function p88Scan()'),feature.indexOf("p88Id('drModeSimple').addEventListener"));
+ assert.doesNotMatch(scan,/native-dns\/probe/);
+ assert.doesNotMatch(scan,/config\.rules\.push|config\.upstreams\.push/);
+});
+
+test('P8.8 validates and de-duplicates domain batches before creating draft',()=>{
+ const begin=js.indexOf('  function p88ParseDomains(raw){');
+ const end=js.indexOf('  function p88PolicyName(name){',begin);
+ assert.ok(begin!==-1 && end>begin);
+ const parse=vm.runInNewContext('(()=>{'+js.slice(begin,end)+'return p88ParseDomains;})()');
+ const basic=parse('YouTube.com\n GOOGLEVIDEO.COM, youtube.com # duplicate\n ytimg.com.');
+ assert.equal(basic.error,undefined);
+ assert.deepEqual(Array.from(basic.domains),['youtube.com','googlevideo.com','ytimg.com']);
+ assert.equal(parse('https://example.com').error.startsWith('Некорректный'),true);
+ assert.equal(parse('||ads.example.com^').error.startsWith('Некорректный'),true);
+ assert.equal(parse('192.168.1.1').error.startsWith('Некорректный'),true);
+ assert.ok(parse(Array.from({length:201},(_,i)=>'d'+i+'.example.com').join('\n')).error);
+ assert.ok(parse(Array.from({length:501},()=> 'a.example.com').join('\n')).error);
+ assert.deepEqual(Array.from(parse('   # only comment  ').domains),[]);
+});

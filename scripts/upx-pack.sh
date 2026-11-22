@@ -9,13 +9,15 @@ if [ "${ROUTERFORGE_UPX:-1}" = "0" ]; then
     exit 0
 fi
 
-# AArch64 is enabled only after real Keenetic whole-stack validation.
-# Other architectures stay plain until separately validated on hardware.
+# Release policy: UPX ultra-brute on all three supported architectures.
+# DEV opts out explicitly with ROUTERFORGE_UPX=0.
+# An unsupported release target must FAIL; never silently ship plain ELF.
 case "$TARGET" in
-    aarch64-3.10)
+    aarch64-3.10|mips-3.4|mipsel-3.4)
         ;;
     *)
-        exit 0
+        echo "RouterForge UPX unsupported target: $TARGET" >&2
+        exit 2
         ;;
 esac
 

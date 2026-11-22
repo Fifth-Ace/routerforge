@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""P40A: regression contracts for the shipped Port Access Manager UI.
+"""P7: Port Access Svelte 5 source, safety, packaging and UI contract gates.
 
-Static DOM/wiring checks, not a browser or real firewall acceptance test.
+Source inspection, not an automated browser or live firewall acceptance test.
 """
 from html.parser import HTMLParser
 from pathlib import Path
 import re
 import sys
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[1]
 FRONT = ROOT / 'modules/port-access-manager/frontend'
 HTML = FRONT / 'index.html'
 BUILD = ROOT / 'scripts/build-port-access-manager-opkg.sh'
@@ -18,81 +18,88 @@ class DOM(HTMLParser):
         super().__init__()
         self.ids = {}
         self.scripts = []
-        self.buttons = {}
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
-        if 'id' in a:
-            id_ = a['id']
-            self.ids.setdefault(id_, []).append((tag, a))
-        if tag == 'script' and 'src' in a:
+        if a.get('id'):
+            self.ids.setdefault(a['id'], []).append(tag)
+        if tag == 'script' and a.get('src'):
             self.scripts.append(a['src'])
-        if tag == 'button' and 'id' in a:
-            self.buttons[a['id']] = a
 
 def main():
     failures = []
-    def check(condition, label):
-        print(('PASS' if condition else 'FAIL') + ': ' + label)
+    def gate(label, condition):
+        print(('PASS' if condition else 'FAIL') + ': ' + label, flush=True)
         if not condition:
             failures.append(label)
-    dom = DOM()
-    dom.feed(HTML.read_text(encoding='utf-8'))
-    required_ids = [
-        'engine-config-engine','engine-config-panel','engine-config-editor',
-        'engine-wizard-panel','engine-wizard-interface','engine-wizard-knock',
-        'engine-wizard-window','engine-wizard-ttl','engine-wizard-services',
-        'engine-wizard-preview','engine-wizard-draft-save','engine-wizard-draft-load',
-        'engine-wizard-result','engine-wizard-plan','rfpa-deploy-panel',
-        'rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable','rfpa-refresh',
-        'rfpa-replace-existing','rfpa-deploy-status','rfpa-credentials',
-        'rfpa-credential-value','existing-engine-control','existing-engine-refresh',
-        'odin-manager','odin-status'
-    ]
-    for id_ in required_ids:
-        check(len(dom.ids.get(id_, [])) == 1, 'unique UI ID ' + id_)
-    # These action buttons are outside HTML forms. An omitted type is
-    # safe here; a submit type or a containing form would be unsafe.
-    check(
-        not re.search(r'<form\b', HTML.read_text(encoding='utf-8'), re.I),
-        'action controls are outside HTML forms'
-    )
-    for id_ in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable','rfpa-refresh']:
-        button = dom.buttons.get(id_, {})
-        check(
-            bool(button) and button.get('type') in (None, 'button'),
-            'safe action button ' + id_
-        )
-    scripts = ['app.js','config-editor.js','odin-ui.js','ui-rebuild.js',
-               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
-    check(dom.scripts == scripts, 'ordered frontend script imports')
-    check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
-    check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')
-    check('p54-workspace.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P54 stylesheet')
-    check((FRONT / 'p53-ux.css').is_file(), 'P53 stylesheet exists')
-    check('p53-ux.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P53 stylesheet')
-    for name in scripts:
-        check((FRONT / name).is_file(), 'script exists ' + name)
+    html = HTML.read_text(encoding='utf-8')
     build = BUILD.read_text(encoding='utf-8')
-    for name in scripts:
-        check(name in build, 'IPK build ships ' + name)
-    js = (FRONT / 'ui-rebuild.js').read_text(encoding='utf-8')
-    wiz = (FRONT / 'engine-wizard.js').read_text(encoding='utf-8')
-    log = (FRONT / 'operation-log.js').read_text(encoding='utf-8')
-    check("var options=[{id:'odin'" in js and "{id:'knockd'" in js and "{id:'fwknopd'" in js, 'engine choice wiring')
-    check("selector.value=id" in js and "selector.dispatchEvent" in js, 'engine selector synchronizes with wizard')
-    check("engine.value === 'knockd' ?" in wiz, 'knock fields gated to knockd')
-    check("lastValidatedRequest" in wiz, 'wizard validates before using draft')
-    for item in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable']:
-        check(item in wiz, 'wizard handler for '+item)
-    check('operation-logs' in log and 'setInterval(refresh, 2000)' in log, 'read-only live log polling')
-    check('navigator.clipboard.writeText' in log and 'pa-log-pause' in log, 'live logs pause/copy controls')
-    # Prevent accidentally introducing destructive UI workflows in a front-end-only acceptance patch.
-    check('document.write(' not in js and 'eval(' not in js, 'no dynamic document writes or eval')
-    if failures:
-        print('P40A_UI_CONTRACT: FAIL (' + str(len(failures)) + ')')
-        return 1
-    print('P40A_UI_CONTRACT: PASS')
-    return 0
+    dom = DOM()
+    dom.feed(html)
+    gate('single compiled Svelte entry', dom.scripts == ['svelte-status.js'])
+    gate('no duplicate static IDs', all(len(tags) == 1 for tags in dom.ids.values()))
+    gate('no browser-side forms capable of accidental submit', not re.search(r'<form\b', html, re.I))
+    names = ['status','engineering','engine-workspace','odin','log','layout']
+    gate('single Svelte root target', dom.ids.get('pa-svelte-layout') == ['div'] and
+         all(('pa-svelte-' + n) not in dom.ids for n in names if n != 'layout'))
+    gate('required CSS remains linked', all(name in html for name in
+         ('module.css','ui-rebuild.css','p39-compact.css','p53-ux.css','p54-workspace.css','p55-antiscan.css')))
+    old = ['app.js','odin-ui.js','operation-log.js','engine-wizard.js','config-editor.js',
+           'ui-rebuild.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
+    gate('no legacy JS source', all(not (FRONT / name).exists() for name in old))
+    gate('no legacy JS packaged', all(name not in build.split('for file in ',1)[1].split('; do',1)[0] for name in old))
+    gate('explicit IPK legacy deny gate', 'for legacy in' in build and
+         all(name in build.split('for legacy in',1)[1].split('; do',1)[0] for name in old))
+    gate('compiled Svelte IPK asset', 'npm run build' in build and
+         'build/svelte-status.js' in build and 'ui/svelte-status.js' in build)
+    entry = (FRONT / 'status-main.js').read_text(encoding='utf-8')
+    component_names = ['PortAccessStatus','PortAccessOperationLog','PortAccessEngineWorkspace',
+                       'PortAccessOdin','PortAccessEngineering','PortAccessLayout']
+    gate('only one Svelte mount', entry.count('mount(') == 1 and
+         'mount(PortAccessLayout' in entry and not any('mount(' + name in entry for name in component_names if name != 'PortAccessLayout'))
+    source = {name:(FRONT / (name + '.svelte')).read_text(encoding='utf-8') for name in component_names}
+    gate('all components use reactive Svelte 5 state', all('$state(' in s for s in source.values()))
+    layout = source['PortAccessLayout']
+    gate('Svelte owns four pages and three protection methods', all(x in layout for x in
+         ("'protection'","'access'","'engines'","'diagnostics'","'odin'","'knockd'","'fwknopd'")))
+    gate('direct Svelte engine selection, no synthetic events',
+         'selectedEngine={' in layout and 'onEngineChanged=' in layout and
+         "new Event('change'" not in layout and '.dispatchEvent(' not in layout)
+    gate('all five views are direct Svelte children, no mounted DOM relocation',
+         all('<' + name + ' ' in layout or '<' + name + ' />' in layout for name in component_names if name != 'PortAccessLayout') and
+         all('pa-svelte-' + name in layout for name in names if name != 'layout') and
+         '.appendChild(' not in layout)
+    gate('state crosses component boundary by callbacks, never DOM click bridge',
+         all(name in layout for name in ('onServiceState=', 'onDeployState=', 'onPreviewReady=', 'onPlanInvalidated=', 'onStateChanged=')) and
+         '.click()' not in layout and 'rfpa:service-state' not in layout)
+    gate('Svelte reports state from live read-only API',
+         '/api/modules/port-access-manager/odin' in layout and '/engine-service?engine=' in layout)
+    gate('Svelte KKD list is fail closed',
+         "data.list !== 'KKD'" in layout and 'Array.isArray(data.entries)' in layout)
+    gate('Svelte cleans timers and listeners', 'window.clearInterval' in layout and
+         'document.removeEventListener' in layout)
+    gate('read-only preflight stays guarded', 'mutation_api !== false' in source['PortAccessStatus'] and
+         'ready_for_apply !== false' in source['PortAccessStatus'])
+    gate('operation log bound, bounded and clean',
+         'data.scope !== \'operations\'' in source['PortAccessOperationLog'] and
+         'window.clearInterval(interval)' in source['PortAccessOperationLog'])
+    engine = source['PortAccessEngineWorkspace']
+    gate('Entware safety, CAS and watchdog intact', all(x in engine for x in
+         ('base_sha256','RESTORE_CONFIG','SAVE_CONFIG','credential_once',
+          'replace_existing','onServiceState','onDeployState','onPreviewReady','watchdog')))
+    gate('Entware action IDs owned by Svelte', all('id="' + x + '"' in engine for x in
+         ('engine-config-engine','engine-wizard-preview','rfpa-prepare','rfpa-enable',
+          'rfpa-confirm','rfpa-disable','rfpa-refresh','existing-engine-control')))
+    odin = source['PortAccessOdin']
+    gate('odin watchdog and server verification retained', all(x in odin for x in
+         ('watchdog_deadline_unix','server_unix','confirm','window.confirm',
+          'onStateChanged')))
+    engineering = source['PortAccessEngineering']
+    gate('engineering denies unintended firewall mutation', all(x in engineering for x in
+         ('firewall_mutation !== false','deployment_blocked !== true','confirm:\'REVOKE\'')))
+    gate('no eval/document.write in native UI', all('eval(' not in s and 'document.write(' not in s
+         for s in source.values()))
+    print('P40A_UI_CONTRACT: ' + ('FAIL: ' + ', '.join(failures) if failures else 'PASS'), flush=True)
+    return 1 if failures else 0
 
 if __name__ == '__main__':
     sys.exit(main())

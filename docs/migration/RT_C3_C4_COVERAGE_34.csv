@@ -1,0 +1,35 @@
+case,oracle,in_actual_browser_harness,previous_windows_evidence,new_34_suite_execution
+RTC3-01,initial mount GET-only,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-02,visible keyboard tab navigation,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-03,empty config,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-04,degraded shadow GET,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-05,real Svelte mount/unmount,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-06,mobile UI viewport,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-07,draft staging without write,YES,NOT_RUN,PENDING
+RTC3-08,duplicate domain rejection,YES,NOT_RUN,PENDING
+RTC3-09,CAS PUT headers,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-10,single-flight duplicate save,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-11,stale save preserves dirty,YES,NOT_RUN,PENDING
+RTC3-12,403 save refusal,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-13,409 CAS conflict,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-14,bad MIME save refusal,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-15,428 If-Match refusal,YES,NOT_RUN,PENDING
+RTC3-16,dirty reload confirm refusal,YES,NOT_RUN,PENDING
+RTC3-17,reload GET after unmount,YES,NOT_RUN,PENDING
+RTC3-18,import preview draft only,YES,NOT_RUN,PENDING
+RTC3-19,pending import after unmount,YES,NOT_RUN,PENDING
+RTC3-20,stale import base revision,YES,NOT_RUN,PENDING
+RTC3-21,native scan abort/unmount,YES,NOT_RUN,PENDING
+RTC3-22,shadow 409 refusal,YES,NOT_RUN,PENDING
+RTC3-23,shadow status pending unmount,YES,NOT_RUN,PENDING
+RTC3-24,shadow confirmation refused,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-25,shadow CAS action,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-26,shadow 403 refusal,YES,PASS_PREVIOUS_SLICE,PENDING
+RTC3-27,late shadow POST teardown,YES,NOT_RUN,PENDING
+RTC3-28,old shadow GET remount,YES,NOT_RUN,PENDING
+RTC3-29,late CAS save after unmount,YES,NOT_RUN,PENDING
+RTC3-30,reactive feedback one owner,YES,NOT_RUN,PENDING
+RTC3-31,trial token one-shot,YES,NOT_RUN,PENDING
+RTC3-32,durable prepare apply,YES,NOT_RUN,PENDING
+RTC3-33,ledger fail-closed rollback,YES,NOT_RUN,PENDING
+RTC3-34,diagnostics poll timer cleanup,YES,NOT_RUN,PENDING

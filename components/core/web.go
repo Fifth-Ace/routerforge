@@ -252,6 +252,7 @@ func startWeb(listen string, version string) error {
 	mux.HandleFunc("/api/settings/logging", coreLoggingHandler)
 	registerRouterForgeTelemetryHandlers(mux)
 	registerAppCenterHandlers(mux)
+	registerReleaseNotesHandlers(mux)
 	registerModuleLifecycleHandlers(mux, auth)
 	registerAppSourceHandlers(mux)
 	registerAppActionHandlers(mux)

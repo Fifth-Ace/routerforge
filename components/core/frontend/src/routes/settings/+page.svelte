@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import '../../routerforge-settings-p1.css';
   let activeSettingsTab = 'system';
   function onSettingsTabKeydown(event) {
@@ -17,7 +18,7 @@
     tabs[next].focus();
   }
   import { snapshot } from '$lib/stores/snapshot.js';
-  import { settings, themes } from '$lib/stores/settings.js';
+  import { settings, themes, settingsPersistence } from '$lib/stores/settings.js';
   import { catalog, refreshCatalog } from '$lib/stores/catalog.js';
   import { authState, setAuthRequired } from '$lib/stores/auth.js';
   import { getSystem } from '$lib/api.js';
@@ -44,15 +45,21 @@
   let telemetryStatus = {};
   let telemetryError = '';
   let telemetryNotice = '';
+  let mounted = false;
+  const settingsReads = createReadSessions();
   async function loadTelemetry() {
+    if (!mounted) return;
+    const read = settingsReads.begin('telemetry');
     try {
-      const response = await fetch('/api/settings/telemetry', { credentials:'same-origin', cache:'no-store' });
+      const response = await fetch('/api/settings/telemetry', { credentials:'same-origin', cache:'no-store', signal:read.signal });
       if (!response.ok) throw new Error('HTTP ' + response.status);
-      telemetryStatus = await response.json();
-      telemetryEnabled = !!telemetryStatus.diagnostics_enabled;
+      const status = await response.json();
+      if (!read.isCurrent()) return;
+      telemetryStatus = status;
+      telemetryEnabled = !!status.diagnostics_enabled;
     } catch (err) {
-      telemetryError = String(err?.message || err);
-    }
+      if (read.isCurrent()) telemetryError = String(err?.message || err);
+    } finally { read.finish(); }
   }
   async function changeTelemetry(enabled) {
     if (telemetrySaving) return;
@@ -78,10 +85,13 @@
     }
   }
   async function loadLogging() {
+    if (!mounted) return;
+    const read = settingsReads.begin('logging');
     try {
-      const response = await fetch('/api/settings/logging', { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch('/api/settings/logging', { credentials: 'same-origin', cache: 'no-store', signal:read.signal });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
+      if (!read.isCurrent()) return;
       loggingMode = data.settings?.mode || 'entware';
       loggingCustomPath = data.settings?.custom_path || '';
       loggingActivePath = data.active_path || '';
@@ -89,8 +99,8 @@
       loggingBackups = data.settings?.backups || 2;
       loggingRAMAvailable = !!data.ram_available;
     } catch (err) {
-      loggingError = String(err.message || err);
-    }
+      if (read.isCurrent()) loggingError = String(err.message || err);
+    } finally { read.finish(); }
   }
   async function saveLogging() {
     if (loggingBusy) return;
@@ -152,13 +162,16 @@
   function updateDNS(key, value) {
     settings.update((current) => ({ ...current, [key]:value, dnsHealthPreset:'custom' }));
   }
-  onMount(async () => {
-    await Promise.all([
-      getSystem().then((value) => { system = value; }).catch(() => {}),
+  onMount(() => {
+    mounted = true;
+    const read = settingsReads.begin('system');
+    void Promise.all([
+      getSystem(read.signal).then((value) => { if (read.isCurrent()) system = value; }).catch(() => {}).finally(read.finish),
       refreshCatalog().catch(() => {}),
       loadLogging(),
       loadTelemetry()
     ]);
+    return () => { mounted = false; settingsReads.dispose(); };
   });
 
   function requestAuthToggle() {
@@ -211,6 +224,11 @@
     <span class="page-kicker mono">{t(locale, 'settings.kicker')}</span>
   </div>
 
+  {#if !$settingsPersistence.saved}
+    <div class="settings-security-error" role="alert">{locale === 'ru'
+      ? 'Настройки интерфейса действуют только в текущей вкладке: браузер не разрешил их сохранить.'
+      : 'Interface settings apply only to this tab: browser storage is unavailable.'}</div>
+  {/if}
   <div class="rf-p1-settings">
     <nav class="rf-p1-tabs" role="tablist" aria-label={t(locale, 'settings.l1a.tabsAria')}>
       <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} tabindex={activeSettingsTab === 'system' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{t(locale, 'settings.l1a.tabSystem')}</button>

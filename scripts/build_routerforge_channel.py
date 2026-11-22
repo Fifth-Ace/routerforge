@@ -199,6 +199,7 @@ def main():
             "antiscan-manager",
             "port-access-manager",
             "crowdsec-manager",
+            "dns-router",
             "profiling",
         ]
     elif channel == "beta":
@@ -212,6 +213,7 @@ def main():
             "antiscan-manager",
             "port-access-manager",
             "crowdsec-manager",
+            "dns-router",
             "profiling",
         ]
     elif channel == "stable":
@@ -225,6 +227,7 @@ def main():
             "antiscan-manager",
             "port-access-manager",
             "crowdsec-manager",
+            "dns-router",
             "profiling",
         ]
     else:
@@ -234,6 +237,10 @@ def main():
 
     validate_release_train(config, channel, components)
 
+    # Full 11-package Beta matrix on all three targets. Hardware validation
+    # remains a separate, explicit gate; no release claims it has passed.
+    target_components = components
+
     dist = Path(args.dist)
     dist.mkdir(parents=True, exist_ok=True)
     for old in dist.glob(f"routerforge-*_{target}.ipk"):
@@ -242,9 +249,14 @@ def main():
     env = dict(os.environ)
     env["ROUTERFORGE_CHANNEL"] = channel
     env["ROUTERFORGE_TARGET"] = target
+    # CI channel contract: DEV is plain ARM64; every Beta/Stable target is packed.
+    # Ignore inherited compression overrides rather than permitting a plain release.
+    env["ROUTERFORGE_UPX"] = "0" if channel == "dev" else "1"
+    print("CHANNEL_UPX_POLICY: %s / %s / UPX=%s" %
+          (channel, target, env["ROUTERFORGE_UPX"]), flush=True)
 
 
-    for component in components:
+    for component in target_components:
         cid = component["id"]
         pkg = component["package"]
         version = component["version"]
@@ -261,6 +273,12 @@ def main():
             run(["./scripts/build-port-access-manager-opkg.sh", version], env=env)
         elif cid == "crowdsec-manager":
             run(["./scripts/build-crowdsec-manager-opkg.sh", version], env=env)
+        elif cid == "dns-router":
+            if channel not in {"dev", "beta", "stable"}:
+                raise SystemExit("DNS Router service is not supported by this release channel")
+            # Reuse the tested independent-DNS service packaging path.
+            run(["./scripts/build-dns-router-experimental.sh", version, target],
+                env={**env, "ROUTERFORGE_CHANNEL": "dev"})
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 
@@ -276,12 +294,16 @@ def main():
                 raise SystemExit(f"safe release asset already exists {asset}")
             raw_path.rename(path)
 
+        # Verify every Go ELF inside the actual nested-IPK payload, not source flags.
+        run(["python3", "scripts/verify-channel-upx.py", str(path),
+             "--channel", channel, "--target", target], env=env)
+
     tag = f"routerforge-{channel}"
     legacy_base = f"https://github.com/{LEGACY_REPOSITORY}/releases/download/{tag}"
     canonical_base = f"https://github.com/{repository}/releases/download/{tag}"
 
     entries = []
-    for component in components:
+    for component in target_components:
         pkg = component["package"]
         version = component["version"]
         asset_version = release_asset_version(version)

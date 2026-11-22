@@ -17,6 +17,7 @@
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
   import SourceManager from '$lib/components/SourceManager.svelte';
   import ModuleLifecycleControls from '$lib/components/ModuleLifecycleControls.svelte';
+  import { routerForgeServerPreview, routerForgeServerPreviewMatches } from '$lib/routerforge-server-preview.js';
   import {
     catalogCategoryKey,
     catalogCategoryLabel,
@@ -26,7 +27,7 @@
 
   const acronyms = {
     'awg-manager':'AWG', nfqws2:'NQ2', nfqws:'NQ1', 'nfqws-web':'NQW', 'hydraroute-neo':'HRN',
-    'routerforge-core':'RFC', dns:'DNS', admin:'ADM', monitoring:'MON', system:'SYS', thermal:'TMP', storage:'DSK', network:'NET',
+    'routerforge-core':'RFC', 'routerforge-server':'RFS', dns:'DNS', admin:'ADM', monitoring:'MON', system:'SYS', thermal:'TMP', storage:'DSK', network:'NET',
     admin:'ADM', profiling:'PRF', xkeen:'XKN', 'xkeen-ui':'XUI', 'keen-pbr':'PBR', kvas:'KVS',
     'bypass-keenetic':'BYP', 'traffic-via-vpn':'VPN', 'adguardhome-keenetic':'AGH', skeen:'SKN',
     'chur-keenetic':'CHR', 'keenetic-sing-box-ui':'SBU', 'keenetic-entware-extras':'KEE'
@@ -1205,6 +1206,7 @@
       {/if}
 
       {#if tab === 'routerforge'}
+        <a class="button" href={'/release-notes?channel=' + (releaseChannel==='stable'?'stable':'beta')}>{locale==='ru'?'Что нового':'What’s new'}</a>
         <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
           {bulkUpdating ? (a(locale,'msgBulkRunning')) : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
@@ -1371,7 +1373,7 @@
 
     {#if tab !== 'entware'}
       <div class="catalog-grid catalog-grid-v2">
-        {#if !catalogItems.length && !['installed','updates'].includes(tab)}<div class="catalog-empty">{a(locale,'noItems')}</div>{/if}
+        {#if !catalogItems.length && !['installed','updates'].includes(tab) && !(tab === 'routerforge' && routerForgeServerPreviewMatches(search))}<div class="catalog-empty">{a(locale,'noItems')}</div>{/if}
         {#each catalogDisplayRows as row (row.key)}
           {#if row.type === 'group'}
             <div class="catalog-group-row">
@@ -1435,6 +1437,10 @@
                   </button>
                 {/if}
 
+                {#if isOfficialRouterForgeUpdate(item) && (releaseChannel==='stable' || releaseChannel==='beta')}
+                  <a class="button" href={'/release-notes?channel=' + releaseChannel + '&version=' + encodeURIComponent(String(item.release?.version || item.available_version || '').replace('~beta.','-beta.'))}>{locale==='ru'?'Что изменилось':'Release notes'}</a>
+                {/if}
+
                 {#if ownURL}
                   <a class="button" class:primary={!item.update_available} href={ownURL}>{a(locale,'open')}</a>
                 {/if}
@@ -1484,6 +1490,36 @@
             </div>          </article>
           {/if}
         {/each}
+        {#if tab === 'routerforge' && routerForgeServerPreviewMatches(search)}
+          <article class="catalog-card catalog-card-compact rf-server-preview-card" aria-label="RouterForge Server">
+            <div class="catalog-card-main">
+              <div class="catalog-card-head">
+                <div class="catalog-identity">
+                  <div class="catalog-icon mono">RFS</div>
+                  <div><h3>{routerForgeServerPreview.name}</h3><span class="mono">RouterForge Ecosystem · Linux / VPS</span></div>
+                </div>
+                <div class="catalog-state-stack">
+                  <span class="state-chip warn">{locale === 'ru' ? 'В разработке' : 'In development'}</span>
+                </div>
+              </div>
+              <p class="catalog-card-description">{locale === 'ru'
+                ? 'Серверный менеджер уже доступен как самостоятельный проект. Модуль связи с RouterForge пока готовится.'
+                : 'The standalone server manager is available. Integration with RouterForge is being developed.'}</p>
+              <div class="catalog-card-meta">
+                <span class="catalog-meta-chip">Linux / VPS</span>
+                <span class="catalog-meta-chip mono">CLI v1.0.0</span>
+                <span class="catalog-meta-chip">{locale === 'ru' ? 'Подключение: скоро' : 'Pairing: coming soon'}</span>
+              </div>
+            </div>
+            <div class="catalog-card-foot compact-foot">
+              <div class="catalog-actions">
+                <a class="button" href="/server-hub">{locale === 'ru' ? 'Подробнее' : 'Learn more'}</a>
+                <a class="button compact" target="_blank" rel="noopener noreferrer" href={routerForgeServerPreview.repository}>{locale === 'ru' ? 'Проект' : 'Project'}</a>
+                <button class="button" disabled title={locale === 'ru' ? 'Интеграция ещё не выпущена' : 'Integration is not released'}>{locale === 'ru' ? 'Установка скоро' : 'Install coming soon'}</button>
+              </div>
+            </div>
+          </article>
+        {/if}
       </div>
     {/if}
 

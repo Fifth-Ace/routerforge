@@ -1,0 +1,103 @@
+/* RouterForge Design System v1 · Core-owned, opt-in, isolated.
+ * URL: /design-system/routerforge-v1.css
+ * No global selectors: a module opts in with .rfds-scope and rfds-* classes.
+ * The dns-router is the first consumer; no change to Core's existing theme.
+ */
+.rfds-scope {
+  --rfds-accent: #4be927;
+  --rfds-accent-soft: rgba(75,233,39,.105);
+  --rfds-accent-border: rgba(75,233,39,.65);
+  --rfds-surface: var(--rf-surface,#171a1e);
+  --rfds-surface-2: var(--rf-surface-2,#1c2026);
+  --rfds-border: var(--rf-border,#30373e);
+  --rfds-text: var(--rf-text,#eff3f7);
+  --rfds-muted: var(--rf-muted,#9aa6b6);
+  --rfds-danger: #ff8b85;
+  --rfds-radius-panel: var(--rf-radius-panel,9px);
+  --rfds-radius-control: var(--rf-radius-control,7px);
+  --rfds-control-h: 34px;
+  --rfds-space-1:4px;
+  --rfds-space-2:8px;
+  --rfds-space-3:12px;
+  --rfds-space-4:16px;
+  --rfds-space-5:20px;
+  --rfds-font: Inter,'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;
+  --rfds-font-mono: 'Cascadia Mono',Consolas,monospace;
+  color:var(--rfds-text);
+  font-family:var(--rfds-font);
+}
+.rfds-scope .rfds-card {
+  min-width:0;
+  border:1px solid var(--rfds-border);
+  border-radius:var(--rfds-radius-panel);
+  background:var(--rfds-surface);
+}
+.rfds-scope .rfds-toolbar {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:var(--rfds-space-3);
+}
+.rfds-scope .rfds-button {
+  min-height:var(--rfds-control-h);
+  padding:6px 12px;
+  border:1px solid var(--rfds-border);
+  border-radius:var(--rfds-radius-control);
+  background:var(--rfds-surface-2);
+  color:var(--rfds-text);
+  font:600 11px/1.4 var(--rfds-font);
+  cursor:pointer;
+}
+.rfds-scope .rfds-button:hover:not(:disabled) { border-color:var(--rfds-accent); }
+.rfds-scope .rfds-button:disabled { cursor:not-allowed; opacity:.5; }
+.rfds-scope .rfds-button--primary {
+  color:var(--rfds-text);
+  border-color:var(--rfds-accent-border);
+  background:var(--rfds-accent-soft);
+}
+.rfds-scope .rfds-segmented {
+  display:inline-flex; gap:2px; align-items:center;
+  padding:3px;
+  border:1px solid var(--rfds-border);
+  border-radius:var(--rfds-radius-control);
+  background:var(--rfds-surface);
+}
+.rfds-scope .rfds-segmented button {
+  min-height:30px; padding:5px 14px;
+  border:1px solid transparent;
+  border-radius:calc(var(--rfds-radius-control) - 2px);
+  background:transparent;
+  color:var(--rfds-muted);
+  font:700 11px/1.4 var(--rfds-font);
+  cursor:pointer;
+}
+.rfds-scope .rfds-segmented button[aria-pressed="true"],
+.rfds-scope .rfds-segmented button.selected {
+  border-color:var(--rfds-accent);
+  background:var(--rfds-accent-soft);
+  color:var(--rfds-text);
+}
+.rfds-scope .rfds-tabs {
+  display:flex; align-items:center; gap:var(--rfds-space-2);
+  padding:5px; overflow-x:auto;
+  border:1px solid var(--rfds-border);
+  border-radius:var(--rfds-radius-panel);
+  background:var(--rfds-surface);
+}
+.rfds-scope .rfds-tabs .tab { flex:0 0 auto; white-space:nowrap; }
+.rfds-scope .rfds-field { display:grid; gap:5px; min-width:0; }
+.rfds-scope .rfds-field>span { color:var(--rfds-text); font-size:11px; font-weight:700; }
+.rfds-scope .rfds-field :is(input,select,textarea) {
+  min-height:var(--rfds-control-h);
+  background:var(--rfds-surface-2);
+  color:var(--rfds-text);
+  border:1px solid var(--rfds-border);
+  border-radius:var(--rfds-radius-control);
+}
+.rfds-scope .rfds-hint { color:var(--rfds-muted); font-size:11px; line-height:1.45; }
+.rfds-scope .rfds-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--rfds-space-3); }
+.rfds-scope :is(.rfds-button,.rfds-segmented button,.rfds-field input,.rfds-field select):focus-visible {
+  outline:2px solid var(--rfds-accent); outline-offset:2px;
+}
+@media(max-width:720px){
+  .rfds-scope .rfds-form-grid { grid-template-columns:minmax(0,1fr); }
+  .rfds-scope .rfds-toolbar { justify-content:flex-start; }
+}

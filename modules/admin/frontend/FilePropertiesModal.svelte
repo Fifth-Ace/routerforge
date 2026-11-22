@@ -1,6 +1,7 @@
 <script>
   import { getAdminFileHash, adminFileDownloadURL } from '$lib/api.js';
   import { bytes } from '$lib/utils.js';
+  import { onDestroy } from 'svelte';
   import { t } from '$lib/i18n/index.js';
 
   export let entry = null;
@@ -95,6 +96,7 @@
   function requestEdit() {
     animateClose(onEdit);
   }
+  onDestroy(() => { if (closeTimer !== null) clearTimeout(closeTimer); });
 </script>
 
 <div class:closing class="backdrop" onclick={() => animateClose()}></div>

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Explicit removal clears intent; upgrade/restart preserves the last ON/OFF.
+set -eu
+case "${1:-remove}" in
+upgrade|deconfigure) action=maintenance ;;
+remove) action=disable ;;
+*) echo 'RF_DNS_LITE_PRERM: unsupported lifecycle reason' >&2; exit 1 ;;
+esac
+/opt/etc/init.d/S95routerforge-dns-router "$action"
+echo "RF_DNS_LITE_PRERM: PASS / $action"

@@ -24,10 +24,12 @@ export function startSnapshotStream(intervalMs = 2000) {
   let eventSource = null;
   let stopFallbackPolling = null;
   let fetchInFlight = null;
+  let fetchController = null;
+  let sseActive = false;
   const interval = Math.max(1000, Math.min(30000, Number(intervalMs || 2000)));
 
   const publish = (data) => {
-    if (!data || typeof data !== 'object') return;
+    if (closed || !data || typeof data !== 'object') return;
     snapshot.set({ ...empty, ...data });
     backendOnline.set(true);
     backendReady.set(true);
@@ -36,15 +38,21 @@ export function startSnapshotStream(intervalMs = 2000) {
   const fetchOnce = () => {
     if (fetchInFlight) return fetchInFlight;
 
+    const controller = new AbortController();
+    fetchController = controller;
     fetchInFlight = (async () => {
       try {
-        publish(await getSnapshot());
-        return true;
+        const data = await getSnapshot(controller.signal);
+        if (!controller.signal.aborted && !sseActive) publish(data);
+        return !controller.signal.aborted;
       } catch {
-        backendOnline.set(false);
-        backendReady.set(true);
+        if (!closed && !controller.signal.aborted && !sseActive) {
+          backendOnline.set(false);
+          backendReady.set(true);
+        }
         return false;
       } finally {
+        if (fetchController === controller) fetchController = null;
         fetchInFlight = null;
       }
     })();
@@ -71,12 +79,16 @@ export function startSnapshotStream(intervalMs = 2000) {
   } else {
     eventSource = new EventSource(`/api/events?interval_ms=${encodeURIComponent(interval)}`);
     eventSource.onopen = () => {
+      if (closed) return;
+      sseActive = true;
+      fetchController?.abort();
       backendOnline.set(true);
       backendReady.set(true);
       streamMode.set('sse');
       stopFallback();
     };
     eventSource.addEventListener('snapshot', (event) => {
+      if (closed) return;
       try {
         publish(JSON.parse(event.data));
         streamMode.set('sse');
@@ -84,6 +96,8 @@ export function startSnapshotStream(intervalMs = 2000) {
       } catch {}
     });
     eventSource.onerror = () => {
+      if (closed) return;
+      sseActive = false;
       startFallback();
       void fetchOnce();
     };
@@ -91,6 +105,7 @@ export function startSnapshotStream(intervalMs = 2000) {
 
   return () => {
     closed = true;
+    fetchController?.abort();
     stopFallback();
     eventSource?.close();
   };

@@ -7,6 +7,10 @@
   import { overview, refreshOverview, startOverviewPolling } from '$lib/stores/overview.js';
   import { t } from '$lib/i18n/index.js';
   import { railInstalledIntegrations } from '$lib/integrations.js';
+  import { snapshot } from '$lib/stores/snapshot.js';
+  import { preferredReleaseNotesChannel, noteVersionForCore, latestPublishedNoteVersion, unreadPublishedNoteVersion } from '$lib/release-notes-feed.js';
+  import { releaseNoteReads, loadReleaseNoteReads } from '$lib/release-notes-read-state.js';
+  import { shouldShowServerAnnouncement, dismissServerAnnouncement } from '$lib/routerforge-server-preview.js';
 
   let stopCatalog = null;
   let stopCatalogSync = null;
@@ -14,6 +18,14 @@
   let stopPageSync = null;
   let narrowRailOpen = true;
   let releaseNotesOpen = false;
+  let publishedNoteVersions = { beta: '', stable: '' };
+  let serverAnnouncementVisible = false;
+
+  function closeServerAnnouncement() {
+    serverAnnouncementVisible = false;
+    try { dismissServerAnnouncement(window.localStorage); }
+    catch { try { dismissServerAnnouncement(window.sessionStorage); } catch {} }
+  }
 
   function toggleNarrowRail() {
     narrowRailOpen = !narrowRailOpen;
@@ -25,7 +37,41 @@
   onMount(() => {
     try {
       narrowRailOpen = localStorage.getItem('routerforge:narrow-rail-open') !== '0';
-    } catch {}
+    } catch { /* Browsers may disable local storage; use session-only state. */ }
+    loadReleaseNoteReads();
+    try { serverAnnouncementVisible = shouldShowServerAnnouncement(window.localStorage); }
+    catch { try { serverAnnouncementVisible = shouldShowServerAnnouncement(window.sessionStorage); }
+      catch { serverAnnouncementVisible = true; } }
+
+    // Core caches the published index for 15 minutes. A five-minute check and
+    // visibility refresh pick up future releases without reinstalling RouterForge.
+    let notesMounted = true;
+    let notesChecking = false;
+    async function refreshPublishedNotes() {
+      if (!notesMounted || notesChecking) return;
+      notesChecking = true;
+      try {
+        const response = await fetch('/api/release-notes/catalog', {
+          credentials: 'same-origin', cache: 'no-store'
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!notesMounted || !Array.isArray(result?.releases)) return;
+        publishedNoteVersions = {
+          beta: latestPublishedNoteVersion(result.releases, 'beta'),
+          stable: latestPublishedNoteVersion(result.releases, 'stable')
+        };
+      } catch { /* Preserve the previous valid state while offline. */ }
+      finally { notesChecking = false; }
+    }
+    function onNotesVisibility() {
+      if (!document.hidden) void refreshPublishedNotes();
+    }
+    document.addEventListener('visibilitychange', onNotesVisibility);
+    const notesTimer = window.setInterval(() => {
+      if (!document.hidden) void refreshPublishedNotes();
+    }, 5 * 60 * 1000);
+    void refreshPublishedNotes();
 
     stopCatalog = startCatalogPolling();
 
@@ -64,12 +110,23 @@
       15000,
       () => $page.url.pathname === '/'
     );
-    return () => { stopPageSync?.(); stopCatalogSync?.(); stopCatalog?.(); stopOverview?.(); };
+    return () => {
+      notesMounted = false;
+      window.clearInterval(notesTimer);
+      document.removeEventListener('visibilitychange', onNotesVisibility);
+      stopPageSync?.(); stopCatalogSync?.(); stopCatalog?.(); stopOverview?.();
+    };
   });
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
   $: coreModule = modules.find((item) => item.id === 'routerforge-core');
+  $: installedCoreVersion = String(coreModule?.version || $snapshot.version || '').trim();
+  $: releaseNotesChannel = preferredReleaseNotesChannel($catalog.release?.channel, installedCoreVersion);
+  $: unreadReleaseVersion = unreadPublishedNoteVersion(
+    publishedNoteVersions[releaseNotesChannel], $releaseNoteReads[releaseNotesChannel],
+    noteVersionForCore(installedCoreVersion)
+  );
   $: integrations = $catalog.integrations || [];
   $: installedModules = modules.filter((item) => item.installed && !item.builtin && item.id !== 'profiling');
   $: installedIntegrations = railInstalledIntegrations(integrations);
@@ -182,6 +239,12 @@
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
 
+        <a class="rail-repository-link rail-portal-link" href="https://fifth-ace.github.io/routerforge-portal/" target="_blank" rel="noopener noreferrer" aria-label={t(locale, 'shell.portalSidebarAria')}>
+          <span class="rail-link-icon rail-portal-icon" aria-hidden="true">▣</span>
+          <span class="rail-repository-copy"><small>{t(locale, 'shell.portalSidebarEyebrow')}</small><strong>RouterForge Portal</strong></span>
+          <span class="rail-repository-arrow" aria-hidden="true">↗</span>
+        </a>
+
         <a class="rail-repository-link rail-telegram-link" href="https://t.me/RouterForge" target="_blank" rel="noreferrer" aria-label={t(locale, 'shell.telegramAria')}>
           <span class="rail-link-icon" aria-hidden="true">TG</span>
           <span class="rail-repository-copy"><small>{t(locale, 'shell.community')}</small><strong>Telegram</strong></span>
@@ -190,12 +253,14 @@
 
         <button
           class="rail-repository-link rail-release-notes-link"
+          class:unread={!!unreadReleaseVersion}
           type="button"
           aria-haspopup="dialog"
+          aria-label={unreadReleaseVersion ? (locale === 'ru' ? `Что нового: непрочитанный выпуск ${unreadReleaseVersion}` : `What's new: unread release ${unreadReleaseVersion}`) : t(locale, 'shell.whatsNew')}
           onclick={() => releaseNotesOpen = true}
         >
           <span class="rail-link-icon rail-release-notes-icon" aria-hidden="true">✦</span>
-          <span class="rail-repository-copy"><small>RouterForge</small><strong>{t(locale, 'shell.whatsNew')}</strong></span>
+          <span class="rail-repository-copy"><small>RouterForge</small><strong>{t(locale, 'shell.whatsNew')}{#if unreadReleaseVersion}<span class="rf-notes-new">NEW</span>{/if}</strong></span>
           <span class="rail-repository-arrow" aria-hidden="true">→</span>
         </button>
       </div>
@@ -203,7 +268,22 @@
     </div>
   </aside>
 
-  <div class="global-content"><slot /></div>
+  <div class="global-content">
+    {#if serverAnnouncementVisible}
+      <aside class="rf-server-announcement" aria-label={locale === 'ru' ? 'Новинка RouterForge Server' : 'Introducing RouterForge Server'}>
+        <span class="rf-server-announcement-icon" aria-hidden="true">▣</span>
+        <div class="rf-server-announcement-copy">
+          <strong>{locale === 'ru' ? 'Новинка: RouterForge Server' : 'New: RouterForge Server'}</strong>
+          <span>{locale === 'ru'
+            ? 'Новый консольный менеджер Linux/VPS уже доступен отдельно. Интеграция с RouterForge — в разработке.'
+            : 'Our standalone Linux/VPS console manager is available. RouterForge integration is in development.'}</span>
+        </div>
+        <a class="button rf-server-announcement-detail" href="/server-hub" onclick={closeServerAnnouncement}>{locale === 'ru' ? 'Подробнее' : 'Learn more'}</a>
+        <button type="button" class="rf-server-announcement-close" aria-label={locale === 'ru' ? 'Больше не показывать' : 'Dismiss announcement'} onclick={closeServerAnnouncement}>×</button>
+      </aside>
+    {/if}
+    <slot />
+  </div>
 </div>
 
 {#if releaseNotesOpen}
@@ -223,4 +303,49 @@
   .rail-release-notes-icon {
     color: var(--rf-accent, var(--accent));
   }
+  /* Unread published releases: gentle highlight, never a disruptive popup. */
+  .rail-release-notes-link.unread {
+    border-color: var(--rf-accent, #38bdf8);
+    animation: rf-notes-soft-glow 3.2s ease-in-out infinite;
+  }
+  @keyframes rf-notes-soft-glow {
+    0%, 100% { background: transparent; box-shadow: 0 0 0 0 rgba(56,189,248,0); }
+    50% { background: var(--rf-accent-soft, rgba(56,189,248,.12)); box-shadow: 0 0 17px rgba(56,189,248,.20); }
+  }
+  .rf-notes-new {
+    display: inline-flex;
+    margin-left: 7px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: var(--rf-accent, #38bdf8);
+    color: var(--rf-bg, #07111b);
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    vertical-align: middle;
+    letter-spacing: .04em;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rail-release-notes-link.unread { animation: none; background: var(--rf-accent-soft, rgba(56,189,248,.12)); }
+  }
+
+  /* A dismissible one-time announcement, not an auto-opening modal. */
+  .rf-server-announcement {display:flex;align-items:center;gap:11px;padding:10px 12px;margin:10px 12px 0;border:1px solid var(--rf-border, #334155);border-radius:10px;background:var(--rf-card,var(--panel));color:var(--rf-text,var(--text));}
+  .rf-server-announcement-icon {font-size:24px;color:var(--rf-accent,#38bdf8);}
+  .rf-server-announcement-copy {flex:1;min-width:0;display:grid;gap:3px;font-size:12px;line-height:1.35;}
+  .rf-server-announcement-copy strong {font-size:13px;}
+  .rf-server-announcement-copy span {color:var(--rf-muted,var(--muted));}
+  .rf-server-announcement-detail {white-space:nowrap;}
+  .rf-server-announcement-close {border:0;background:transparent;color:inherit;font:inherit;font-size:22px;cursor:pointer;padding:3px 8px;border-radius:6px;}
+  .rf-server-announcement-close:hover {background:var(--rf-accent-soft,rgba(56,189,248,.12));}
+  @media (max-width:720px) {.rf-server-announcement {flex-wrap:wrap;margin:8px 8px 0;}.rf-server-announcement-detail {margin-left:auto;}}
+
+  /* Four compact links occupy about the space of the previous three large tiles. */
+  .rail-community-links{gap:5px}
+  .rail-community-links .rail-repository-link{min-height:43px;padding:5px 9px;grid-template-columns:28px minmax(0,1fr) 12px;gap:8px;border-radius:7px}
+  .rail-community-links .rail-repository-link img,.rail-community-links .rail-link-icon{width:28px;height:28px}
+  .rail-community-links .rail-link-icon{font-size:10px}
+  .rail-community-links .rail-portal-icon{font-size:17px}
+  .rail-community-links .rail-repository-copy{gap:1px}
+  .rail-community-links .rail-repository-arrow{font-size:13px}
 </style>

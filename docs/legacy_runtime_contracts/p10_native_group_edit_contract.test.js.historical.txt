@@ -1,0 +1,45 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'../modules/dns-router-runtime/frontend');
+const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const ui=fs.readFileSync(path.join(root,'DnsRuntimeP88Actions.svelte'),'utf8');
+const logic=fs.readFileSync(path.join(root,'DnsRuntimeP10GroupLogic.js'),'utf8');
+const previous=fs.readFileSync(path.join(root,'DnsRuntimeP88ActionLogic.js'),'utf8');
+test('R14 group editor is a Svelte owner with reactive cancel and draft labels',()=>{
+ assert.match(ui,/\{#if editing\}/);
+ assert.match(ui,/id="drP10CancelListEdit" onclick=\{cancel\}/);
+ assert.match(ui,/id="drSimpleAdd" disabled=\{!available\} onclick=\{add\}>\{editing \?/);
+ assert.match(ui,/setEditing:flag=>\{editing=Boolean\(flag\);\}/);
+ assert.match(ui,/replace:replaceGroup/);
+ assert.match(app,/window\.__rfDNSRuntimeP88Draft\?\.setEditing\?\.\(true\)/);
+ assert.match(app,/window\.__rfDNSRuntimeP88Draft\?\.setEditing\?\.\(false\)/);
+ assert.doesNotMatch(app,/p88Id\('drP10CancelListEdit'\)\.hidden=/);
+});
+test('R14 group replacement is explicit, guarded, atomic and does not bypass CAS',()=>{
+ assert.match(ui,/const plan=planGroupReplacement\(s\.config,s\.editingId/);
+ assert.match(ui,/plan\.changed && !confirm\('Обновить список только этого DNS/);
+ assert.match(ui,/api\.commitGroup\(plan,s\.editingId\)/);
+ assert.match(app,/commitGroup:\(plan,id\)=>\{/);
+ assert.match(app,/p10UXEditing!==id/);
+ assert.match(app,/plan\.revision!==revision/);
+ assert.match(app,/plan\.baseRules!==JSON\.stringify\(config\.rules\|\|\[\]\)/);
+ assert.match(app,/if\(!plan\.changed\)/);
+ assert.match(app,/config\.rules=plan\.rules/);
+ assert.match(app,/markDirty\(\)/);
+ assert.match(app,/owner\.replace\(chosenDNS,parsed\)/);
+});
+test('R14 pure planner preserves per-DNS ownership and rejects advanced edits',()=>{
+ assert.match(logic,/export function planGroupReplacement/);
+ assert.match(logic,/r\.upstream !== upstreamId/);
+ assert.match(logic,/chosenDNS\.zone/);
+ assert.match(logic,/simpleRule/);
+ assert.match(logic,/const collision = domains\.find/);
+ assert.match(logic,/baseRules: JSON\.stringify\(config\.rules\)/);
+ assert.doesNotMatch(logic,/\bfetch\(|\brequest\(|\bndmc\b|keenetic\/durable|service\/control/);
+ assert.match(previous,/export function planDomainAddition/);
+});
+test('R14 neither starts nor stops DNS when group editor mounts',()=>{
+ const mount=ui.slice(ui.indexOf('  onMount('),ui.indexOf('</script>'));
+ assert.doesNotMatch(mount,/\bscan\(\)|\bprobe\(\)|\badd\(\)|\breplaceGroup\(\)|\bcommitGroup\(/);
+ assert.doesNotMatch(ui,/method:'POST'|method:'PUT'|method:'DELETE'|keenetic\/durable|shadow\/control/);
+});

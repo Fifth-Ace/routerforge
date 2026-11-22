@@ -447,6 +447,16 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	// A successful opkg exit is insufficient if an advertised upgrade kept the old version.
+	if request.Action == "update" && result.Version == preflight.InstalledVersion {
+		invalidateEntwareCatalog()
+		refreshCatalog()
+		writeCatalogJSON(w, http.StatusConflict, map[string]any{
+			"error":  "opkg finished but installed package version did not change",
+			"result": result,
+		})
+		return
+	}
 
 	invalidateEntwareCatalog()
 	refreshCatalog()
@@ -949,9 +959,11 @@ func buildEntwarePreflight(ctx context.Context, name, action string) (entwareAct
 	preflight.MissingDependencies = missingDependencyGroups(parseDependencyGroups(detail.DependsRaw), installed)
 
 	if action == "remove" {
-		if output, statusErr := safety.RunCommandOutput(ctx, opkg, "status"); statusErr == nil {
-			preflight.ReverseDependencies = reverseDependencies(parseOpkgControlStanzas(string(output)), name)
+		output, statusErr := safety.RunCommandOutput(ctx, opkg, "status")
+		if statusErr != nil {
+			return preflight, fmt.Errorf("cannot inspect reverse package dependencies: %w", statusErr)
 		}
+		preflight.ReverseDependencies = reverseDependencies(parseOpkgControlStanzas(string(output)), name)
 	}
 
 	opt := readPlatformStorage("/opt")
@@ -1001,6 +1013,10 @@ func buildEntwarePreflight(ctx context.Context, name, action string) (entwareAct
 	case "remove":
 		if !meta.Installed {
 			preflight.Reason = "package is not installed"
+			return preflight, nil
+		}
+		if len(preflight.ReverseDependencies) > 0 {
+			preflight.Reason = "cannot remove package: installed packages depend on it"
 			return preflight, nil
 		}
 	default:

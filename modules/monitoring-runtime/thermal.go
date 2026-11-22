@@ -93,9 +93,8 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 	for _, sensor := range collectDebugFSThermals(now) {
 		add(sensor)
 	}
-	for _, sensor := range collectSmartctlThermals(now) {
-		add(sensor)
-	}
+	// SMART is intentionally manual-only: never wake an idle drive from the 30s thermal poll.
+	// The storage provider reuses cached manual SMART data and device-addressed hwmon.
 
 	sort.Slice(sensors, func(i, j int) bool {
 		if sensors[i].Category != sensors[j].Category {

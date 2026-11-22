@@ -192,10 +192,20 @@ export function applySettings(value) {
 }
 
 const inner = writable(load());
+export const settingsPersistence = writable({ saved: true });
 
 function persist(next) {
-  if (!browser) return;
-  localStorage.setItem('routerforge.settings', JSON.stringify(next));
+  if (!browser) return false;
+  try {
+    localStorage.setItem('routerforge.settings', JSON.stringify(next));
+    settingsPersistence.set({ saved: true });
+    return true;
+  } catch (_) {
+    // Storage can be disabled or quota-exhausted. Preserve the in-memory
+    // settings for this session rather than crashing the entire UI action.
+    settingsPersistence.set({ saved: false });
+    return false;
+  }
 }
 
 export const settings = {

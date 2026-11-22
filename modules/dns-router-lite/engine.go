@@ -1,0 +1,652 @@
+// Package lite is the DEV independent DNS service. DNS transports and the
+// bounded DNS cache use AdGuard DNSProxy; policy/list ownership stays in RF.
+package lite
+
+import (
+	"context"
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/netip"
+	"net/url"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/AdguardTeam/dnsproxy/proxy"
+	"github.com/AdguardTeam/dnsproxy/upstream"
+	"github.com/Fifth-Ace/routerforge/modules/dns-router-lite/internal/ipintel"
+	dr "github.com/Fifth-Ace/routerforge/modules/dns-router-runtime"
+	"github.com/miekg/dns"
+)
+
+type Trace struct {
+	DeviceMAC        string    `json:"device_mac,omitempty"`
+	DeviceName       string    `json:"device_name,omitempty"`
+	IdentitySource   string    `json:"identity_source,omitempty"`
+	IdentityReason   string    `json:"identity_reason,omitempty"`
+	PolicyLayer      string    `json:"policy_layer,omitempty"`
+	DeviceGroup      string    `json:"device_group,omitempty"`
+	RouteReason      string    `json:"route_reason,omitempty"`
+	Internal         bool      `json:"internal,omitempty"`
+	Client           string    `json:"client,omitempty"`
+	Time             time.Time `json:"time"`
+	Name             string    `json:"name"`
+	Type             uint16    `json:"type"`
+	Rule             string    `json:"rule,omitempty"`
+	Assigned         string    `json:"assigned"`
+	Used             string    `json:"used,omitempty"`
+	AssignedEndpoint string    `json:"assigned_endpoint,omitempty"`
+	UsedEndpoint     string    `json:"used_endpoint,omitempty"`
+	Transport        string    `json:"transport,omitempty"`
+	Cache            bool      `json:"cache"`
+	Success          bool      `json:"success"`
+	RCode            int       `json:"rcode"`
+	LatencyMS        int64     `json:"latency_ms"`
+}
+
+type requestClientKey struct{}
+type internalProbeKey struct{}
+type clientRouteKey struct{}
+type clientRoute struct {
+	Identity DeviceIdentity
+	Route    dr.ClientDecision
+}
+
+type Factory func(dr.Upstream) (upstream.Upstream, error)
+
+type Engine struct {
+	proxy        *proxy.Proxy
+	policy       *dr.Engine
+	cfg          dr.Config
+	servers      map[string]upstream.Upstream
+	local        upstream.Upstream
+	localRecords *localRecordsP35
+	allowed      []*net.IPNet
+	mu           sync.Mutex
+	traces       []Trace
+	readiness    []Trace
+	listenV6     bool
+	directory    atomic.Pointer[DeviceDirectory]
+	// Optional injected identity provider, fixed before Start; production uses directory.
+	identify         func(string) DeviceIdentity
+	health           *UpstreamHealthTracker
+	ipPlanner        *ipintel.Planner
+	ipHealth         *IPHealthMonitor
+	ipScope          *ipScopeMatcher
+	protection       *queryProtectionP27
+	upstreamSelect   *upstreamSelectionP28
+	policyCache      *policyCacheP33
+	requests         atomic.Uint64
+	denied           atomic.Uint64
+	aclDenied        atomic.Uint64
+	protectionDenied atomic.Uint64
+	cacheHits        atomic.Uint64
+	failures         atomic.Uint64
+}
+
+func transportFactory(roots *x509.CertPool) Factory {
+	return func(u dr.Upstream) (upstream.Upstream, error) {
+		if u.Transport == "native" {
+			return nil, fmt.Errorf("DNS %s is a legacy native selector; import its settings or replace it with a direct DNS server", u.ID)
+		}
+		host, port, err := net.SplitHostPort(u.Address)
+		if err != nil {
+			return nil, err
+		}
+		opts := &upstream.Options{Timeout: 3 * time.Second, RootCAs: roots, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		// A direct pinned IP always leads. Extra bootstrap IPs are explicit and
+		// never resolved via Keenetic or the host's default resolver.
+		if u.Transport == "doh" || u.Transport == "dot" || u.Transport == "doq" || u.Transport == "stamp" {
+			primary, err := netip.ParseAddr(host)
+			if err != nil {
+				return nil, err
+			}
+			bootstrap := upstream.StaticResolver{primary}
+			for _, raw := range u.BootstrapIPs {
+				ip, err := netip.ParseAddr(raw)
+				if err != nil {
+					return nil, err
+				}
+				bootstrap = append(bootstrap, ip)
+			}
+			opts.Bootstrap = bootstrap
+		}
+		if u.Transport == "doh" {
+			switch u.HTTP3Mode {
+			case "auto":
+				opts.HTTPVersions = []upstream.HTTPVersion{upstream.HTTPVersion11, upstream.HTTPVersion2, upstream.HTTPVersion3}
+			case "only":
+				opts.HTTPVersions = []upstream.HTTPVersion{upstream.HTTPVersion3}
+			}
+		}
+		address := u.Address
+		switch u.Transport {
+		case "tcp":
+			address = "tcp://" + address
+		case "stamp":
+			return upstream.AddressToUpstream(u.Stamp, opts)
+		case "dot", "doh", "doq":
+			scheme := map[string]string{"dot": "tls", "doh": "https", "doq": "quic"}[u.Transport]
+			endpoint := &url.URL{Scheme: scheme, Host: net.JoinHostPort(u.ServerName, port)}
+			if u.Transport == "doh" {
+				endpoint.Path = u.Path
+				if endpoint.Path == "" {
+					endpoint.Path = "/dns-query"
+				}
+			}
+			address = endpoint.String()
+		}
+		return upstream.AddressToUpstream(address, opts)
+	}
+}
+
+func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
+	return newEngineWithTopology(c, factory, GateCandidates)
+}
+func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string, []string, error)) (*Engine, error) {
+	policy, err := dr.Compile(c)
+	if err != nil {
+		return nil, err
+	}
+	if c.Service == nil {
+		return nil, errors.New("configure DNS service and its default server first")
+	}
+	if factory == nil {
+		factory = transportFactory(nil)
+	}
+	var ipHealth *IPHealthMonitor
+	if c.Service.IPIntelligence != nil && c.Service.IPIntelligence.Enabled {
+		ipHealth = newIPHealthMonitor(c.Service.IPIntelligence.Health)
+	}
+	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c), protection: newQueryProtectionP27(c.Service.Protection), upstreamSelect: newUpstreamSelectionP28()}
+	if policy.DevicePoliciesActive() && c.Service.Performance != nil && c.Service.Performance.Enabled && c.Service.Performance.DevicePolicyCache {
+		e.policyCache = newPolicyCacheP33(c.Service.CacheBytes)
+	}
+	e.localRecords = compileLocalRecordsP35(c.Service.LocalDNS)
+	// Only servers reachable by a rule/default chain are constructed. Unused
+	// legacy native catalog entries do not prevent an independent service start.
+	needed, err := usedUpstreams(c)
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range c.Upstreams {
+		if !needed[u.ID] {
+			continue
+		}
+		s, er := factory(u)
+		if er != nil {
+			e.closeServers()
+			return nil, fmt.Errorf("upstream %s: %w", u.ID, er)
+		}
+		e.servers[u.ID] = s
+	}
+	for _, raw := range c.Service.AllowedNetworks {
+		_, n, _ := net.ParseCIDR(raw)
+		e.allowed = append(e.allowed, n)
+	}
+	// IPv6 addresses on the physical test LAN. The Gate restricts input to
+	// br0; ACL never trusts an arbitrary global IPv6 source prefix.
+	_, gateIPv6, dualReady := discover()
+	if dualReady == nil && len(gateIPv6) > 0 {
+		for _, prefix := range gateIPv6 {
+			_, n, er := net.ParseCIDR(prefix)
+			if er == nil {
+				e.allowed = append(e.allowed, n)
+			}
+		}
+		_, loopback, _ := net.ParseCIDR("::1/128")
+		e.allowed = append(e.allowed, loopback)
+	}
+	// The stock proxy retains local DHCP names. This path is used exclusively
+	// for local namespaces and never as a public/default fallback.
+	e.local, err = upstream.AddressToUpstream("127.0.0.1:53", &upstream.Options{Timeout: 2 * time.Second})
+	if err != nil {
+		e.closeServers()
+		return nil, err
+	}
+	udp, err := net.ResolveUDPAddr("udp", c.Service.Listen)
+	if err != nil {
+		e.closeServers()
+		return nil, err
+	}
+	tcp, err := net.ResolveTCPAddr("tcp", c.Service.Listen)
+	if err != nil {
+		e.closeServers()
+		return nil, err
+	}
+	udpSockets := []*net.UDPAddr{udp}
+	tcpSockets := []*net.TCPAddr{tcp}
+	if dualReady == nil && len(gateIPv6) > 0 {
+		_, servicePort, er := net.SplitHostPort(c.Service.Listen)
+		if er != nil {
+			e.closeServers()
+			return nil, er
+		}
+		udp6, er := net.ResolveUDPAddr("udp6", "[::]:"+servicePort)
+		if er != nil {
+			e.closeServers()
+			return nil, er
+		}
+		tcp6, er := net.ResolveTCPAddr("tcp6", "[::]:"+servicePort)
+		if er != nil {
+			e.closeServers()
+			return nil, er
+		}
+		udpSockets = append(udpSockets, udp6)
+		tcpSockets = append(tcpSockets, tcp6)
+	}
+	e.listenV6 = len(udpSockets) > 1
+	proxyConfig := &proxy.Config{
+		UDPListenAddr: udpSockets, TCPListenAddr: tcpSockets,
+		UpstreamConfig: &proxy.UpstreamConfig{Upstreams: []upstream.Upstream{&routingUpstream{e}}},
+		CacheEnabled:   c.Service.CacheBytes > 0 && !policy.DevicePoliciesActive(), CacheSizeBytes: c.Service.CacheBytes,
+		MaxGoroutines: 32, RequestHandler: proxy.HandlerFunc(e.handle),
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	if perf := c.Service.Performance; perf != nil && perf.Enabled {
+		proxyConfig.CacheMinTTL = perf.CacheMinTTL
+		proxyConfig.CacheMaxTTL = perf.CacheMaxTTL
+		proxyConfig.CacheOptimistic = perf.OptimisticCache && proxyConfig.CacheEnabled
+		if proxyConfig.CacheOptimistic {
+			if perf.OptimisticMaxAgeSeconds > 0 {
+				proxyConfig.CacheOptimisticMaxAge = time.Duration(perf.OptimisticMaxAgeSeconds) * time.Second
+			}
+			if perf.OptimisticAnswerTTLSeconds > 0 {
+				proxyConfig.CacheOptimisticAnswerTTL = time.Duration(perf.OptimisticAnswerTTLSeconds) * time.Second
+			}
+		}
+		if perf.MaxConcurrent > 0 {
+			proxyConfig.MaxGoroutines = uint(perf.MaxConcurrent)
+		}
+		if perf.PendingRequests == "off" {
+			proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+		}
+		if perf.PendingRequests == "on" {
+			proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: true}
+		}
+		if policy.DevicePoliciesActive() {
+			proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+		}
+	}
+	if policy.DevicePoliciesActive() {
+		proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+	}
+	// P36 optional mutual-TLS listeners share the same policy/ACL/trace engine.
+	if err := configureInboundP36(proxyConfig, c.Service); err != nil {
+		e.closeServers()
+		return nil, err
+	}
+	e.proxy, err = proxy.New(proxyConfig)
+	if err != nil {
+		e.closeServers()
+		return nil, err
+	}
+	return e, nil
+}
+
+func usedUpstreams(c dr.Config) (map[string]bool, error) {
+	engine, e := dr.Compile(c)
+	if e != nil {
+		return nil, e
+	}
+	needed := map[string]bool{}
+	decisions := []dr.Decision{}
+	if c.Service != nil {
+		decisions = append(decisions, dr.Decision{Matched: true, Source: "policy", Upstream: c.Service.DefaultUpstream, GroupID: c.Service.DefaultGroup})
+	}
+	for _, r := range c.Rules {
+		decisions = append(decisions, dr.Decision{Matched: true, Source: "policy", Upstream: r.Upstream, GroupID: r.GroupID})
+	}
+	decisions = append(decisions, engine.DeviceTargets()...)
+	for _, d := range decisions {
+		chain, e := engine.UpstreamChainForDecision(d)
+		if e != nil {
+			return nil, e
+		}
+		for _, u := range chain {
+			needed[u.ID] = true
+		}
+	}
+	if c.Service != nil && c.Service.ReverseDNS != nil && c.Service.ReverseDNS.Enabled {
+		chain, e := engine.UpstreamChain(c.Service.ReverseDNS.Upstream)
+		if e != nil {
+			return nil, e
+		}
+		for _, u := range chain {
+			needed[u.ID] = true
+		}
+	}
+	return needed, nil
+}
+
+func (e *Engine) Start(ctx context.Context) error {
+	if err := e.proxy.Start(ctx); err != nil {
+		return err
+	}
+	if e.ipHealth != nil {
+		e.ipHealth.Start()
+	}
+	return nil
+}
+func (e *Engine) Close(ctx context.Context) error {
+	if e.ipHealth != nil {
+		e.ipHealth.Stop()
+	}
+	return e.proxy.Shutdown(ctx)
+}
+func (e *Engine) closeServers() {
+	for _, s := range e.servers {
+		_ = s.Close()
+	}
+	if e.local != nil {
+		_ = e.local.Close()
+	}
+}
+func (e *Engine) addTrace(t Trace) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if t.Internal {
+		if len(e.readiness) >= 8 {
+			e.readiness = e.readiness[1:]
+		}
+		e.readiness = append(e.readiness, t)
+		return
+	}
+	if len(e.traces) == 128 {
+		copy(e.traces, e.traces[1:])
+		e.traces = e.traces[:127]
+	}
+	e.traces = append(e.traces, t)
+	if e.health != nil {
+		e.health.Observe(t)
+	}
+}
+func (e *Engine) Traces(name string) []Trace {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	out := []Trace{}
+	for _, t := range e.traces {
+		if name == "" || strings.TrimSuffix(strings.ToLower(name), ".") == t.Name {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+func localName(name string) bool {
+	if !strings.Contains(name, ".") {
+		return true
+	}
+	for _, s := range []string{"localhost", "local", "lan", "home.arpa", "in-addr.arpa", "ip6.arpa", "my.keenetic.net"} {
+		if name == s || strings.HasSuffix(name, "."+s) {
+			return true
+		}
+	}
+	return false
+}
+func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext) error {
+	internal := false
+	if len(d.Req.Question) == 1 {
+		host, _, _ := net.SplitHostPort(e.cfg.Service.Listen)
+		localPeer := d.Addr.Addr().IsLoopback() || d.Addr.Addr().String() == host
+		name := strings.ToLower(d.Req.Question[0].Name)
+		internal = localPeer && d.Req.Question[0].Qtype == dns.TypeTXT && strings.HasPrefix(name, "rf-ready-") && strings.HasSuffix(name, ".invalid.")
+	}
+	allowed := internal
+	for _, n := range e.allowed {
+		if n.Contains(net.IP(d.Addr.Addr().AsSlice())) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed || len(d.Req.Question) != 1 {
+		e.requests.Add(1)
+		e.denied.Add(1)
+		e.aclDenied.Add(1)
+		e.failures.Add(1)
+		if len(d.Req.Question) == 1 {
+			e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), "."), Type: d.Req.Question[0].Qtype, Assigned: "client-acl", Used: "refused", Success: false, RCode: dns.RcodeRefused})
+		}
+		d.Res = new(dns.Msg)
+		d.Res.SetRcode(d.Req, dns.RcodeRefused)
+		return nil
+	}
+	if !internal {
+		e.requests.Add(1)
+	}
+	ctx = context.WithValue(ctx, internalProbeKey{}, internal)
+	ctx = context.WithValue(ctx, requestClientKey{}, d.Addr.Addr().String())
+	if !internal && e.protection != nil {
+		if code := e.protection.evaluate(d.Addr.Addr(), d.Req.Question[0].Qtype, time.Now()); code != 0 {
+			e.denied.Add(1)
+			e.protectionDenied.Add(1)
+			name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
+			decision := "rate-limit"
+			if code == dns.RcodeNotImplemented {
+				decision = "refuse-any"
+			}
+			d.Res = new(dns.Msg)
+			d.Res.SetRcode(d.Req, code)
+			e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Assigned: "query-protection", Used: decision, Success: false, RCode: code})
+			return nil
+		}
+	}
+	if internal {
+		d.Res = new(dns.Msg)
+		d.Res.SetReply(d.Req)
+		d.Res.Answer = []dns.RR{&dns.TXT{Hdr: dns.RR_Header{Name: d.Req.Question[0].Name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{"routerforge-ready"}}}
+		e.addTrace(Trace{Internal: true, Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: strings.TrimSuffix(d.Req.Question[0].Name, "."), Type: d.Req.Question[0].Qtype, Assigned: "service-readiness", Used: "service-readiness", Success: true, RCode: dns.RcodeSuccess})
+		return nil
+	}
+	name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
+	identity := e.directory.Load().Resolve(d.Addr.Addr().String())
+	if e.identify != nil {
+		identity = e.identify(d.Addr.Addr().String())
+	}
+	if !identity.Trusted {
+		identity.MAC = ""
+		identity.Name = ""
+	}
+	if identity.Trusted && e.cfg.Advanced != nil {
+		for _, device := range e.cfg.Advanced.Devices {
+			if device.MAC == identity.MAC && device.Name != "" {
+				identity.Name = device.Name
+				break
+			}
+		}
+	}
+	route, routeErr := e.policy.EvaluateClientDNSQuestion(name, identity.MAC)
+	if routeErr != nil {
+		d.Res = new(dns.Msg)
+		d.Res.SetRcode(d.Req, dns.RcodeServerFailure)
+		e.failures.Add(1)
+		return nil
+	}
+	ctx = context.WithValue(ctx, clientRouteKey{}, clientRoute{identity, route})
+	// P35 opt-in local zone is handled before stock-local and external resolvers.
+	// All names outside *.rf.home.arpa remain owned by Keenetic (including PTR).
+	if answer, handled := e.localRecords.answer(d.Req); handled {
+		d.Res = answer
+		trace := Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name,
+			Type: d.Req.Question[0].Qtype, Assigned: "local-p35", Used: "local-p35",
+			Success: true, RCode: answer.Rcode}
+		attachClientRoute(&trace, ctx)
+		e.addTrace(trace)
+		return nil
+	}
+	if localName(name) && !e.customReverseP31(d.Req) {
+		start := time.Now()
+		var err error
+		d.Res, err = e.local.Exchange(ctx, d.Req)
+		t := Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Assigned: "system-local", Used: "system-local", Success: err == nil, LatencyMS: time.Since(start).Milliseconds()}
+		if err != nil {
+			d.Res = new(dns.Msg)
+			d.Res.SetRcode(d.Req, dns.RcodeServerFailure)
+			e.failures.Add(1)
+		}
+		t.RCode = d.Res.Rcode
+		attachClientRoute(&t, ctx)
+		e.addTrace(t)
+		return nil
+	}
+	// P33: an opt-in per-client/per-route cache. DNSProxy's global cache
+	// remains disabled whenever device policies are active.
+	cacheKey, cacheEligible := policyCacheKeyP33(route, d.Addr.Addr().String(), identity.MAC, d.Req)
+	if e.cfg.Service.Privacy != nil && e.cfg.Service.Privacy.Enabled && e.cfg.Service.Privacy.DNSSECMode == "require_ad" {
+		cacheEligible = false
+	}
+	if e.cfg.Service.DNS64 != nil && e.cfg.Service.DNS64.Enabled {
+		cacheEligible = false
+	}
+	policyHit := false
+	if cacheEligible && e.policyCache != nil {
+		if response, ok := e.policyCache.Get(cacheKey, d.Req, time.Now()); ok {
+			d.Res = response
+			policyHit = true
+		}
+	}
+	var err error
+	if !policyHit {
+		err = p.Resolve(ctx, d)
+		if err == nil && cacheEligible && e.policyCache != nil && d.Res != nil {
+			var minTTL, maxTTL uint32
+			if perf := e.cfg.Service.Performance; perf != nil && perf.Enabled {
+				minTTL = perf.CacheMinTTL
+				maxTTL = perf.CacheMaxTTL
+			}
+			e.policyCache.Put(cacheKey, d.Res, time.Now(), minTTL, maxTTL)
+		}
+	}
+	if err == nil && d.Res != nil {
+		d.Res = e.synthesizeDNS64P31(ctx, d.Req, d.Res)
+	}
+	// Perform response transformation AFTER Resolve and its cache lookup,
+	// on a deep copy.  Original and every pre-P24.1 config are inert.
+	if err == nil && d.Res != nil && e.cfg.Service.IPIntelligence != nil && e.cfg.Service.IPIntelligence.Enabled && len(d.Req.Question) == 1 && e.ipScope.Matches(d.Req.Question[0].Name) {
+		mode := ipintel.Mode(e.cfg.Service.IPIntelligence.Mode)
+		// Observe on every permitted opt-in A/AAAA response, including Original.
+		// Original changes nothing on the wire; probes run only asynchronously.
+		scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)
+		d.Res = applyIPIntelligenceP26(e.ipPlanner, e.ipHealth, d.Req, d.Res, mode, scope, identity.MAC)
+	}
+	cached := policyHit
+	if !policyHit {
+		if stats := d.QueryStatistics(); stats != nil {
+			for _, s := range stats.Main() {
+				cached = cached || s.IsCached
+			}
+		}
+	}
+	if cached && d.Res != nil {
+		e.cacheHits.Add(1)
+		trace := Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Cache: true, Assigned: "cache", Used: "cache-local", Success: err == nil, RCode: d.Res.Rcode}
+		attachClientRoute(&trace, ctx)
+		e.addTrace(trace)
+	}
+	return err
+}
+
+func traceDNSLabel(u dr.Upstream) string {
+	if u.ServerName != "" {
+		return u.ServerName + " (" + u.Address + ")"
+	}
+	return u.Address
+}
+
+type routingUpstream struct{ e *Engine }
+
+func (r *routingUpstream) Address() string { return "routerforge-policy" }
+func (r *routingUpstream) Close() error    { r.e.closeServers(); return nil }
+func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, error) {
+	e := r.e
+	name := strings.TrimSuffix(strings.ToLower(q.Question[0].Name), ".")
+	decision, err := e.policy.EvaluateClientDNSQuestion(name, "")
+	if applied, ok := ctx.Value(clientRouteKey{}).(clientRoute); ok {
+		decision = applied.Route
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	d := decision.Decision
+	if e.customReverseP31(q) {
+		d = dr.Decision{Matched: true, Source: "policy", Upstream: e.cfg.Service.ReverseDNS.Upstream, Reason: "explicit private reverse DNS"}
+	}
+	return e.exchangeSelectedP28(ctx, q, d)
+}
+
+func (e *Engine) GateReady(ctx context.Context, listen string, p GatePlan) error {
+	for _, family := range p.Families {
+		for _, raw := range family.Prefixes {
+			_, target, err := net.ParseCIDR(raw)
+			if err != nil {
+				return err
+			}
+			wanted, bits := target.Mask.Size()
+			covered := false
+			for _, allowed := range e.allowed {
+				mask, size := allowed.Mask.Size()
+				covered = covered || (size == bits && mask <= wanted && allowed.Contains(target.IP))
+			}
+			if !covered {
+				return fmt.Errorf("managed LAN prefix %s is not allowed by the applied engine; listener revalidation required", raw)
+			}
+		}
+	}
+	return probeGateDNSWithTrace(ctx, listen, p, func(name string) bool {
+		name = strings.TrimSuffix(strings.ToLower(name), ".")
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		for _, t := range e.readiness {
+			if t.Name == name && t.Success {
+				return true
+			}
+		}
+		return false
+	})
+}
+func (e *Engine) readinessPlan() GatePlan {
+	_, port, _ := net.SplitHostPort(e.cfg.Service.Listen)
+	p := GatePlan{Port: port, Families: []GateFamily{{Family: "inet"}}}
+	if e.listenV6 {
+		p.Families = append(p.Families, GateFamily{Family: "inet6"})
+	}
+	return p
+}
+
+func attachClientRoute(t *Trace, ctx context.Context) {
+	if r, ok := ctx.Value(clientRouteKey{}).(clientRoute); ok {
+		t.DeviceMAC = r.Identity.MAC
+		t.DeviceName = r.Identity.Name
+		t.IdentitySource = r.Identity.Source
+		t.IdentityReason = r.Identity.Reason
+		t.PolicyLayer = r.Route.Layer
+		t.DeviceGroup = r.Route.DeviceGroup
+		t.RouteReason = r.Route.Reason
+	}
+}
+func (e *Engine) effectiveCacheBytes() int {
+	if e.policy.DevicePoliciesActive() {
+		if e.policyCache != nil {
+			return e.cfg.Service.CacheBytes
+		}
+		return 0
+	}
+	return e.cfg.Service.CacheBytes
+}
+func (e *Engine) cacheMode() string {
+	if e.policy.DevicePoliciesActive() {
+		if e.policyCache != nil {
+			return "isolated_device_policy_cache"
+		}
+		return "disabled_for_device_policy_isolation"
+	}
+	if e.cfg.Service.CacheBytes == 0 {
+		return "disabled_by_configuration"
+	}
+	return "shared_global_policy"
+}

@@ -26,9 +26,55 @@ def main():
     script_src = re.findall(r'<script\s+src="([^"]+)"', html)
     shipped = re.search(r'for file in ([^\n]+); do\s*\n\s*cp ', build)
     shipped_names = set(shipped.group(1).split()) if shipped else set()
-    gate('all frontend scripts shipped', bool(script_src) and all(s in shipped_names for s in script_src))
+    # Native Svelte 5 bundle is compiled by Vite and copied into the IPK
+    # after the static legacy assets loop. Never require generated JS in Git.
+    compiled = 'svelte-status.js'
+    bundle_source = FRONT / 'PortAccessLayout.svelte'
+    status_component = FRONT / 'PortAccessStatus.svelte'
+    bundle_entry = FRONT / 'status-main.js'
+    entry_source = bundle_entry.read_text(encoding='utf-8')
+    layout_source = bundle_source.read_text(encoding='utf-8')
+    bundle_config = FRONT / 'vite.config.js'
+    bundle_copy = (
+        'cp "$FRONTEND/build/svelte-status.js" '
+        '"$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"'
+    )
+    compiled_shipped = (
+        bundle_copy in build
+        and 'test -s "$FRONTEND/build/svelte-status.js"' in build
+        and 'npm run build' in build
+        and all(p.is_file() for p in (bundle_source, status_component, bundle_entry, bundle_config, FRONT / 'package.json'))
+        and '$state(' in layout_source
+        and "import PortAccessLayout from './PortAccessLayout.svelte'" in entry_source
+        and 'mount(PortAccessLayout, { target })' in entry_source
+        and 'PortAccessStatus.svelte' in layout_source
+        and '<PortAccessStatus' in layout_source
+        and "fileName: () => 'svelte-status.js'" in bundle_config.read_text(encoding='utf-8')
+    )
+    gate('all frontend scripts shipped',
+         bool(script_src) and len(script_src) == len(set(script_src))
+         and all(s in shipped_names or (s == compiled and compiled_shipped) for s in script_src))
+    gate('compiled Svelte 5 bundle has exact build and IPK copy contract', compiled_shipped)
+    gate('native Svelte engine workspace source present',
+         (FRONT/'PortAccessEngineWorkspace.svelte').is_file()
+         and not (FRONT/'engine-wizard.js').exists()
+         and not (FRONT/'config-editor.js').exists()
+         and "import PortAccessEngineWorkspace from './PortAccessEngineWorkspace.svelte'" in layout_source
+         and '<PortAccessEngineWorkspace' in layout_source
+         and all(x not in shipped_names for x in ('config-editor.js', 'engine-wizard.js')))
     gate('frontend CSS shipped', all(s in shipped_names for s in ('module.css','ui-rebuild.css','p39-compact.css')))
-    gate('operation-log.js shipped', 'operation-log.js' in shipped_names and (FRONT/'operation-log.js').is_file())
+    # Old controller was removed; the live operations log now mounts as native Svelte.
+    log_component = FRONT / 'PortAccessOperationLog.svelte'
+    log_source = log_component.read_text(encoding='utf-8') if log_component.is_file() else ''
+    entry_source = bundle_entry.read_text(encoding='utf-8') if bundle_entry.is_file() else ''
+    gate('native operation log included in compiled Svelte bundle',
+         'operation-log.js' not in shipped_names and 'operation-log.js' not in script_src
+         and not (FRONT / 'operation-log.js').exists()
+         and "import PortAccessOperationLog from './PortAccessOperationLog.svelte'" in layout_source
+         and '<PortAccessOperationLog' in layout_source
+         and 'mount(PortAccessOperationLog' not in entry_source
+         and 'window.setInterval(refresh, 2000)' in log_source
+         and 'window.clearInterval(interval)' in log_source)
     gate('no missing packaged frontend asset', all((FRONT / name).is_file() for name in shipped_names))
     gate('runtime and watchdog are built into IPK', all(x in build for x in ('./modules/port-access-manager/runtime','./modules/port-access-manager/watchdog','routerforge-port-access-watchdog')))
     gate('manifest and dependency declared', 'manifest.json' in build and 'Depends: routerforge-core' in build and 'routerforge-port-access-manager.sock' in build)

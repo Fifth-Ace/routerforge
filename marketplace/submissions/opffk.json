@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "opffk",
+  "kind": "integration",
+  "name": "opffk · OpenFlux Exit Node",
+  "category": "VPN / Routing",
+  "description": "Веб-панель управления OpenFlux exit node на Keenetic/Entware: транспорты, ключи, обновления и откат ядра.",
+  "publisher": {
+    "id": "upiok",
+    "name": "upiok",
+    "url": "https://github.com/upiok"
+  },
+  "project_url": "https://github.com/upiok/opffk",
+  "source": "project-official",
+  "version_source": "binary",
+  "capabilities": [
+    "detect",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "services": [
+      "/opt/etc/init.d/S99opffk"
+    ],
+    "paths": [
+      "/opt/bin/opffk-web",
+      "/opt/etc/opffk"
+    ]
+  },
+  "process_names": [
+    "opffk-web"
+  ],
+  "web_port": 8791,
+  "web_port_source": "project-default; configurable",
+  "web": {
+    "scheme": "http",
+    "port": 8791,
+    "path": "/",
+    "mode": "external-only",
+    "embed": false
+  },
+  "compatibility": {
+    "status": "requirements",
+    "targets": [
+      "aarch64-3.10"
+    ],
+    "hints": [
+      "Keenetic + Entware",
+      "ARM64 / ARMv7; MIPS and MIPSEL are not supported by upstream binaries",
+      "128 MB available RAM minimum (256 MB recommended)",
+      "150 MB free storage in /opt",
+      "Web UI binds to the router LAN IP by default"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://raw.githubusercontent.com/upiok/opffk/main/install.sh",
+    "notes": [
+      "Upstream installer downloads and verifies opffk/OpenFlux binaries, creates service account and starts the service.",
+      "Installation executes upstream code; RouterForge displays instructions only and does not execute it automatically.",
+      "External connectivity of the exit node requires a separate owner-configured port forward."
+    ],
+    "preview_only": true
+  }
+}

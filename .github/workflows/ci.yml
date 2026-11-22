@@ -16,6 +16,11 @@ on:
         required: false
         default: true
         type: boolean
+      beta_validate_only:
+        description: 'Build and verify Beta matrix without publication or Stable candidate'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -59,8 +64,48 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify commit attribution (author + committer)
+        run: |
+          python3 scripts/verify-commit-identity.py head "$GITHUB_SHA"
+          python3 -m unittest discover -s tests -p test_commit_identity.py -v
+      - name: Verify every incoming push commit (not just HEAD)
+        if: github.event_name == 'push'
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+        run: python3 scripts/verify-commit-identity.py range "$PREVIOUS_SHA" "$GITHUB_SHA"
+      - name: Verify local identity hooks reject invalid commits before push
+        run: python3 -m unittest discover -s tests -p test_identity_hooks.py -v
+      - name: P0.1 CI frontend scope regression fixtures
+        run: python3 -m unittest discover -s tests -p test_ci_frontend_scope.py -v
+      - name: P0.4 DNS staging isolation regression (Linux)
+        run: python3 -m unittest discover -s tests -p test_dns_router_staging.py -v
+      - name: Release notes catalog contracts
+        run: python3 -m unittest discover -s tests -p test_release_notes_catalog.py -v
+      - name: P0.4 CI-only release guard regression
+        run: python3 -m unittest discover -s tests -p test_ci_publish_safety.py -v
       - name: Verify legacy registry integration
         run: python3 scripts/verify-legacy-fallback-removal.py
+      - name: Verify all-architecture UPX package-policy fixtures
+        run: python3 scripts/verify-channel-upx.py --selftest
+      - name: Validate nonpublishing Beta matrix request
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          FULL_RELEASE: ${{ inputs.full_release }}
+          PUBLISH_BETA: ${{ inputs.publish_beta }}
+          BETA_VALIDATE_ONLY: ${{ inputs.beta_validate_only }}
+        run: |
+          set -eu
+          if [ "$BETA_VALIDATE_ONLY" = true ]; then
+            [ "$FULL_RELEASE" = true ] || { echo 'BETA_VALIDATE_REQUIRES_FULL_RELEASE' >&2; exit 1; }
+            [ "$PUBLISH_BETA" = false ] || { echo 'BETA_VALIDATE_FORBIDS_PUBLICATION' >&2; exit 1; }
+          fi
+          echo 'BETA_DISPATCH_CONTRACT=PASS'
+      - name: P51 Verify Stable release train cannot regress
+        run: |
+          python3 scripts/verify-stable-train.py --baseline
+          python3 -m unittest discover -s tests -p 'test_stable_train_p51.py' -v
       - name: Verify Beta component version matrix
         run: |
           python3 - <<'PY_CHECK'
@@ -77,7 +122,7 @@ jobs:
           pkg_version = match.group(1) + '~beta.' + match.group(2)
           required = {'routerforge-core', 'dns', 'admin', 'monitoring',
                       'network-tools', 'nfqws-manager', 'antiscan-manager',
-                      'port-access-manager', 'crowdsec-manager', 'profiling'}
+                      'port-access-manager', 'crowdsec-manager', 'dns-router', 'profiling'}
           components = doc.get('components', [])
           actual = {item['id'] for item in components}
           if len(components) != len(required) or actual != required:
@@ -132,8 +177,10 @@ jobs:
           DOCS=false
           FULL_RELEASE=false
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] &&
-             [ "${{ inputs.full_release }}" = "true" ]; then
+          if { [ "${{ github.event_name }}" = "workflow_dispatch" ] &&
+               [ "${{ inputs.full_release }}" = "true" ]; } ||
+             { [ "${{ github.event_name }}" = "push" ] &&
+               [ "${{ github.ref }}" = "refs/heads/main" ]; }; then
 
             CORE_FRONTEND=true
             DNS_FRONTEND=true
@@ -180,14 +227,17 @@ jobs:
                   CORE_FRONTEND=true
                   ;;
 
-                modules/dns/frontend/*|modules/admin/frontend/*|modules/monitoring/frontend/*)
+                modules/dns/frontend/*|modules/admin/frontend/*|modules/monitoring/frontend/*|modules/crowdsec-manager/frontend/*|modules/network-tools/frontend/*|modules/antiscan-manager/frontend/*)
+                  DNS_FRONTEND=true
+                  ;;
+                scripts/verify-standalone-svelte-parity.py)
                   DNS_FRONTEND=true
                   ;;
 
               esac
 
               case "$path" in
-                *.go|go.mod|go.sum)
+                *.go|go.mod|go.sum|modules/dns-router-lite/go.mod|modules/dns-router-lite/go.sum|scripts/collect-dns-lite-licenses.py|scripts/build-dns-router-experimental.sh|scripts/verify-beta-dns-router-package.py)
                   GO=true
                   CROSS=true
                   ;;
@@ -239,6 +289,11 @@ jobs:
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
           echo "docs=$DOCS" >> "$GITHUB_OUTPUT"
           echo "full_release=$FULL_RELEASE" >> "$GITHUB_OUTPUT"
+          # P0.1 CI frontend scope: fail closed when the diff list is missing.
+          python3 scripts/ci-frontend-scope.py \
+            --changed-files /tmp/routerforge-changed-files.txt \
+            --github-output "$GITHUB_OUTPUT" \
+            --full-release "$FULL_RELEASE"
 
 
           echo "CORE_FRONTEND=$CORE_FRONTEND"
@@ -258,6 +313,16 @@ jobs:
             echo "Changed files:"
             cat /tmp/routerforge-changed-files.txt
           fi
+      - name: Gate Stable candidate ancestry before promotion build
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
+        run: |
+          set -eu
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            BASE="$(git rev-parse "$GITHUB_SHA^")"
+          else
+            BASE="$(git merge-base origin/main "$GITHUB_SHA")"
+          fi
+          python3 scripts/verify-commit-identity.py range "$BASE" "$GITHUB_SHA"
       - name: Verify Port Access UI contract (P40A)
         run: python3 scripts/verify-port-access-ui.py
 
@@ -320,7 +385,7 @@ jobs:
         run: python3 scripts/verify-antiscan-upstream-contract.py --remote
 
       - name: Set up Node
-        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
+        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.dns_lite_frontend == 'true' || steps.scope.outputs.dns_runtime_frontend == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
@@ -360,6 +425,7 @@ jobs:
             (
               cd "${dirs[$i]}"
               npm install --no-audit --no-fund
+              if [ "${labels[$i]}" = "dns" ]; then npm test; fi
               npm run build
             ) >"/tmp/rf-frontend-${labels[$i]}.log" 2>&1 &
             pids+=("$!")
@@ -375,11 +441,107 @@ jobs:
             cat "/tmp/rf-frontend-${labels[$i]}.log"
           done
           test "$failed" -eq 0
+      - name: Verify native Svelte 5 standalone module sources and production assets
+        if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-standalone-svelte-ui.py --selftest
+          for module in crowdsec-manager network-tools antiscan-manager; do
+            python3 scripts/verify-standalone-svelte-ui.py --module "$module" --source
+            sh scripts/build-standalone-svelte-frontend.sh "$module"
+            python3 scripts/verify-standalone-svelte-ui.py --module "$module" --dir "modules/$module/frontend/build"
+          done
+          node --test modules/crowdsec-manager/frontend/tests/contract.test.mjs modules/network-tools/frontend/tests/contract.test.mjs modules/antiscan-manager/frontend/tests/contract.test.mjs
+
+      - name: Verify compiled standalone Svelte 5 UI against original in Chromium
+        if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --break-system-packages --disable-pip-version-check --no-input 'playwright==1.56.0' 'Pillow==12.0.0'
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          if [ -z "$CHROME" ]; then python3 -m playwright install --with-deps chromium; fi
+          crowd=(--repo-root . --build-dir modules/crowdsec-manager/frontend/build --fixtures modules/crowdsec-manager/frontend/tests/fixtures)
+          if [ -n "$CHROME" ]; then crowd+=(--chromium "$CHROME"); fi
+          python3 modules/crowdsec-manager/frontend/tests/verify_crowdsec_live_parity.py "${crowd[@]}" --output "$RUNNER_TEMP/svelte-parity-crowdsec"
+          python3 modules/crowdsec-manager/frontend/tests/verify_crowdsec_actions.py "${crowd[@]}"
+          for module in network-tools antiscan-manager; do
+            args=(--repo . --module "$module" --out "$RUNNER_TEMP/svelte-parity-$module")
+            if [ -n "$CHROME" ]; then args+=(--chromium "$CHROME"); fi
+            python3 scripts/verify-standalone-svelte-parity.py "${args[@]}"
+          done
+
+      - name: Preserve standalone Svelte 5 parity evidence on failure
+        if: failure() && (steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true')
+        uses: actions/upload-artifact@v4
+        with:
+          name: svelte-parity-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/svelte-parity-network-tools/
+            ${{ runner.temp }}/svelte-parity-antiscan-manager/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Verify real Svelte 5 packaged IPK UI and prevent legacy JS shipping
+        if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROUTERFORGE_TARGET=aarch64-3.10
+          export ROUTERFORGE_UPX=0
+          VERSION=0.0.0-svelte5-ci
+          sh scripts/build-crowdsec-manager-opkg.sh "$VERSION"
+          sh scripts/build-network-tools-opkg.sh "$VERSION"
+          sh scripts/build-module-opkg.sh antiscan-manager "$VERSION"
+          for module in crowdsec-manager network-tools antiscan-manager; do
+            pkg="dist/routerforge-${module}_${VERSION}_aarch64-3.10.ipk"
+            test -s "$pkg"
+            python3 scripts/verify-standalone-svelte-ui.py --module "$module" --ipk "$pkg"
+          done
+
       - name: Verify standalone module frontend builds
         if: steps.scope.outputs.dns_frontend == 'true'
         run: |
           test -f modules/admin/frontend/build/index.html
           test -f modules/monitoring/frontend/build/index.html
+
+      # P0.1 CI frontend scope: independent pre-publication module gates.
+      # No Svelte migration is declared complete by these checks.
+      - name: P0.1 Verify DNS Lite shipped frontend and DEV IPK (nonpublishing)
+        if: steps.scope.outputs.dns_lite_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROUTERFORGE_UPX=0
+          ROUTERFORGE_CHANNEL=dev sh scripts/build-dns-router-experimental.sh 0.0.0-p01-lite aarch64-3.10
+          test -s dist/routerforge-dns-router_0.0.0-p01-lite_aarch64-3.10.ipk
+          test -s modules/dns-router-lite/frontend/build/svelte-mode.js
+
+      - name: P0.1 Verify DNS Runtime experimental frontend and IPK (nonpublishing)
+        if: steps.scope.outputs.dns_runtime_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROUTERFORGE_UPX=0
+          ROUTERFORGE_CHANNEL=experimental sh scripts/build-dns-router-experimental.sh 0.0.0-p01-runtime aarch64-3.10
+          test -s dist/routerforge-dns-router_0.0.0-p01-runtime_aarch64-3.10.ipk
+          test -s modules/dns-router-runtime/frontend/build/svelte-mode.js
+
+      - name: P0.1 Verify NFQWS frontend package and backend contract (nonpublishing)
+        if: steps.scope.outputs.nfqws_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -count=1 ./modules/nfqws-manager-runtime/...
+          export ROUTERFORGE_TARGET=aarch64-3.10 ROUTERFORGE_UPX=0
+          sh scripts/build-module-opkg.sh nfqws-manager 0.0.0-p01-nfqws
+          ipk=dist/routerforge-nfqws-manager_0.0.0-p01-nfqws_aarch64-3.10.ipk
+          test -s "$ipk"
+          actual="$(tar -xzOf "$ipk" ./data.tar.gz | tar -xzOf - ./opt/share/routerforge/modules/nfqws-manager/ui/index.html | sha256sum | awk '{print $1}')"
+          expected="$(sha256sum modules/nfqws-manager/frontend/index.html | awk '{print $1}')"
+          test "$actual" = "$expected" || { echo 'NFQWS_PACKAGED_UI_SHA_MISMATCH' >&2; exit 1; }
+          echo 'NFQWS_PACKAGED_UI_SHA: PASS'
 
       - name: Validate RouterForge registry
         if: steps.scope.outputs.registry == 'true'
@@ -491,6 +653,53 @@ jobs:
       - name: Test
         if: steps.scope.outputs.go == 'true'
         run: go test ./...
+      - name: R7 DNS Router experimental IPK matrix (no publish)
+        if: steps.scope.outputs.go == 'true'
+        run: sh scripts/verify-dns-router-experimental.sh
+
+      - name: R7 DNS Router DEV Preview packaging contract (no publish)
+        if: steps.scope.outputs.go == 'true'
+        run: |
+          set -eu
+          ROUTERFORGE_CHANNEL=dev sh scripts/build-dns-router-experimental.sh '1~dev.r1.smoke' 'aarch64-3.10'
+          ipk=dist/routerforge-dns-router_1~dev.r1.smoke_aarch64-3.10.ipk
+          test -s "$ipk"
+          tar -xzOf "$ipk" ./data.tar.gz | tar -tzf - | grep -Fxq './opt/etc/init.d/S95routerforge-dns-router'
+          tar -xzOf "$ipk" ./control.tar.gz | tar -tzf - | grep -Fxq './postinst'
+          tar -xzOf "$ipk" ./control.tar.gz | tar -tzf - | grep -Fxq './prerm'
+          tar -xzOf "$ipk" ./data.tar.gz | tar -xzOf - ./opt/etc/init.d/S95routerforge-dns-router > /tmp/rf-dns-router-dev-service
+          sh -n /tmp/rf-dns-router-dev-service
+          ! grep -Eq '^\s*"\$BIN".*--(ndmc-|shadow-forward)' /tmp/rf-dns-router-dev-service
+          grep -Fq '"$BIN" --config "$CFG" --serve --socket "$SOCK"' /tmp/rf-dns-router-dev-service
+          dpkg --compare-versions '0.8.0~dev.r100.aaa' lt '1~dev.r101.bbb'
+          dpkg --compare-versions '1~dev.r101.aaa' lt '1~dev.r102.bbb'
+
+      - name: DNS Router Lite independent DNS and profile rollback tests
+        if: steps.scope.outputs.go == 'true'
+        working-directory: modules/dns-router-lite
+        run: |
+          go build -tags dns_router_lite -o "$RUNNER_TEMP/rf-dns-lite-test" ./cmd/routerforge-dns-router
+          RF_DNS_LITE_TEST_BINARY="$RUNNER_TEMP/rf-dns-lite-test" go test -tags dns_router_lite -race -count=1 ./...
+          go test -tags dns_router_lite -race -run 'TestP19(Status|Supervisor|Intent|Listener)' -count=10 ./...
+          go vet -tags dns_router_lite ./...
+
+      - name: DNS Router Lite shipped UI behavior
+        if: steps.scope.outputs.go == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.layout == 'true' || steps.scope.outputs.dns_lite_frontend == 'true'
+        run: |
+          set -euo pipefail
+          # This gate also runs for layout-only changes. P0.1's DNS Lite build
+          # may be skipped in that scope, so ensure the tested bundle exists.
+          if [ ! -s modules/dns-router-lite/frontend/build/svelte-mode.js ]; then
+            npm ci --prefix modules/dns-router-lite/frontend --no-audit --no-fund
+            npm run build --prefix modules/dns-router-lite/frontend
+          fi
+          test -s modules/dns-router-lite/frontend/build/svelte-mode.js
+          npm ci --prefix modules/dns-router-lite/frontend-tests --ignore-scripts --no-audit --no-fund
+          npm test --prefix modules/dns-router-lite/frontend-tests
+      - name: P19.5 DNS UI and upgrade contracts
+        run: |
+          python3 scripts/verify-p195-dns-ui.py
+          go test ./components/core -run 'TestP195DNSRouter|TestP195CatalogDNSRouter' -count=1
 
       - name: Vet
         if: steps.scope.outputs.go == 'true'
@@ -529,6 +738,12 @@ jobs:
             ROUTERFORGE_TARGET="$target" ./scripts/build-network-tools-opkg.sh 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh antiscan-manager 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh profiling 0.0.0-ci
+
+            # Validate the actual Lite service, not the legacy shadow executable.
+            ROUTERFORGE_CHANNEL=dev sh scripts/build-dns-router-experimental.sh 0.0.0-ci "$target"
+            python3 scripts/verify-beta-dns-router-package.py \
+              "dist/routerforge-dns-router_0.0.0-ci_${target}.ipk" \
+              "$target" 0.0.0-ci --qemu
 
             for package in \
               "dist/routerforge-core_0.0.0-ci_${target}.ipk" \
@@ -1084,11 +1299,11 @@ jobs:
           retention-days: 2
 
       - name: Build stable multiarch promotion candidate
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
         run: sh scripts/build-stable-multiarch.sh "$GITHUB_SHA"
 
       - name: Upload stable promotion candidate
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-stable-promotion
@@ -1100,7 +1315,7 @@ jobs:
   beta_build:
     name: Beta package build (${{ matrix.target }})
     needs: [preflight, test]
-    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true
+    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && (inputs.publish_beta == true || inputs.beta_validate_only == true)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -1155,6 +1370,19 @@ jobs:
             *) index="dist/routerforge-beta-candidate-index-${{ matrix.target }}.json" ;;
           esac
           test -s "$index"
+          python3 scripts/verify-beta-dns-router-package.py \
+            "dist/routerforge-dns-router_0.15.0-beta.6_${{ matrix.target }}.ipk" \
+            "${{ matrix.target }}" "0.15.0~beta.6"
+      - name: QEMU smoke for packed DNS Router on MIPS/MIPSEL
+        if: matrix.target != 'aarch64-3.10'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-user
+          python3 scripts/verify-beta-dns-router-package.py \
+            "dist/routerforge-dns-router_0.15.0-beta.6_${{ matrix.target }}.ipk" \
+            "${{ matrix.target }}" "0.15.0~beta.6" --qemu
       - name: Upload exact target packages and index
         uses: actions/upload-artifact@v4
         with:
@@ -1168,7 +1396,7 @@ jobs:
   beta_publish:
     name: Publish verified multiarch Beta
     needs: [test, beta_build]
-    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true
+    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true && inputs.beta_validate_only != true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1184,16 +1412,17 @@ jobs:
           pattern: routerforge-v2-beta-*
           path: dist
           merge-multiple: true
-      - name: Verify complete 10-component candidate before publication
+      - name: Verify architecture-scoped Beta candidates before publication
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY_CHECK'
           import json
+          import subprocess
           from pathlib import Path
           cfg=json.loads(Path('release/channels/beta.json').read_text())
           expected={c['package'] for c in cfg['components']}
-          assert len(expected)==len(cfg['components'])==10, 'beta component matrix must contain 10 unique packages'
+          assert len(expected)==len(cfg['components'])==11, 'beta component matrix must contain 11 unique configured packages'
           for target in ['aarch64-3.10','mips-3.4','mipsel-3.4']:
               suffix='' if target=='aarch64-3.10' else '-'+target
               path=Path('dist/routerforge-beta-candidate-index'+suffix+'.json')
@@ -1204,7 +1433,9 @@ jobs:
               for item in items:
                   asset=Path('dist')/item['asset']
                   assert asset.is_file() and asset.stat().st_size>0, str(asset)
-          print('MULTIARCH_BETA_CANDIDATE=PASS')
+                  if item['package']=='routerforge-dns-router':
+                      subprocess.run(['python3', 'scripts/verify-beta-dns-router-package.py', str(asset), target, '0.15.0~beta.6'], check=True)
+          print('MULTIARCH_BETA_CANDIDATE=PASS / 33 IPK / 11 per target')
           PY_CHECK
       - name: Verify Monitoring migration package contract
         shell: bash
@@ -1233,7 +1464,7 @@ jobs:
   publish_dev:
     name: Publish rolling ARM64 Dev channel
     needs: [test, changes]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:') && !contains(github.event.head_commit.message, '[rf-ci-only]')
     runs-on: ubuntu-latest
 
     concurrency:
@@ -1268,7 +1499,8 @@ jobs:
 
   publish_stable:
     name: Publish validated stable promotion
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'docs:')
+    needs: [preflight, test]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.full_release == true && inputs.publish_beta != true && inputs.beta_validate_only != true && needs.test.result == 'success'
     runs-on: ubuntu-latest
 
     permissions:
@@ -1281,74 +1513,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find successful dev validation for exact SHA
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Gate all incoming Stable commits before publication
         run: |
           set -eu
+          PREVIOUS_MAIN_SHA="$(git rev-parse "$GITHUB_SHA^")"
+          python3 scripts/verify-commit-identity.py range "$PREVIOUS_MAIN_SHA" "$GITHUB_SHA"
 
-          RUNS=/tmp/routerforge-dev-runs.json
+      - name: Download stable candidate from this exact validated workflow run
+        uses: actions/download-artifact@v4
+        with:
+          name: routerforge-stable-promotion
+          path: dist
 
-          gh api --method GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f head_sha="$GITHUB_SHA" \
-            -f event=workflow_dispatch \
-            -f status=success \
-            -f per_page=20 \
-            > "$RUNS"
-
-          DEV_RUN_ID=$(
-            python3 - "$RUNS" "$GITHUB_SHA" <<'PY'
-          import json
-          import sys
-
-          path, sha = sys.argv[1:3]
-
-          with open(path, "r", encoding="utf-8") as fh:
-              doc = json.load(fh)
-
-          matches = [
-              run for run in doc.get("workflow_runs", [])
-              if run.get("head_sha") == sha
-              and (run.get("head_branch") == "dev" or str(run.get("head_branch", "")).startswith("release/stable-"))
-              and run.get("event") == "workflow_dispatch"
-              and run.get("status") == "completed"
-              and run.get("conclusion") == "success"
-          ]
-
-          if matches:
-              print(matches[0]["id"])
-          PY
-          )
-
-          if [ -z "$DEV_RUN_ID" ]; then
-            echo "No successful dev CI run found for exact SHA $GITHUB_SHA" >&2
-            exit 1
-          fi
-
-          echo "Validated dev run: $DEV_RUN_ID"
-          echo "DEV_RUN_ID=$DEV_RUN_ID" >> "$GITHUB_ENV"
-
-      - name: Download exact stable promotion artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Check same-run promotion artifact files
         run: |
           set -eu
-
-          TMP=/tmp/routerforge-stable-promotion
-          rm -rf "$TMP" dist
-          mkdir -p "$TMP" dist
-
-          gh run download "$DEV_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name routerforge-stable-promotion \
-            --dir "$TMP"
-
-          find "$TMP" -type f \
-            \( -name 'routerforge-*.ipk' \
-               -o -name 'routerforge-stable-candidate-index*.json' \) \
-            -exec cp '{}' dist/ \;
-
           test -s dist/routerforge-stable-candidate-index.json
           test -s dist/routerforge-stable-candidate-index-mips-3.4.json
           test -s dist/routerforge-stable-candidate-index-mipsel-3.4.json

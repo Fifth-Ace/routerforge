@@ -1,4 +1,4 @@
-export async function withRequestTimeout(label, timeoutMs, operation) {
+export async function withRequestTimeout(label, timeoutMs, operation, externalSignal) {
   if (typeof operation !== 'function') {
     throw new TypeError('request operation must be a function');
   }
@@ -9,6 +9,9 @@ export async function withRequestTimeout(label, timeoutMs, operation) {
   }
 
   const controller = new AbortController();
+  const forwardAbort = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener('abort', forwardAbort, { once: true });
   let timedOut = false;
 
   const timer = setTimeout(() => {
@@ -27,5 +30,6 @@ export async function withRequestTimeout(label, timeoutMs, operation) {
     throw error;
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', forwardAbort);
   }
 }

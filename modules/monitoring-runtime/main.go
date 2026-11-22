@@ -241,6 +241,11 @@ func (s *moduleServer) Serve() error {
 		s.registerNetwork(mux)
 	}
 
+	if s.id == "storage" {
+		stopDoctor := make(chan struct{})
+		defer close(stopDoctor)
+		go doctorBackground(stopDoctor)
+	}
 	httpServer := &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 3 * time.Second,

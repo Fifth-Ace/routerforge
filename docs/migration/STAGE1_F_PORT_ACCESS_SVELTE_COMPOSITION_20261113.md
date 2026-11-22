@@ -1,0 +1,3 @@
+# Stage 1 F / native Port Access single Svelte root
+
+Full source handoff, source-only. `PortAccessLayout` becomes one parent/root; `status-main.js` creates one mount. Children: Odin, EngineWorkspace, Engineering, Status, OperationLog. Direct prop callbacks replace document CustomEvent / fake select.change / document.click. All 6 exported UI sections preserve existing DOM ids and layout. UI GET abort after unmount via PortAccessReadSession including response body, protected POST/DELETE never aborted mid-flight. Confirmations/CAS/watchdog/rollback left unchanged. Stage 2 browser/Go/IPK deliberately NOT RUN; Stage 1 incomplete pending ALL11 source review.

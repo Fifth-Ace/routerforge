@@ -1,42 +1,19 @@
 package main
 
 import (
-	"os"
 	"os/exec"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 )
 
-// This is a syntax-only check. JavaScript is not executed. On GitHub's Linux
-// runner node is available; development hosts without node skip this test.
+// Verify extracted Svelte-owned NFQWS runtime module parses; this is a
+// syntax gate, NOT a functional Svelte build or browser parity proof.
 func TestNF3CInlineJavaScriptSyntax(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("node unavailable on this host")
+		t.Skip("node unavailable")
 	}
-	html, err := os.ReadFile(filepath.Join("..", "nfqws-manager", "frontend", "index.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	scripts := regexp.MustCompile(`(?is)<script\b[^>]*>(.*?)</script>`).FindAllSubmatch(html, -1)
-	tested := 0
-	for _, script := range scripts {
-		if len(strings.TrimSpace(string(script[1]))) == 0 {
-			continue
-		}
-		path := filepath.Join(t.TempDir(), "nf3c-inline.js")
-		if err := os.WriteFile(path, script[1], 0600); err != nil {
-			t.Fatal(err)
-		}
-		out, err := exec.Command(node, "--check", path).CombinedOutput()
-		if err != nil {
-			t.Fatalf("JavaScript syntax error: %v\n%s", err, out)
-		}
-		tested++
-	}
-	if tested == 0 {
-		t.Fatal("no inline JavaScript checked")
+	cmd := exec.Command(node, "--check", "../nfqws-manager/frontend/NfqwsRuntime.js")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("NFQWS runtime JS syntax: %v\n%s", err, out)
 	}
 }

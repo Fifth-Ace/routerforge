@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import FoundationBindings from '$lib/components/FoundationBindings.svelte';
   import { settings } from '$lib/stores/settings.js';
   import { markUnauthorized } from '$lib/stores/auth.js';
   const base = '/api/platform/foundation';
@@ -57,6 +58,7 @@
   {/each}
  </details>
  {/if}
+ {#if state}<FoundationBindings catalogueETag={state.current.etag} groups={state.current.catalog.policyObjects} {locale} disabled={busy||dirty}/>{/if}
  <section class="panel">
   <div class="rf-foundation-actions">
    {#each [['groups',tr('Группы','Groups')],['devices',tr('Устройства','Devices')],['transfer',tr('Импорт / история','Import / history')],['events',tr('События','Events')]] as item}

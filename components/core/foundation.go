@@ -17,19 +17,25 @@ const foundationPath = "/api/platform/foundation"
 
 var foundationObserverID string
 
-func registerFoundationHandlers(mux *http.ServeMux) {
+func registerFoundationHandlers(mux *http.ServeMux, bindingAuth ...func(*http.Request) bool) {
 	// Same Core auth middleware as existing /api/platform endpoints. Only the
 	// installation observer metadata may be created on startup; catalogue and
 	// module settings remain untouched. Invalid identity fails closed for exports.
 	foundationObserverID, _ = loadFoundationObserver(filepath.Join(filepath.Dir(securityConfigPath), "observer-v1.id"))
 	store := contract.NewStore(filepath.Join(filepath.Dir(securityConfigPath), "policy-catalog-v1.json"))
-	registerFoundationStore(mux, store)
+	if len(bindingAuth) == 1 {
+		bindings := &foundationBindingService{store: store, path: filepath.Join(filepath.Dir(securityConfigPath), "policy-bindings-v1.json"), read: foundationReadNative, call: foundationBindingCall}
+		registerFoundationStore(mux, store, bindings)
+		registerFoundationBindings(mux, bindings, bindingAuth[0])
+	} else {
+		registerFoundationStore(mux, store)
+	}
 	registerFoundationConsumers(mux, store)
 	registerFoundationNative(mux, store, foundationReadNative)
 	registerFoundationMetrics(mux)
 	mux.HandleFunc(foundationPath+"/events", handleFoundationEvents)
 }
-func registerFoundationStore(mux *http.ServeMux, s *contract.Store) {
+func registerFoundationStore(mux *http.ServeMux, s *contract.Store, bindingGuard ...*foundationBindingService) {
 	mux.HandleFunc(foundationPath+"/schema", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			methodNotAllowedJSON(w, http.MethodGet)
@@ -77,6 +83,30 @@ func registerFoundationStore(mux *http.ServeMux, s *contract.Store) {
 				return
 			}
 			etag = strings.Trim(etag, "\"")
+			// Serialize catalogue preview/save with the binding registry; check both
+			// direct saves and imported historical revisions against active dependencies.
+			if len(bindingGuard) == 1 {
+				g := bindingGuard[0]
+				g.mu.Lock()
+				defer g.mu.Unlock()
+				candidate, e := s.Preview(etag, b)
+				if e != nil {
+					foundationError(w, e)
+					return
+				}
+				if e = g.guard(candidate.Candidate); e != nil {
+					if errors.Is(e, contract.ErrStorage) {
+						foundationError(w, e)
+					} else {
+						writeAuthJSON(w, 409, map[string]string{"error": "BINDING_DEPENDENCY_CONFLICT"})
+					}
+					return
+				}
+				if !commit {
+					writeAuthJSON(w, http.StatusOK, candidate)
+					return
+				}
+			}
 			if !commit {
 				p, e := s.Preview(etag, b)
 				if e != nil {

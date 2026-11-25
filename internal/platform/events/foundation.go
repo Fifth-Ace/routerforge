@@ -38,6 +38,7 @@ type WireEvent struct {
 
 var wireTypes = map[string]string{
 	"core.ready": "core", "device.network.down": "network", "device.network.missing": "network", "device.network.recovered": "network", "device.storage.warning": "storage", "device.storage.critical": "storage", "device.storage.recovered": "storage", "device.thermal.warning": "thermal", "device.thermal.critical": "thermal", "device.thermal.recovered": "thermal", "service.action.rejected": "admin-service", "service.action.failed": "admin-service", "service.action.committed": "admin-service", "policy.catalog.saved": "policy", "policy.catalog.references.changed": "policy",
+	"policy.binding.attached": "policy", "policy.binding.detached": "policy", "policy.binding.rebased": "policy", "policy.binding.pending": "policy", "policy.binding.sync.saved": "policy", "policy.binding.rollback.saved": "policy", "policy.binding.reconciled.before": "policy", "policy.binding.uncertain": "policy",
 }
 var wireModules = map[string]bool{"core": true, "dns": true, "dns-router": true, "dns-router-lite": true, "admin": true, "monitoring": true, "network-tools": true, "nfqws-manager": true, "profiling": true}
 

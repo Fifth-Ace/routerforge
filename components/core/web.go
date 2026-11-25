@@ -258,7 +258,13 @@ func startWeb(listen string, version string) error {
 	registerAppActionHandlers(mux)
 	registerPlatformHandlers(mux)
 	registerEventEngineHandlers(mux, version)
-	registerFoundationHandlers(mux)
+	registerFoundationHandlers(mux, func(r *http.Request) bool {
+		if !auth.authRequired() {
+			return true
+		}
+		user, ok := auth.sessionUser(r)
+		return ok && user == "root"
+	})
 	registerCatalogWebProbeHandler(mux)
 	fileServer := http.FileServer(http.FS(sub))
 

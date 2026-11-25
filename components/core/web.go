@@ -258,6 +258,7 @@ func startWeb(listen string, version string) error {
 	registerAppActionHandlers(mux)
 	registerPlatformHandlers(mux)
 	registerEventEngineHandlers(mux, version)
+	registerFoundationHandlers(mux)
 	registerCatalogWebProbeHandler(mux)
 	fileServer := http.FileServer(http.FS(sub))
 

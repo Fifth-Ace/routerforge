@@ -14,6 +14,7 @@ const (
 	DomainGroup ObjectType = "domain-group"
 	Interface   ObjectType = "interface"
 	Gateway     ObjectType = "gateway"
+	PortGroup   ObjectType = "port-group"
 )
 
 type Object struct {
@@ -37,7 +38,7 @@ func (o Object) Validate() error {
 		}
 	}
 	switch o.Type {
-	case Device, Network, DomainGroup, Interface, Gateway:
+	case Device, Network, DomainGroup, Interface, Gateway, PortGroup:
 	default:
 		return fmt.Errorf("unsupported policy object type %q", o.Type)
 	}

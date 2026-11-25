@@ -1,0 +1,1007 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://routerforge.invalid/contracts/candidate-v1.json",
+  "$defs": {
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "kind": {
+          "enum": [
+            "router",
+            "linux",
+            "nas",
+            "web",
+            "other"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "maxItems": 32
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "tags",
+        "enabled",
+        "revision"
+      ]
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "scope": {
+          "enum": [
+            "local",
+            "external"
+          ]
+        },
+        "scheme": {
+          "enum": [
+            "http",
+            "https",
+            "tcp",
+            "icmp",
+            "ssh"
+          ]
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "publicPath": {
+          "type": "string",
+          "maxLength": 1024,
+          "pattern": "^/[^?#]*$"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "trustProfileRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "scope",
+        "scheme",
+        "host",
+        "priority",
+        "trustProfileRef"
+      ]
+    },
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "protocol": {
+          "enum": [
+            "http",
+            "https",
+            "tcp",
+            "icmp",
+            "ssh",
+            "sftp"
+          ]
+        },
+        "adapterId": {
+          "enum": [
+            "http",
+            "https",
+            "tcp",
+            "icmp",
+            "3xui",
+            "lucx",
+            "routerforge",
+            "rfs-api",
+            "ssh-linux",
+            "sftp"
+          ]
+        },
+        "transport": {
+          "enum": [
+            "direct",
+            "vpn",
+            "reverse-proxy"
+          ]
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/endpoint"
+          },
+          "maxItems": 8,
+          "minItems": 1
+        },
+        "credentialRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "purpose": {
+          "enum": [
+            "monitor",
+            "terminal",
+            "files",
+            "panel"
+          ]
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        }
+      },
+      "required": [
+        "id",
+        "deviceId",
+        "protocol",
+        "adapterId",
+        "transport",
+        "endpoints",
+        "credentialRef",
+        "enabled",
+        "purpose",
+        "timeoutMs"
+      ]
+    },
+    "checkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connectionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "intervalSec": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 3600
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "backoffSec": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "connectionId",
+        "intervalSec",
+        "timeoutMs",
+        "maxRetries",
+        "backoffSec",
+        "enabled"
+      ]
+    },
+    "capability": {
+      "enum": [
+        "availability.http",
+        "availability.tcp",
+        "availability.icmp",
+        "metrics.system",
+        "ssh.terminal",
+        "sftp.read",
+        "sftp.write",
+        "panel.open"
+      ]
+    },
+    "errorCode": {
+      "anyOf": [
+        {
+          "enum": [
+            "AUTH_REQUIRED",
+            "FORBIDDEN",
+            "TIMEOUT",
+            "DNS_ERROR",
+            "CONNECT_ERROR",
+            "TLS_ERROR",
+            "HTTP_ERROR",
+            "RATE_LIMIT",
+            "UNSUPPORTED",
+            "DISABLED",
+            "STALE"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "bytesPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "totalBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "usedBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "totalBytes",
+        "usedBytes"
+      ]
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mount": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "totalBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "usedBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "availableBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "mount",
+        "totalBytes",
+        "usedBytes",
+        "availableBytes"
+      ]
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "interface": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "rxBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "txBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rxBps": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "txBps": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "interface",
+        "rxBytes",
+        "txBytes",
+        "rxBps",
+        "txBps"
+      ]
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpuPercent": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "load": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "load1": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "load5": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "load15": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "vcpu": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65536
+                }
+              },
+              "required": [
+                "load1",
+                "load5",
+                "load15",
+                "vcpu"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/bytesPair"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "swap": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/bytesPair"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filesystems": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/filesystem"
+              },
+              "maxItems": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "network": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/interface"
+              },
+              "maxItems": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "uptimeSec": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "system": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "os": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "kernel": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "arch": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "hostname": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253
+                }
+              },
+              "required": []
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tls": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "notAfter": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "Z$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "issuer": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "verified": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "notAfter",
+                "issuer",
+                "verified"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "services": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "state": {
+                    "enum": [
+                      "running",
+                      "stopped",
+                      "unknown",
+                      "error"
+                    ]
+                  },
+                  "checkedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "Z$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "state",
+                  "checkedAt"
+                ]
+              },
+              "maxItems": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "cpuPercent",
+        "load",
+        "memory",
+        "swap",
+        "filesystems",
+        "network",
+        "uptimeSec",
+        "system",
+        "tls",
+        "services"
+      ]
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "snapshotId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "connectionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "observerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "adapterId": {
+          "enum": [
+            "http",
+            "https",
+            "tcp",
+            "icmp",
+            "3xui",
+            "lucx",
+            "routerforge",
+            "rfs-api",
+            "ssh-linux",
+            "sftp"
+          ]
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "availability": {
+          "enum": [
+            "reachable",
+            "unreachable",
+            "unknown"
+          ]
+        },
+        "health": {
+          "enum": [
+            "ok",
+            "degraded",
+            "error",
+            "unknown"
+          ]
+        },
+        "latencyMs": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latencyKind": {
+          "anyOf": [
+            {
+              "enum": [
+                "http",
+                "api",
+                "tcp",
+                "icmp"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metrics": {
+          "$ref": "#/$defs/metrics"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          },
+          "maxItems": 16
+        },
+        "errorCode": {
+          "$ref": "#/$defs/errorCode"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "snapshotId",
+        "deviceId",
+        "connectionId",
+        "observerId",
+        "adapterId",
+        "observedAt",
+        "availability",
+        "health",
+        "latencyMs",
+        "latencyKind",
+        "metrics",
+        "capabilities",
+        "errorCode"
+      ]
+    },
+    "policyObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[A-Za-z0-9_.-]{1,96}$"
+        },
+        "type": {
+          "enum": [
+            "device",
+            "network",
+            "domain-group",
+            "interface",
+            "gateway",
+            "port-group"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "scope": {
+          "enum": [
+            "local",
+            "shared"
+          ]
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "object",
+                  "device",
+                  "ip",
+                  "cidr",
+                  "domain",
+                  "port",
+                  "list-ref"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 253
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ]
+          },
+          "maxItems": 1024
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "maxItems": 32
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name",
+        "revision",
+        "scope",
+        "members"
+      ]
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "observerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "component": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "critical"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "messageCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "deviceId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "objectId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "correlationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recovery": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "id",
+        "observedAt",
+        "observerId",
+        "component",
+        "severity",
+        "type",
+        "messageCode",
+        "deviceId",
+        "objectId",
+        "correlationId",
+        "recovery"
+      ]
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/device"
+          },
+          "maxItems": 100
+        },
+        "connections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/connection"
+          },
+          "maxItems": 500
+        },
+        "checkPolicies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/checkPolicy"
+          },
+          "maxItems": 500
+        },
+        "policyObjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/policyObject"
+          },
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "devices",
+        "connections",
+        "checkPolicies",
+        "policyObjects"
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "catalog": {
+      "$ref": "#/$defs/catalog"
+    },
+    "snapshots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/snapshot"
+      },
+      "maxItems": 512
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      },
+      "maxItems": 512
+    }
+  },
+  "required": [
+    "catalog",
+    "snapshots",
+    "events"
+  ]
+}

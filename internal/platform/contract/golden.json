@@ -1,0 +1,128 @@
+{
+  "catalog": {
+    "schemaVersion": 1,
+    "devices": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "VPS test",
+        "kind": "linux",
+        "tags": [
+          "test"
+        ],
+        "enabled": true,
+        "revision": 1
+      }
+    ],
+    "connections": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "deviceId": "00000000-0000-4000-8000-000000000001",
+        "protocol": "https",
+        "adapterId": "rfs-api",
+        "transport": "reverse-proxy",
+        "endpoints": [
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "scope": "external",
+            "scheme": "https",
+            "host": "vps.example",
+            "port": 443,
+            "publicPath": "/api",
+            "priority": 0,
+            "trustProfileRef": null
+          }
+        ],
+        "credentialRef": null,
+        "enabled": true,
+        "purpose": "monitor",
+        "timeoutMs": 5000
+      }
+    ],
+    "checkPolicies": [
+      {
+        "connectionId": "00000000-0000-4000-8000-000000000002",
+        "intervalSec": 60,
+        "timeoutMs": 5000,
+        "maxRetries": 1,
+        "backoffSec": 30,
+        "enabled": true
+      }
+    ],
+    "policyObjects": [
+      {
+        "id": "lab-vps",
+        "type": "device",
+        "name": "Lab VPS",
+        "revision": 1,
+        "scope": "local",
+        "members": [
+          {
+            "kind": "device",
+            "value": "00000000-0000-4000-8000-000000000001"
+          }
+        ]
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "schemaVersion": 1,
+      "snapshotId": "00000000-0000-4000-8000-000000000005",
+      "deviceId": "00000000-0000-4000-8000-000000000001",
+      "connectionId": "00000000-0000-4000-8000-000000000002",
+      "observerId": "00000000-0000-4000-8000-000000000004",
+      "adapterId": "rfs-api",
+      "observedAt": "2026-11-24T10:00:00Z",
+      "availability": "reachable",
+      "health": "ok",
+      "latencyMs": 20.5,
+      "latencyKind": "api",
+      "metrics": {
+        "cpuPercent": 12.5,
+        "load": null,
+        "memory": {
+          "totalBytes": 1024,
+          "usedBytes": 256
+        },
+        "swap": {
+          "totalBytes": 0,
+          "usedBytes": 0
+        },
+        "filesystems": null,
+        "network": [
+          {
+            "interface": "eth0",
+            "rxBytes": 10,
+            "txBytes": 20,
+            "rxBps": null,
+            "txBps": null
+          }
+        ],
+        "uptimeSec": null,
+        "system": null,
+        "tls": null,
+        "services": null
+      },
+      "capabilities": [
+        "metrics.system"
+      ],
+      "errorCode": null
+    }
+  ],
+  "events": [
+    {
+      "schemaVersion": 1,
+      "id": "00000000-0000-4000-8000-000000000006",
+      "observedAt": "2026-11-24T10:00:00Z",
+      "observerId": "00000000-0000-4000-8000-000000000004",
+      "component": "monitoring",
+      "severity": "info",
+      "type": "device.recovered",
+      "messageCode": "DEVICE_RECOVERED",
+      "deviceId": "00000000-0000-4000-8000-000000000001",
+      "objectId": "lab-vps",
+      "correlationId": null,
+      "recovery": true
+    }
+  ]
+}

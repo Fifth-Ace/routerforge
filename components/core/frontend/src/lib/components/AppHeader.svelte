@@ -30,6 +30,7 @@
     ...(telemetryInstalled ? [{ href: '/monitoring', labelKey: 'nav.monitoring', order: 20 }] : []),
     ...dynamicModuleItems,
     ...(showIntegrationHub ? [{ href: '/integrations', labelKey: 'integrationsUi.title', order: 60 }] : []),
+    { href: '/policy-objects', label: 'Policy objects', order: 75 },
     { href: '/apps', labelKey: 'nav.marketplace', order: 80 },
     { href: '/settings', labelKey: 'nav.settings', order: 90 }
   ].sort((a, b) => a.order - b.order);
@@ -58,6 +59,7 @@
   }
 
   function navLabel(item) {
+    if (item.href === '/policy-objects') return locale === 'en' ? 'Policy objects' : 'Объекты политик';
     if (item.labelKey) return t(locale, item.labelKey);
     if (item.href === '/network-tools') return t(locale, 'moduleFrame.networkToolsTitle');
     const known = {

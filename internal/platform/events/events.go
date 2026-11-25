@@ -14,6 +14,7 @@ const (
 )
 
 type Event struct {
+	ID            string         `json:"id,omitempty"`
 	Time          time.Time      `json:"time"`
 	Component     string         `json:"component"`
 	Severity      Severity       `json:"severity"`
@@ -44,6 +45,7 @@ func (r *Ring) Add(event Event) {
 	if event.Time.IsZero() {
 		event.Time = time.Now()
 	}
+	event.ID, _ = NewEventID()
 	r.mu.Lock()
 	r.items[r.next] = event
 	r.next = (r.next + 1) % r.cap

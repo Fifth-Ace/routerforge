@@ -68,6 +68,13 @@ core_telemetry.go
 telemetry_api.go
 platform_events.go
 platform_event_producers.go
+foundation.go
+foundation_binding_native.go
+foundation_bindings.go
+foundation_consumers.go
+foundation_metrics.go
+foundation_native.go
+foundation_observer.go
 device_events.go
 core_platform_storage_linux.go
 profiling.go
@@ -79,6 +86,16 @@ frontend_assets_embed.go
 
 (
     cd "$ROOT/components/core"
+    # Keep the explicit ABI boundary, but reject drift against Go's actual
+    # target-specific production file set (excluding tests and inactive tags).
+    selected="$(routerforge_go list -tags embed_frontend -f '{{range .GoFiles}}{{println .}}{{end}}' .)"
+    selected="$(printf '%s\n' "$selected" | LC_ALL=C sort)"
+    declared="$(printf '%s\n' "$CORE_SOURCES" | sed '/^$/d' | LC_ALL=C sort)"
+    if [ "$selected" != "$declared" ]; then
+        printf '%s\n' 'CORE_SOURCE_MANIFEST_MISMATCH' 'Declared:' "$declared" 'Go selected:' "$selected" >&2
+        exit 1
+    fi
+    echo 'CORE_SOURCE_MANIFEST_GATE=PASS'
     # shellcheck disable=SC2086
     routerforge_go build \
         -tags embed_frontend \

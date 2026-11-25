@@ -1,5 +1,6 @@
 <script>
   import { rfUi } from './rf-localization.js';
+  import PolicyPicker from './PolicyPicker.svelte';
   import { onMount, tick } from 'svelte';
   import U from './runtime.js';
   import NetworkSparkline from './NetworkSparkline.svelte';
@@ -254,6 +255,7 @@
         <button class="nt-button primary" id="doctor-run" onclick={runDoctor} disabled={doctorBusy}><span data-i18n="run">{tr("run")}</span>&nbsp;▶</button>
         <button class="nt-button" id="doctor-copy" type="button" onclick={copyDoctor}><span>▣</span><span id="doctor-copy-label">{rfUi("Копировать","Copy")}</span></button>
       </div>
+      <PolicyPicker consumer="network" disabled={doctorBusy} onChoose={values=>{if(doctorBusy)return false;input.doctorTarget=values[0];return true;}} />
       <div class="nt-checks"><label class="nt-check"><input type="checkbox" id="check-ping" bind:checked={check.ping}> Ping</label><label class="nt-check"><input type="checkbox" id="check-dns" bind:checked={check.dns}> DNS</label><label class="nt-check"><input type="checkbox" id="check-http" bind:checked={check.http}> HTTP</label><label class="nt-check"><input type="checkbox" id="check-tcp" bind:checked={check.tcp}> TCP</label></div>
       <div class="nt-result-list" id="doctor-results"><NetworkDoctorResults data={state.doctor} busy={doctorBusy} message={output["doctor-results"]} {lx} {tr}/></div>
     </article>
@@ -336,6 +338,7 @@
         <button class="nt-button primary" id="probe-run" onclick={runProbe} disabled={probeBusy}><span data-i18n="run">{tr("run")}</span>&nbsp;&#9654;</button>
         <button class="nt-button" id="probe-copy" type="button" onclick={copyProbe}>{lx("Копировать","Copy")}</button>
       </div>
+      <PolicyPicker consumer="network" disabled={probeBusy} onChoose={values=>{if(probeBusy)return false;input.probeTarget=values[0];return true;}} />
       <div class="probe-summary" id="probe-summary"><NetworkProbeViews section="summary" data={state.activeProbe} busy={probeBusy} message={output["probe-summary"]} {lx} {tr}/></div><div class="probe-history-title">Recent probes</div><div class="probe-history" id="probe-history"><NetworkProbeViews section="history" history={state.probeHistory} {lx} {tr}/></div><details class="probe-raw" id="probe-raw"><summary id="probe-raw-summary">{lx("Технические данны JSON","Raw JSON details")}</summary><pre class="nt-console" id="probe-output" data-i18n="probeReady">{output["probe-output"] || tr("probeReady")}</pre></details>
     </article>
   </section>

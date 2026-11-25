@@ -1,5 +1,7 @@
 <script>
   import { rfUi } from './rf-localization.js';
+  import PolicyPicker from './PolicyPicker.svelte';
+  import { appendPolicyDraft } from './AppendPolicyDraft.js';
   import {workspaceHeight} from './NfqwsUIActions.js';
   import {onMount,tick} from 'svelte';
   import {safeListName,newListName,renameListName,listGroup,sortedListInventory,groupListInventory,normalizeListEntries,listStatistics,listHTMLHighlight,validLoadedList,listMutation,checkedRenamePreview,listRenameApply,listSafeAPIPath} from './NfqwsListEditorModel.js';
@@ -193,6 +195,11 @@
         <button id="deleteList" class="danger" type="button" disabled={!canManage||dirty} onclick={remove}>{rfUi("Удалить","Delete")}</button>
       </div>
     </div>
+    {#if ['user.list','exclude.list','ipset.list','ipset_exclude.list'].includes(selected)}
+      {#key selected}
+        <PolicyPicker consumer={selected.startsWith('ipset')?'nfqws-ip':'nfqws-domain'} disabled={!active||!canWrite} onChoose={values=>{if(!alive||!active||!canWrite||baseline?.name!==selected)return false;value=appendPolicyDraft(value,values,!selected.startsWith('ipset'));renamePlan=null;publish();return true;}} />
+      {/key}
+    {/if}
     <div class="list-editor-main"><pre id="listGutter" class="list-line-gutter" aria-hidden="true" bind:this={gutter}>{Array.from({length:Math.min(stats.lines,10000)},(_,i)=>i+1).join('\n')}</pre>
       <div class="list-editor-body"><pre id="listHighlight" class="list-editor-highlight" aria-hidden="true" bind:this={highlight}>{@html listHTMLHighlight(value)}</pre>
         <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder={rfUi("Выберите список слева.","Select a list on the left.")} bind:this={editor} {value} disabled={!baseline||busy||serviceBusy} oninput={edit} onclick={()=>onTool('cursor')} onkeyup={()=>onTool('cursor')} onscroll={scrollEditor} onkeydown={keyEditor}></textarea>

@@ -1,5 +1,6 @@
 <script>
   import ModuleFrame from '$lib/components/ModuleFrame.svelte';
+  import FoundationLocalMetrics from '$lib/components/FoundationLocalMetrics.svelte';
   import { page } from '$app/stores';
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
@@ -7,4 +8,5 @@
   $: locale = $settings.locale === 'en' ? 'en' : 'ru';
 </script>
 <svelte:head><title>RouterForge — {t(locale, 'nav.monitoring')}</title></svelte:head>
+<FoundationLocalMetrics {locale} />
 <ModuleFrame moduleId="monitoring" {view} />

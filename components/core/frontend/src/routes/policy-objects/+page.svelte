@@ -40,6 +40,17 @@
 <svelte:head><title>{tr('Объекты политик','Policy objects')} — RouterForge</title></svelte:head>
 <div class="page foundation-page">
  <div class="page-head"><h1>{tr('Объекты политик','Policy objects')}</h1><p>{tr('Общий каталог устройств и групп. Сохранение черновика не применяет сетевые правила.','Shared device and group catalogue. Saving a draft never applies network rules.')}</p></div>
+ {#if draft}
+ <details class="panel"><summary>{tr('Ссылки и потребители каталога','Catalogue references and consumers')}</summary>
+  <p>{tr('DNS Router, NFQWS и Network Tools читают сохранённые группы. Подстановка создаёт локальный черновик, а не живую привязку к правилам.','DNS Router, NFQWS and Network Tools read saved groups. Insertion creates a local draft, not a live rule binding.')}</p>
+  {#each draft.policyObjects as item (item.id)}
+    <p><strong>{item.name}</strong> · {tr('Ссылки из групп:','Referenced by groups:')} {draft.policyObjects.filter(g=>g.members.some(m=>m.kind==='object'&&m.value===item.id)).map(g=>g.name).join(', ')||'—'}</p>
+  {/each}
+  {#each draft.devices as item (item.id)}
+    <p><strong>{item.name}</strong> · {tr('Подключения:','Connections:')} {draft.connections.filter(c=>c.deviceId===item.id).length} · {tr('Группы:','Groups:')} {draft.policyObjects.filter(g=>g.members.some(m=>m.kind==='device'&&m.value===item.id)).map(g=>g.name).join(', ')||'—'}</p>
+  {/each}
+ </details>
+ {/if}
  <section class="panel">
   <div class="rf-foundation-actions">
    {#each [['groups',tr('Группы','Groups')],['devices',tr('Устройства','Devices')],['transfer',tr('Импорт / история','Import / history')],['events',tr('События','Events')]] as item}

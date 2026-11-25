@@ -1,5 +1,7 @@
 <script>
   import { rfUi } from './rf-localization.js';
+  import PolicyPicker from './PolicyPicker.svelte';
+  import { appendPolicyDraft } from './AppendPolicyDraft.js';
   let {snapshot = {}, onAction = () => {}} = $props();
   let newName = $state('');
   let renameName = $state('');
@@ -63,6 +65,9 @@
     <button data-rf-editor="rename-list" type="button" class="button" disabled={!named} onclick={()=>command('rename',renameName)}>{rfUi("Переименовать","Rename")}</button>
     <button data-rf-editor="delete-list" type="button" class="button danger" disabled={!named} onclick={()=>command('delete')}>{rfUi("Удалить список","Delete list")}</button>
   </div>
+  {#key `${selected}|${snapshot.generation || 0}`}
+    <PolicyPicker consumer="dns" disabled={!editable} onChoose={values=>{if(!editable)return false;domains=appendPolicyDraft(domains,values,true);command('input',domains);return true;}} />
+  {/key}
   <textarea data-rf-editor="domains" rows="16" spellcheck="false" placeholder={'youtube.com\ngooglevideo.com\nytimg.com'} value={domains} oninput={e=>{domains=e.currentTarget.value;command('input',domains);}} readonly={!editable}></textarea>
   <div class="editor-meta"><span data-rf-editor="count">{counter} {rfUi("строк (черновик)","draft rows")}</span><span>{rfUi("Дубликаты удаляются при сохранении списка","Duplicates are removed when the list is saved")}</span></div>
   <div class="actions editor-actions">

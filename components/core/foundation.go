@@ -18,7 +18,10 @@ var foundationObserverID, _ = platformevents.NewEventID()
 
 func registerFoundationHandlers(mux *http.ServeMux) {
 	// Same Core auth middleware as existing /api/platform endpoints. No write on startup.
-	registerFoundationStore(mux, contract.NewStore(filepath.Join(filepath.Dir(securityConfigPath), "policy-catalog-v1.json")))
+	store := contract.NewStore(filepath.Join(filepath.Dir(securityConfigPath), "policy-catalog-v1.json"))
+	registerFoundationStore(mux, store)
+	registerFoundationConsumers(mux, store)
+	registerFoundationMetrics(mux)
 	mux.HandleFunc(foundationPath+"/events", handleFoundationEvents)
 }
 func registerFoundationStore(mux *http.ServeMux, s *contract.Store) {

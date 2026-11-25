@@ -105,6 +105,82 @@ def app_body(html:str,module:str)->str:
     if not match:raise ValueError('LEGACY_MAIN_MISSING: '+module)
     return html[match.start():html.index('</main>',match.start())+7]
 
+
+# E02 intentionally adds a closed catalogue picker to the Doctor and Probes
+# panels. Extend the pinned historical reference with independently specified
+# markup/CSS for that one control. Do not copy DOM/styles from the Svelte app,
+# remove/mask production elements, or change the pixel/API parity thresholds.
+def extend_network_reference(page):
+    page.add_style_tag(content='.rf-policy-picker{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0;min-width:0}')
+    page.evaluate("""() => {
+        for (const selector of ['#panel-doctor .nt-checks', '#panel-probes #probe-summary']) {
+            const matches = document.querySelectorAll(selector);
+            if (matches.length !== 1) throw Error('E02_REFERENCE_ANCHOR: '+selector);
+            const row = document.createElement('div'); row.className = 'rf-policy-picker';
+            const button = document.createElement('button'); button.type = 'button';
+            button.textContent = 'Из общего каталога'; row.append(button);
+            matches[0].before(row);
+        }
+    }""")
+
+
+def check_network_picker(page, scenario, viewport):
+    # Run after the unmodified production screenshot and original API call
+    # capture. The fixture uses reserved names and mocked same-origin GETs.
+    picker = page.locator('#panel-'+scenario+' .rf-policy-picker')
+    target = page.locator('#'+('doctor' if scenario == 'doctor' else 'probe')+'-target')
+    assert picker.count() == 1 and picker.is_visible(), 'E02_PICKER_MISSING'
+    assert picker.locator('button').count() == 1, 'E02_PICKER_NOT_CLOSED'
+    before = target.input_value()
+    assert before != 'catalog-target.example', 'E02_FIXTURE_TARGET_COLLISION'
+    page.evaluate("""() => {
+        const original = window.fetch;
+        window.__catalogCalls = []; window.__catalogStale = true;
+        window.__catalogUnexpected = [];
+        const etag = 'a'.repeat(64);
+        const group = {id:'browser-fixture',name:'Fixture catalogue',type:'domain-group',revision:1};
+        window.fetch = async (url, opt={}) => {
+            const u = new URL(String(url), location.href);
+            if (u.pathname !== '/api/platform/foundation/consumers') {
+                if (!['GET','HEAD'].includes(opt.method || 'GET') || /\\/(doctor|probe|traceroute)$/.test(u.pathname)) window.__catalogUnexpected.push(u.pathname);
+                return original(url, opt);
+            }
+            const params = Object.fromEntries(u.searchParams);
+            window.__catalogCalls.push({method:opt.method || 'GET',params});
+            if (opt.method !== 'GET' || opt.credentials !== 'same-origin' || opt.redirect !== 'error' || params.consumer !== 'network') throw Error('E02_UNSAFE_CATALOGUE_REQUEST');
+            const response = (body,status=200) => new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
+            if (Object.keys(params).length === 1) return response({schemaVersion:1,etag,groups:[group]});
+            if (Object.keys(params).length !== 3 || params.id !== group.id || params.etag !== etag) throw Error('E02_INVALID_PREVIEW_QUERY');
+            if (window.__catalogStale && window.__catalogCalls.length === 3) return response({error:'REVISION_CONFLICT'},409);
+            return response({schemaVersion:1,etag,consumer:'network',group,values:['catalog-target.example'],blocked:[]});
+        };
+    }""")
+    def prepare():
+        picker.get_by_role('button', name='Из общего каталога', exact=True).click()
+        picker.locator('select').first.locator('option[value="browser-fixture"]').wait_for(state='attached')
+        picker.locator('select').first.select_option('browser-fixture')
+        picker.get_by_role('button', name='Предпросмотр', exact=True).click()
+        picker.locator('select').nth(1).locator('option[value="catalog-target.example"]').wait_for(state='attached')
+        picker.locator('select').nth(1).select_option('catalog-target.example')
+        assert target.input_value() == before, 'E02_PREVIEW_CHANGED_TARGET'
+    prepare()
+    picker.get_by_role('button',name='Подставить узел',exact=True).click()
+    picker.get_by_role('alert').filter(has_text='HTTP 409').wait_for(state='visible')
+    assert target.input_value() == before, 'E02_STALE_CHANGED_TARGET'
+    picker.get_by_role('button',name='Закрыть',exact=True).click()
+    page.evaluate('window.__catalogStale = false')
+    prepare()
+    picker.get_by_role('button',name='Подставить узел',exact=True).click()
+    picker.get_by_role('button',name='Закрыть',exact=True).wait_for(state='detached')
+    assert target.input_value() == 'catalog-target.example', 'E02_TARGET_NOT_INSERTED'
+    calls = page.evaluate('window.__catalogCalls')
+    expected = [{'method':'GET','params':{'consumer':'network'}},
+                {'method':'GET','params':{'consumer':'network','id':'browser-fixture','etag':'a'*64}},
+                {'method':'GET','params':{'consumer':'network','id':'browser-fixture','etag':'a'*64}}]
+    assert calls == expected*2, f'E02_CATALOGUE_CALL_DIFF: {calls}'
+    assert page.evaluate('window.__catalogUnexpected') == [], 'E02_AUTOMATIC_PROBE_OR_MUTATION'
+    print(f'E02_PICKER_BROWSER: PASS / {scenario} / {viewport} / stale rejected + explicit insert / GET only',flush=True)
+
 def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:str,old:dict):
     files={k:git_read(repo,f'modules/{module}/frontend/{k}') for k in ['index.html','app.js','module.css']}
     if module=='network-tools':files['runtime.js']=git_read(repo,'modules/network-tools/frontend/runtime.js')
@@ -134,6 +210,8 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         if module=='antiscan-manager' and scenario!='overview':
             page.locator('[data-tab="'+scenario+'"]:visible').first.click()
         page.wait_for_timeout(160)
+        if module=='network-tools' and which=='legacy':
+            extend_network_reference(page)
         if errors:raise AssertionError(f'JAVASCRIPT_ERRORS: {module} {which} {scenario} {errors[:2]}')
         if module=='antiscan-manager':
             contents[which]=page.locator('#configState').inner_text()
@@ -173,6 +251,9 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
             visibleNotices:[...document.querySelectorAll('.notice')].map(box)};
         }""")
         calls[which]=page.evaluate('window.__calls')
+        if module=='network-tools' and which=='svelte' and scenario in ('doctor','probes'):
+            check_network_picker(page, scenario, viewport)
+            if errors:raise AssertionError(f'E02_PICKER_JAVASCRIPT_ERRORS: {errors[:2]}')
         page.close()
     if Image.open(shots['legacy']).size != Image.open(shots['svelte']).size:
         data={'module':module,'scenario':scenario,'viewport':viewport,'layouts':layouts,

@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"github.com/Fifth-Ace/routerforge/internal/platform/contract"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func registerFoundationConsumers(mux *http.ServeMux, s *contract.Store) {
+	registerFoundationConsumersWithReader(mux, s, foundationReadNative)
+}
+func registerFoundationConsumersWithReader(mux *http.ServeMux, s *contract.Store, read foundationNativeRead) {
 	mux.HandleFunc(foundationPath+"/consumers", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			methodNotAllowedJSON(w, http.MethodGet)
@@ -42,7 +47,9 @@ func registerFoundationConsumers(mux *http.ServeMux, s *contract.Store) {
 			writeAuthJSON(w, 409, map[string]string{"error": "REVISION_CONFLICT"})
 			return
 		}
-		p, e := contract.ProjectConsumer(st.Current, consumer, id)
+		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+		defer cancel()
+		p, e := contract.ProjectConsumerWithNative(st.Current, consumer, id, foundationNativeResolver(ctx, read))
 		if e != nil {
 			writeAuthJSON(w, 400, map[string]string{"error": "INVALID_GROUP"})
 			return

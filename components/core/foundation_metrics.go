@@ -94,6 +94,6 @@ func registerFoundationMetrics(mux *http.ServeMux) {
 			writeAuthJSON(w, 503, map[string]string{"error": "INVALID_METRICS"})
 			return
 		}
-		writeAuthJSON(w, 200, map[string]any{"schemaVersion": 1, "sampleId": id, "observerId": foundationObserverID, "observerScope": "process", "observedAt": time.Now().UTC(), "deviceId": nil, "connectionId": nil, "metrics": metrics})
+		writeAuthJSON(w, 200, map[string]any{"schemaVersion": 1, "sampleId": id, "observerId": foundationObserverID, "observerScope": "installation", "observedAt": time.Now().UTC(), "deviceId": nil, "connectionId": nil, "metrics": metrics})
 	})
 }

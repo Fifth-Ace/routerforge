@@ -46,6 +46,13 @@ func TestConsumerLocalMemory(t *testing.T) {
 }
 
 func TestConsumerLocalMetricsHTTP(t *testing.T) {
+	previous := foundationObserverID
+	var err error
+	foundationObserverID, err = loadFoundationObserver(filepath.Join(t.TempDir(), "observer.id"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { foundationObserverID = previous })
 	mux := http.NewServeMux()
 	registerFoundationMetrics(mux)
 	w := httptest.NewRecorder()
@@ -59,7 +66,7 @@ func TestConsumerLocalMetricsHTTP(t *testing.T) {
 		DeviceID      *string         `json:"deviceId"`
 		ConnectionID  *string         `json:"connectionId"`
 	}
-	if json.Unmarshal(w.Body.Bytes(), &p) != nil || p.ObserverScope != "process" || p.DeviceID != nil || p.ConnectionID != nil || contract.ValidateMetrics(p.Metrics) != nil {
+	if json.Unmarshal(w.Body.Bytes(), &p) != nil || p.ObserverScope != "installation" || p.DeviceID != nil || p.ConnectionID != nil || contract.ValidateMetrics(p.Metrics) != nil {
 		t.Fatal(w.Body.String())
 	}
 	w = httptest.NewRecorder()

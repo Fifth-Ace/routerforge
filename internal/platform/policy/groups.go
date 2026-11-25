@@ -84,7 +84,7 @@ func validateMember(t ObjectType, m Member, devices map[string]bool) bool {
 	case "domain":
 		return t == DomainGroup && ValidDomain(strings.TrimPrefix(m.Value, "*."))
 	case "list-ref":
-		return t == DomainGroup && groupID.MatchString(m.Value)
+		return t == DomainGroup && validListReference(m.Value)
 	case "port":
 		return t == PortGroup && validPort(m.Value)
 	}

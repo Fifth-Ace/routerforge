@@ -75,6 +75,12 @@ func ConsumerGroups(r Revision, consumer string) ([]ConsumerGroup, error) {
 // ProjectConsumer is pure: no module I/O, probes, rules, or credential access.
 // Unsupported leaves block the whole projection, preventing silent truncation.
 func ProjectConsumer(r Revision, consumer, id string) (ConsumerPreview, error) {
+	return ProjectConsumerWithNative(r, consumer, id, nil)
+}
+
+// The resolver is injected by Core; the original pure projection remains usable.
+// Each selected source must match the explicit full SHA256 saved in the catalogue.
+func ProjectConsumerWithNative(r Revision, consumer, id string, resolve NativeListResolver) (ConsumerPreview, error) {
 	groups, c, err := consumerCatalog(r)
 	if err != nil {
 		return ConsumerPreview{}, err
@@ -112,6 +118,9 @@ func ProjectConsumer(r Revision, consumer, id string) (ConsumerPreview, error) {
 			p.Values = append(p.Values, v)
 		}
 	}
+	cache := map[string]NativeList{}
+	unavailable := map[string]bool{}
+	attempts := 0
 	for _, m := range members {
 		switch m.Kind {
 		case "domain":
@@ -129,7 +138,48 @@ func ProjectConsumer(r Revision, consumer, id string) (ConsumerPreview, error) {
 				reject("CIDR_NOT_SINGLE_TARGET")
 			}
 		case "list-ref":
-			reject("LIST_REFERENCE_REQUIRES_NATIVE_RESOLVER")
+			ref, ok := policy.ParseNativeListReference(m.Value)
+			if !ok || resolve == nil {
+				reject("LIST_REFERENCE_REQUIRES_NATIVE_RESOLVER")
+				continue
+			}
+			if ref.SHA256 == "" {
+				reject("NATIVE_REFERENCE_UNPINNED")
+				continue
+			}
+			key := ref.Key()
+			if unavailable[key] {
+				reject("NATIVE_LIST_UNAVAILABLE_OR_UNSUPPORTED")
+				continue
+			}
+			list, found := cache[key]
+			if !found {
+				if attempts >= NativeReferenceBudget {
+					reject("NATIVE_REFERENCE_LIMIT")
+					continue
+				}
+				attempts++
+				var e error
+				list, e = resolve(ref)
+				if e != nil {
+					unavailable[key] = true
+					reject("NATIVE_LIST_UNAVAILABLE_OR_UNSUPPORTED")
+					continue
+				}
+				cache[key] = list
+			}
+			if list.SHA256 != ref.SHA256 {
+				reject("NATIVE_REFERENCE_STALE")
+				continue
+			}
+			values, e := nativeDomains(list.Values)
+			if e != nil {
+				reject("NATIVE_LIST_UNAVAILABLE_OR_UNSUPPORTED")
+				continue
+			}
+			for _, v := range values {
+				add(v)
+			}
 		case "device":
 			enabled := false
 			for _, v := range arr(c["devices"]) {

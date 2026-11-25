@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/Fifth-Ace/routerforge/internal/platform/contract"
@@ -14,13 +15,17 @@ import (
 
 const foundationPath = "/api/platform/foundation"
 
-var foundationObserverID, _ = platformevents.NewEventID()
+var foundationObserverID string
 
 func registerFoundationHandlers(mux *http.ServeMux) {
-	// Same Core auth middleware as existing /api/platform endpoints. No write on startup.
+	// Same Core auth middleware as existing /api/platform endpoints. Only the
+	// installation observer metadata may be created on startup; catalogue and
+	// module settings remain untouched. Invalid identity fails closed for exports.
+	foundationObserverID, _ = loadFoundationObserver(filepath.Join(filepath.Dir(securityConfigPath), "observer-v1.id"))
 	store := contract.NewStore(filepath.Join(filepath.Dir(securityConfigPath), "policy-catalog-v1.json"))
 	registerFoundationStore(mux, store)
 	registerFoundationConsumers(mux, store)
+	registerFoundationNative(mux, store, foundationReadNative)
 	registerFoundationMetrics(mux)
 	mux.HandleFunc(foundationPath+"/events", handleFoundationEvents)
 }
@@ -92,6 +97,13 @@ func registerFoundationStore(mux *http.ServeMux, s *contract.Store) {
 			}
 			if changed {
 				emitPlatformEvent(platformevents.Event{Component: "policy", Severity: platformevents.Info, Type: "policy.catalog.saved", Message: "Policy draft catalog saved"})
+				if len(st.History) > 0 {
+					before, e1 := contract.NativeReferenceIndex(st.History[0])
+					after, e2 := contract.NativeReferenceIndex(st.Current)
+					if e1 == nil && e2 == nil && !reflect.DeepEqual(before, after) {
+						emitPlatformEvent(platformevents.Event{Component: "policy", Severity: platformevents.Info, Type: "policy.catalog.references.changed", Message: "Native catalogue references changed"})
+					}
+				}
 			}
 			writeAuthJSON(w, http.StatusOK, st)
 		}

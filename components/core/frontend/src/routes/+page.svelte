@@ -73,8 +73,8 @@
   $: actionableIssues = issues.filter((issue) => issue.severity !== 'info');
 
   // Workspace is a projection of the existing stores, not an independent collector.
-  $: workspaceMetrics = makeWorkspaceMetrics({locale, telem, memory, opt, updates, snapshot:$snapshot, ready:$backendReady, online:$backendOnline, catalogReady:$catalogReady, catalogOnline:$catalogOnline});
-  function makeWorkspaceMetrics({locale,telem,memory,opt,updates,snapshot,ready,online,catalogReady,catalogOnline}) {
+  $: workspaceMetrics = makeWorkspaceMetrics({locale, telem, memory, opt, updates, modules, snapshot:$snapshot, ready:$backendReady, online:$backendOnline, catalogReady:$catalogReady, catalogOnline:$catalogOnline});
+  function makeWorkspaceMetrics({locale,telem,memory,opt,updates,modules,snapshot,ready,online,catalogReady,catalogOnline}) {
     const en=locale==='en', tr=(ru,english)=>en?english:ru;
     const unknown=()=>({value:'—',detail:tr('Нет данных','No data'),state:'unknown'});
     const numeric=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
@@ -90,6 +90,7 @@
     const sensors=(telem.thermal?.sensors||telem.thermal?.thermal?.sensors||[]).filter(x=>['soc','cpu'].includes(String(x.role||'').toLowerCase())&&numeric(x.temp_c)!==null);
     const temp=sensors.length?Math.max(...sensors.map(x=>x.temp_c)):null;
     result.thermal=temp===null?unknown():make(`${temp.toFixed(0)}°C`,tr('CPU / SoC','CPU / SoC'),null,sensors.map(x=>`${String(x.name||x.role)} · ${x.temp_c.toFixed(0)}°C`));
+    result.thermal.numeric=temp;
     const usedBytes=numeric(opt.used_bytes),totalBytes=numeric(opt.total_bytes);
     const storage=pct(opt.used_pct)??(totalBytes>0&&usedBytes!==null?pct(usedBytes/totalBytes*100):null);
     result.storage=percent(storage,totalBytes>0&&usedBytes!==null?`/opt · ${bytes(usedBytes)} / ${bytes(totalBytes)}`:'/opt');
@@ -103,6 +104,30 @@
     result.dns=observed.length?make(`${observed.length-bad}/${observed.length}`,tr('Без DOWN / DEGRADED среди известных','Not DOWN / DEGRADED among known'),null,observed.map(x=>`${String(x.name||x.sni||x.target||'DNS')} · ${x.health_status}`),bad?'warning':'normal'):unknown();
     result.core=ready?make(online?tr('В сети','Online'):tr('Не в сети','Offline'),String(snapshot?.version||''),null,[],online?'normal':'critical'):unknown();
     result.updates=catalogReady&&catalogOnline?make(String(updates.length),tr('Установленные компоненты','Installed components'),null,updates.map(x=>String(x.name||x.id)),updates.length?'warning':'normal'):unknown();
+    const uptime=numeric(telem.platform?.uptime_seconds);
+    result.uptime=uptime!==null&&uptime>=0?make(fmtDuration(uptime,locale),tr('С момента запуска','Since boot')):unknown();
+    const known=catalogReady&&catalogOnline?modules.filter(x=>x.installed&&!x.builtin&&typeof x.service_running==='boolean'):[];
+    const running=known.filter(x=>x.service_running).length;
+    result.services=known.length?make(`${running}/${known.length}`,tr('Службы с известным статусом','Services with known status'),null,known.map(x=>`${String(x.name||x.id)} · ${x.service_running?tr('Работает','Running'):tr('Остановлена','Stopped')}`),running<known.length?'warning':'normal'):unknown();
+    const service=id=>{const item=known.find(x=>x.id===id);return item?make(item.service_running?tr('Работает','Running'):tr('Остановлена','Stopped'),tr('Статус службы, не проверка доступности','Service status, not reachability'),null,[],item.service_running?'normal':'warning'):unknown();};
+    result['dns-router-status']=service('dns-router');result['nfqws-status']=service('nfqws-manager');
+    const net=telem.networkInterfaces;
+    const rows=Array.isArray(net?.interfaces)?net.interfaces:[];
+    const states=rows.filter(x=>['up','down','lowerlayerdown','dormant'].includes(String(x.oper_state||'').toLowerCase()));
+    result.interfaces=states.length?make(`${states.filter(x=>x.oper_state==='up').length}/${states.length}`,tr('Логические интерфейсы с известным состоянием','Logical interfaces with known state'),null,states.map(x=>`${String(x.display_name||x.name)} · ${x.oper_state}`)):unknown();
+    result.traffic=unknown();
+    const routes=Array.isArray(telem.networkRoutes?.routes)?telem.networkRoutes.routes.filter(x=>x.destination==='0.0.0.0'&&(!x.mask||x.mask==='0.0.0.0')&&typeof x.interface==='string'&&Number.isFinite(x.metric)):[];
+    const best=routes.length?Math.min(...routes.map(x=>x.metric)):null;
+    const names=[...new Set(routes.filter(x=>x.metric===best).map(x=>x.interface))];
+    const sys=Array.isArray(net?.system_interfaces)?net.system_interfaces:[];
+    const matches=names.length===1?sys.filter(x=>x.name===names[0]):[];
+    const iface=matches.length===1?matches[0]:null;
+    const rx=numeric(iface?.rate?.rx_bps),tx=numeric(iface?.rate?.tx_bps);
+    // Monitoring rates are bytes per second, not bits. One exact interface only.
+    if(rx!==null&&tx!==null&&rx>=0&&tx>=0&&typeof net?.sampled_at==='string'&&Number.isFinite(Date.parse(net.sampled_at))){
+      const mbps=v=>`${(v*8/1000000).toFixed(2)} ${tr('Мбит/с','Mbps')}`;
+      result.traffic={...make(`↓ ${mbps(rx)}`,`↑ ${mbps(tx)} · ${iface.name}`,null,[tr('Интерфейс маршрута по умолчанию','Default route interface')]),rx:rx*8/1000000,tx:tx*8/1000000,sampleKey:`${iface.name}|${net.sampled_at}`};
+    }
     return result;
   }
 
@@ -467,7 +492,7 @@
   </section>
   {/snippet}
 
-  <HomeWorkspace {locale} metrics={workspaceMetrics} ready={$backendReady} online={$backendOnline} issueCount={actionableIssues.length} criticalCount={actionableIssues.filter(x=>x.severity==='critical').length} {attention} modules={installedPanel} />
+  <HomeWorkspace {locale} metrics={workspaceMetrics} sampleKeys={{cpu:telem.cpu,ram:memory,thermal:telem.thermal,'traffic-rx':workspaceMetrics.traffic?.sampleKey,'traffic-tx':workspaceMetrics.traffic?.sampleKey}} ready={$backendReady} online={$backendOnline} issueCount={actionableIssues.length} criticalCount={actionableIssues.filter(x=>x.severity==='critical').length} {attention} modules={installedPanel} />
 </div>
 
 {#if webWorkspace}

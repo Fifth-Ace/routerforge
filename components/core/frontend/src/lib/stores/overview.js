@@ -7,7 +7,7 @@ import { startSerialPolling } from '$lib/polling.js';
 
 export const overview = writable({
   platform: null, summary: null, cpu: null, memory: null, thermal: null, storage: null,
-  plainDns: null, networkRoutes: null, appActions: null, cpuSustainedHigh: null
+  plainDns: null, networkRoutes: null, networkInterfaces: null, appActions: null, cpuSustainedHigh: null
 });
 
 let stopPolling = null;
@@ -25,7 +25,7 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
   const safe = async (fn) => { try { return await fn(); } catch { return null; } };
   const result = {
     platform:null, summary:null, cpu:null, memory:null, thermal:null, storage:null,
-    plainDns:null, networkRoutes:null, appActions:null, cpuSustainedHigh:null
+    plainDns:null, networkRoutes:null, networkInterfaces:null, appActions:null, cpuSustainedHigh:null
   };
 
   const platformPromise = safe(() => getPlatform());
@@ -65,6 +65,11 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
     ? safe(() => getModule('network','routes'))
     : Promise.resolve(null);
 
+  // Workspace shares this existing detailed polling cycle; no per-widget timers.
+  const interfacesPromise = detailed && (monitoringInstalled || installed('network'))
+    ? safe(() => getModule('network','interfaces'))
+    : Promise.resolve(null);
+
   const actionsPromise = detailed
     ? safe(() => getAppActions())
     : Promise.resolve(null);
@@ -85,12 +90,15 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
   result.cpuSustainedHigh = updateSustainedCPU(result.cpu);
 
   if (generation === refreshGeneration) {
-    overview.set({ ...result });
+    // Keep the last coherent routes/interfaces pair during the split refresh.
+    // The final detailed response replaces both (including null on failure).
+    overview.update(previous => ({ ...result, networkRoutes: detailed ? previous.networkRoutes : null, networkInterfaces: detailed ? previous.networkInterfaces : null }));
   }
 
-  [result.plainDns, result.networkRoutes, result.appActions] = await Promise.all([
+  [result.plainDns, result.networkRoutes, result.networkInterfaces, result.appActions] = await Promise.all([
     plainDnsPromise,
     networkPromise,
+    interfacesPromise,
     actionsPromise
   ]);
 

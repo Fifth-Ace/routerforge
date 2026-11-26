@@ -11,6 +11,7 @@
   import { t } from '$lib/i18n/index.js';
   import { catalogItemServiceNeedsAttention, railInstalledIntegrations } from '$lib/integrations.js';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
+  import HomeWorkspace from '$lib/components/HomeWorkspace.svelte';
 
 
   let webWorkspace = null;
@@ -70,6 +71,40 @@
   };
   $: issues = buildIssues(issueInputs);
   $: actionableIssues = issues.filter((issue) => issue.severity !== 'info');
+
+  // Workspace is a projection of the existing stores, not an independent collector.
+  $: workspaceMetrics = makeWorkspaceMetrics({locale, telem, memory, opt, updates, snapshot:$snapshot, ready:$backendReady, online:$backendOnline, catalogReady:$catalogReady, catalogOnline:$catalogOnline});
+  function makeWorkspaceMetrics({locale,telem,memory,opt,updates,snapshot,ready,online,catalogReady,catalogOnline}) {
+    const en=locale==='en', tr=(ru,english)=>en?english:ru;
+    const unknown=()=>({value:'—',detail:tr('Нет данных','No data'),state:'unknown'});
+    const numeric=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
+    const pct=v=>numeric(v)!==null&&v>=0&&v<=100?v:null;
+    const make=(value,detail='',percent=null,rows=[],state='normal')=>({value,detail,percent,rows,state});
+    const percent=(value,detail='',rows=[])=>pct(value)===null?unknown():make(`${value.toFixed(0)}%`,detail,value,rows);
+    const result={};
+    const cpuRows=(telem.cpu?.cpus||[]).filter(c=>pct(c.usage_pct)!==null);
+    result.cpu=cpuRows.length?percent(cpuRows.reduce((sum,c)=>sum+c.usage_pct,0)/cpuRows.length,`${cpuRows.length} ${tr('ядер','cores')}`,cpuRows.map((c,i)=>`CPU ${i} · ${c.usage_pct.toFixed(0)}%`)):unknown();
+    const total=numeric(memory?.total_kb),used=numeric(memory?.used_kb);
+    const ram=pct(memory?.used_pct)??(total>0&&used!==null?pct(used/total*100):null);
+    result.ram=percent(ram,total>0&&used!==null?`${bytes(used*1024)} / ${bytes(total*1024)}`:'');
+    const sensors=(telem.thermal?.sensors||telem.thermal?.thermal?.sensors||[]).filter(x=>['soc','cpu'].includes(String(x.role||'').toLowerCase())&&numeric(x.temp_c)!==null);
+    const temp=sensors.length?Math.max(...sensors.map(x=>x.temp_c)):null;
+    result.thermal=temp===null?unknown():make(`${temp.toFixed(0)}°C`,tr('CPU / SoC','CPU / SoC'),null,sensors.map(x=>`${String(x.name||x.role)} · ${x.temp_c.toFixed(0)}°C`));
+    const usedBytes=numeric(opt.used_bytes),totalBytes=numeric(opt.total_bytes);
+    const storage=pct(opt.used_pct)??(totalBytes>0&&usedBytes!==null?pct(usedBytes/totalBytes*100):null);
+    result.storage=percent(storage,totalBytes>0&&usedBytes!==null?`/opt · ${bytes(usedBytes)} / ${bytes(totalBytes)}`:'/opt');
+    if(Array.isArray(telem.networkRoutes?.routes)){
+      const routes=telem.networkRoutes.routes.filter(x=>x.destination==='0.0.0.0'&&(!x.mask||x.mask==='0.0.0.0'));
+      result.route=make(routes.length?tr('Есть','Present'):tr('Нет','Missing'),tr('Маршрут по умолчанию, не проверка интернета','Default route, not an internet probe'),null,[],routes.length?'normal':'warning');
+    }else result.route=unknown();
+    const upstreams=Array.isArray(snapshot?.upstreams)?snapshot.upstreams:[];
+    const observed=upstreams.filter(x=>['UP','OK','HEALTHY','DOWN','DEGRADED'].includes(String(x.health_status||'').toUpperCase()));
+    const bad=observed.filter(x=>['DOWN','DEGRADED'].includes(String(x.health_status).toUpperCase())).length;
+    result.dns=observed.length?make(`${observed.length-bad}/${observed.length}`,tr('Без DOWN / DEGRADED среди известных','Not DOWN / DEGRADED among known'),null,observed.map(x=>`${String(x.name||x.sni||x.target||'DNS')} · ${x.health_status}`),bad?'warning':'normal'):unknown();
+    result.core=ready?make(online?tr('В сети','Online'):tr('Не в сети','Offline'),String(snapshot?.version||''),null,[],online?'normal':'critical'):unknown();
+    result.updates=catalogReady&&catalogOnline?make(String(updates.length),tr('Установленные компоненты','Installed components'),null,updates.map(x=>String(x.name||x.id)),updates.length?'warning':'normal'):unknown();
+    return result;
+  }
 
 
   function recent(iso, minutes = 5) {
@@ -337,18 +372,12 @@
     <span class="state-chip {!$backendReady ? 'neutral' : $backendOnline ? 'good' : 'error'}">CORE {!$backendReady ? t(locale, 'home.coreLoading') : $backendOnline ? t(locale, 'home.badgeCoreOnline') : t(locale, 'home.coreOffline')}</span>
   </div>
 
-  <div class="routerforge-quick-telemetry mono">
-    <span>CPU <strong>{telem.cpu ? `${cpuPct.toFixed(0)}%` : '—'}</strong></span>
-    <span>RAM <strong>{memory ? `${ramPct.toFixed(0)}%` : '—'}</strong></span>
-    <span>/opt <strong>{opt.total_bytes ? `${bytes(opt.used_bytes)} / ${bytes(opt.total_bytes)}` : '—'}</strong></span>
-    <span>{t(locale, 'home.cpuTempLabel')} <strong class:warn={cpuTemp > 75} class:bad={cpuTemp >= 90}>{cpuTemp ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></span>
-  </div>
-
+  {#snippet attention()}
   <section class="panel routerforge-attention routerforge-attention-v2">
     <div class="panel-head">
       <div><strong>{t(locale, 'home.state')}</strong><span>{t(locale, 'home.stateSubtitle')}</span></div>
-      <span class="state-chip {actionableIssues.some((x)=>x.severity==='critical') ? 'error' : actionableIssues.length ? 'warn' : 'good'}">
-        {actionableIssues.length ? t(locale, 'home.attention', {count: actionableIssues.length}) : t(locale, 'home.allGood')}
+      <span class="state-chip {actionableIssues.some((x)=>x.severity==='critical') ? 'error' : actionableIssues.length ? 'warn' : ($backendReady && $backendOnline && $catalogReady && $catalogOnline) ? 'good' : 'neutral'}">
+        {actionableIssues.length ? t(locale, 'home.attention', {count: actionableIssues.length}) : ($backendReady && $backendOnline && $catalogReady && $catalogOnline) ? t(locale, 'home.allGood') : (locale==='en'?'Waiting for data':'Ожидание данных')}
       </span>
     </div>
     {#if issues.length}
@@ -361,10 +390,13 @@
           </a>
         {/each}
       </div>
-    {:else}
+    {:else if $backendReady && $backendOnline && $catalogReady && $catalogOnline}
       <div class="routerforge-all-good"><span class="status-dot good"></span><strong>{t(locale, 'home.nothingToDo')}</strong><span>{t(locale, 'home.allGoodDeviceHint')}</span></div>
+    {:else}
+      <div class="catalog-empty">{locale==='en'?'Waiting for data':'Ожидание данных'}</div>
     {/if}
   </section>
+  {/snippet}
 
   {#if portalNoticeVisible || stableMipsNoticeVisible}
     <div class="rf-home-notices">
@@ -393,6 +425,7 @@
     </div>
   {/if}
 
+  {#snippet installedPanel()}
   <section class="routerforge-installed-v2">
     <div class="catalog-section-head">
       <div><h2>{t(locale, 'home.installedOnRouter')}</h2><p>{t(locale, 'home.installedOnRouterHint')}</p></div>
@@ -432,6 +465,9 @@
       </section>
     </div>
   </section>
+  {/snippet}
+
+  <HomeWorkspace {locale} metrics={workspaceMetrics} ready={$backendReady} online={$backendOnline} issueCount={actionableIssues.length} criticalCount={actionableIssues.filter(x=>x.severity==='critical').length} {attention} modules={installedPanel} />
 </div>
 
 {#if webWorkspace}

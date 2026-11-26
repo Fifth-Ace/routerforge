@@ -1,4 +1,5 @@
 import { rfUi } from './rf-localization.js';
+import {safeListRecovery,nativeListRequired,bindingBackup,recoverReviewedList} from './NfqwsRecoveryModel.js';
 import {nfqwsOverview} from './NfqwsOverviewModel.js';
 import {verifiedBlobManifest} from './NfqwsCatalogBlobModel.js';
 import {measuredAutoPickEligible,recoveryRegression} from './NfqwsRunHistoryModel.js';
@@ -48,6 +49,8 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
     const text=await r.text();let body={},validJson=true;
     try{body=text?JSON.parse(text):{};}catch{validJson=false;}
     if(!r.ok)throw new Error(body?.error||`${path} HTTP ${r.status}`);
+    if(/^\/backups\/recovery-(?:preview\?|save$)/.test(path) && (!validJson||!text.trim()||!String(r.headers?.get?.('content-type')||'').toLowerCase().includes('application/json')||!body||typeof body!=='object'))
+      throw Error('NFQWS_RECOVERY_INVALID_RESPONSE');
     // Blob mutations fail closed on invalid transport; a 200/plain-text cannot be success.
     if(/^\/blobs\/(install|delete)$/.test(path)){
       if(!validJson||!text.trim()||!String(r.headers?.get?.('content-type')||'').toLowerCase().includes('application/json')||!body||typeof body!=='object')
@@ -589,7 +592,23 @@ export function startNFQWSRuntime({onNavigate = () => {}, onStatus = () => {}, o
   }
 
   async function restoreBackupCenter(){
-    const e=backupCenterSelectedData?.entry;if(!e?.id||!e.restorable)return;
+    const e=backupCenterSelectedData?.entry;if(!e?.id||!e.restorable||e.id!==backupCenterSelected)return;
+    if(bindingBackup(e)){notice(rfUi('Список принадлежит постоянной привязке. Используй управление привязками.','List is managed by a persistent binding. Use binding management.'),'error');return;}
+    if(nativeListRequired(e)){
+      if(!safeListRecovery(e)){notice(rfUi('Нет подтверждённого изменённого списка. Обнови копию.','No reviewed changed list. Reload the backup.'),'error');return;}
+      const seq=backupCenterSeq;
+      const current=()=>!disposed&&seq===backupCenterSeq&&backupCenterSelected===e.id&&backupCenterSelectedData?.entry===e;
+      try{
+        const safety=await recoverReviewedList(e,api,plan=>confirm(rfUi('Восстановить существующий список без перезапуска службы?','Restore existing list without restarting the service?')+'\n'+plan.target+'\n'+plan.current_sha256+' → '+plan.target_sha256+'\n'+rfUi('Будет создана защитная копия без автовытеснения. Runtime не проверен.','A safety copy is required without automatic eviction. Runtime is not verified.')),current);
+        if(safety===null||disposed)return;
+        backupCenterLoaded=false;backupCenterSelected='';backupCenterSelectedData=null;++backupCenterSeq;backupCenterDetailError='';
+        await loadBackupCenter(true);
+        notice(rfUi('Список восстановлен и проверен чтением. Runtime не проверен. Защитная копия: ','List restored and readback verified. Runtime not verified. Safety backup: ')+safety,'good');
+      }catch(err){
+        if(!disposed){backupCenterSelectedData=null;++backupCenterSeq;backupCenterDetailError=rfUi('Восстановление не подтверждено. Выбери копию заново; не повторяй запись вслепую. ','Restore not confirmed. Reselect the backup; do not retry blindly. ')+String(err.message||err);renderBackupCenter();notice(backupCenterDetailError,'error');}
+      }
+      return;
+    }
     if(!confirm(`Restore ${e.label} → ${e.target}?\n\nПеред записью RouterForge создаст persistent snapshot текущего target. Для config работающий nfqws2 будет перезапущен и проверен.`))return;
     try{const r=await api('/backups/restore',{method:'POST',body:JSON.stringify({id:e.id,confirm:'NFQWS_BACKUP_RESTORE'})});backupCenterLoaded=false;backupCenterSelected='';backupCenterSelectedData=null;++backupCenterSeq;backupCenterDetailError='';if(r.status)render(r.status);await loadBackupCenter(true);notice(`Backup restored: ${e.label}`,'good')}
     catch(err){notice(err.message,'error')}

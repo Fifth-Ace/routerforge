@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "test": "node --test dnsRouterAwareness.test.js",
+    "test": "node --test dnsRouterAwareness.test.js dnsHealthEvidence.test.js",
     "build": "vite build"
   },
   "devDependencies": {

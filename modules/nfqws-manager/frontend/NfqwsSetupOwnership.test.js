@@ -16,8 +16,8 @@ test('Setup feedback, summary chips and diff have single Svelte owners, not lega
 });
 test('Save remains two-step and mutation requires original explicit NFQWS_CONFIG confirmation',()=>{
  const app=source('NFQWSManagerApp.svelte'),runtime=source('NfqwsRuntime.js'),diff=source('NfqwsSetupDiff.svelte');
- assert.match(app,/onclick=\{\(\)=>setupAction\('preview'\)\}>Сохранить и применить/);
- assert.match(runtime,/if\(!confirm\('Сохранить настройки nfqws2.conf и выполнить безопасный reload\?'\)\)return/);
+ assert.match(app,/onclick=\{\(\)=>setupAction\('preview'\)\}>\{rfUi\("Сохранить и применить","Save and apply"\)\}/);
+ assert.match(runtime,/if\(!confirm\(rfUi\('Сохранить настройки nfqws2\.conf и выполнить безопасный reload\?',"Save nfqws2\.conf settings and perform a safe reload\?"\)\)\)return/);
  assert.match(runtime,/confirm:'NFQWS_CONFIG'/);
  assert.match(runtime,/if\(!flowDirty\(\)\|\|busy\)return/);
  assert.match(diff,/onAction\('apply'\)/);

@@ -1,5 +1,7 @@
 <script>
   import {backupBytes,backupProjection} from './NfqwsBackupModel.js';
+  import {safeListRecovery,nativeListRequired,bindingBackup} from './NfqwsRecoveryModel.js';
+  import {rfUi} from './rf-localization.js';
   let {snapshot={}, onAction=()=>{}} = $props();
   let search = $state('');
   let pending = $state(false);
@@ -51,11 +53,18 @@
         {:else}
           <div class="backup-center-detail-head">
             <div><div class="backup-center-detail-name">{data.entry.label||data.entry.id}</div><div class="backup-center-detail-meta">id={data.entry.id||'—'} · target={data.entry.target||'—'}</div></div>
-            <div class="toolbar"><span class="backup-center-state">{data.entry.state||'—'}</span><button id="restoreSelectedBackup" class="primary" disabled={pending||data.loading||!data.entry.restorable} onclick={()=>invoke('restore')}>Restore</button><button id="deleteSelectedBackup" class="danger" disabled={pending||data.loading} onclick={()=>invoke('delete')}>Удалить backup</button></div>
+            <div class="toolbar"><span class="backup-center-state">{data.entry.state||'—'}</span><button id="restoreSelectedBackup" class="primary" disabled={pending||data.loading||!data.entry.restorable||bindingBackup(data.entry)||(nativeListRequired(data.entry)&&!safeListRecovery(data.entry))||data.entry.id!==data.selected} onclick={()=>invoke('restore')}>{nativeListRequired(data.entry)?rfUi('Предпросмотр восстановления','Preview restore'):rfUi('Штатное восстановление','Legacy restore')}</button><button id="deleteSelectedBackup" class="danger" disabled={pending||data.loading} onclick={()=>invoke('delete')}>Удалить backup</button></div>
           </div>
+          {#if bindingBackup(data.entry)}
+            <p class="muted small">{rfUi('Восстановление списков постоянных привязок — через каталог политик.','Restore managed binding lists through the policy catalogue.')}</p>
+          {:else if nativeListRequired(data.entry)}
+            <p class="muted small">{rfUi('Защитная копия без автовытеснения, сравнение SHA256 перед записью, без перезапуска службы.','Safety backup without automatic eviction, SHA256 preimage check, no service restart.')}</p>
+          {:else}
+            <p class="muted small">{rfUi('Штатный restore: старый контракт. Для config может перезапустить запущенную службу.','Legacy restore contract. Config restore may restart a running service.')}</p>
+          {/if}
           <div class="backup-center-kv"><div>Kind</div><div>{data.entry.kind||'—'}</div><div>Created</div><div>{data.entry.created_at||'—'}</div><div>Backup SHA256</div><div class="mono">{data.entry.sha256||'—'}</div><div>Current SHA256</div><div class="mono">{data.entry.current_sha256||'—'}</div><div>Size / mode</div><div>{backupBytes(data.entry.size)} · {Number(data.entry.mode||0).toString(8)}</div></div>
           {#if data.isText}
-            <div><div class="section-kicker" style="margin-bottom:6px">Current → backup diff</div><pre class="backup-center-diff">{#each data.diff as line,i (i)}<span class={line.c}>{line.t}</span>{'\n'}{/each}{#if !data.diff.length}No textual differences{/if}</pre></div>
+            <div><div class="section-kicker" style="margin-bottom:6px">Current → backup diff</div><pre class="backup-center-diff">{#each data.diff.slice(0,2000) as line,i (i)}<span class={line.c}>{line.t}</span>{'\n'}{/each}{#if !data.diff.length}No textual differences{/if}{#if data.diff.length>2000}{'\n'+rfUi('Показаны первые 2000 строк сравнения','First 2000 diff rows shown')}{/if}</pre></div>
             <div><div class="section-kicker" style="margin-bottom:6px">Backup content</div><pre class="backup-center-preview">{snapshot.detail.content}</pre></div>
           {:else}
             <div class="section-kicker" style="margin-bottom:6px">Binary backup</div><div class="backup-center-preview">Binary payload · {backupBytes(data.entry.size)} · SHA256 {data.entry.sha256||'—'}</div>

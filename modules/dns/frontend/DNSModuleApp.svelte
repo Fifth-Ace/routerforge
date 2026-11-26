@@ -4,6 +4,7 @@
   import { withRequestTimeout } from '$lib/http.js';
   import { createReadSessions } from '$lib/readSessions.js';
   import { deriveDNSRouterAwareness } from './dnsRouterAwareness.js';
+  import { evidenceCounts, qualityText } from './dnsHealthEvidence.js';
 
   const API = '/api/modules/dns';
   const DNS_READ_TIMEOUT_MS = 12000;
@@ -27,6 +28,10 @@
   let info = null;
   let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0, doh_physical_entries: 0, doh_physical_limit: 0, secure_physical_entries: 0, secure_physical_limit: 0, plain_dns_domain_limit: 16 };
   let snapshot = {};
+  let observationClock = Date.now(), overviewReceived = 0, plainReceived = 0;
+  let overviewReadError = '', plainReadError = '';
+  $: overviewFresh = overviewReceived > 0 && !overviewReadError && observationClock >= overviewReceived && observationClock - overviewReceived <= 30000;
+  $: plainFresh = plainReceived > 0 && !plainReadError && observationClock >= plainReceived && observationClock - plainReceived <= 30000;
   let plain = { resolvers: [], recent: [], pending: 0, mode: '', note: '' };
   let history = { minutes: 5, points: [] };
   let fallbacks = { minutes: 60, edges: [] };
@@ -225,7 +230,8 @@
   $: problematicProtected = protectedUpstreams.filter((u) => ['warn','error'].includes(upstreamStatus(u).cls));
   $: serverCount = protectedUpstreams.length + plainResolvers.length;
   $: problemResolverCount = problematicPlain.length + problematicProtected.length;
-  $: healthyCount = Math.max(0, serverCount - problemResolverCount);
+  $: healthEvidence = evidenceCounts(protectedUpstreams, plainResolvers, plainResolvers.map(plainStatus), observationClock, dnsHealthConfig().windowMin, overviewFresh, plainFresh);
+  $: healthyCount = healthEvidence.healthy;
   $: activeCount = protectedUpstreams.filter((u) => u.active).length + plainResolvers.filter(plainRecentlyActive).length;
   $: downCount = protectedUpstreams.filter((u) => upstreamStatus(u).cls === 'error').length + plainResolvers.filter((r) => plainStatus(r).cls === 'error').length;
   $: degradedCount = protectedUpstreams.filter((u) => upstreamStatus(u).cls === 'warn').length + plainResolvers.filter((r) => plainStatus(r).cls === 'warn').length;
@@ -494,13 +500,13 @@
     const w = u.stats_5m || {};
     const failures = num(w.errors) + num(w.timeouts);
     const p95 = num(w.p95_latency_ms);
-    const quality = num(w.quality_pct ?? 100);
+    const quality = qualityText(w, locale);
     if (state.cls === 'error') {
       if (failures) return locale === 'en' ? `${failures} failures in 5 min · resolver is down` : `${failures} сбоев за 5 мин · резолвер недоступен`;
       return locale === 'en' ? 'runtime health reports no replies' : 'runtime health сообщает, что ответов нет';
     }
     if (state.cls === 'warn') {
-      if (failures) return locale === 'en' ? `${failures} failures in 5 min · quality ${quality.toFixed(1)}%` : `${failures} сбоев за 5 мин · качество ${quality.toFixed(1)}%`;
+      if (failures) return locale === 'en' ? `${failures} failures in 5 min · quality ${quality}` : `${failures} сбоев за 5 мин · качество ${quality}`;
       if (p95) return locale === 'en' ? `runtime degraded · p95 ${Math.round(p95)} ms` : `runtime DEGRADED · p95 ${Math.round(p95)} мс`;
       return locale === 'en' ? 'runtime health marked this resolver degraded' : 'runtime health пометил этот резолвер как DEGRADED';
     }
@@ -536,16 +542,16 @@
     const w = u.stats_5m || {};
     const failures = num(w.errors) + num(w.timeouts);
     const p95 = num(w.p95_latency_ms);
-    const quality = num(w.quality_pct ?? 100);
+    const quality = qualityText(w, locale);
     return locale === 'en'
-      ? `${healthSeverityText(state)}\nCurrent 5 min: ${failures} failures, p95 ${p95 ? `${Math.round(p95)} ms` : '—'}, quality ${quality.toFixed(1)}%. Protected DoT/DoH health also uses RouterForge runtime probes, so DEGRADED/DOWN can appear even when the historical journal is empty.`
-      : `${healthSeverityText(state)}\nТекущие 5 мин: ${failures} сбоев, p95 ${p95 ? `${Math.round(p95)} мс` : '—'}, качество ${quality.toFixed(1)}%. Для защищённых DoT/DoH учитываются также runtime-проверки RouterForge, поэтому DEGRADED/DOWN может появиться даже без записи в историческом журнале.`;
+      ? `${healthSeverityText(state)}\nCurrent 5 min: ${failures} failures, p95 ${p95 ? `${Math.round(p95)} ms` : '—'}, quality ${quality}. Protected DoT/DoH health also uses RouterForge runtime probes, so DEGRADED/DOWN can appear even when the historical journal is empty.`
+      : `${healthSeverityText(state)}\nТекущие 5 мин: ${failures} сбоев, p95 ${p95 ? `${Math.round(p95)} мс` : '—'}, качество ${quality}. Для защищённых DoT/DoH учитываются также runtime-проверки RouterForge, поэтому DEGRADED/DOWN может появиться даже без записи в историческом журнале.`;
   }
 
   function overviewHealthTooltip() {
     return locale === 'en'
-      ? 'This is the current state, not a lifetime error counter. Healthy means the resolver is not DEGRADED or DOWN right now. “Had issues” is counted as currently healthy.'
-      : 'Это состояние прямо сейчас, а не счётчик ошибок за всё время. Здоровым считается DNS, который сейчас не DEGRADED и не DOWN. «Были сбои» означает, что проблема уже закончилась.';
+      ? 'Positive count requires a fresh snapshot plus recent health evidence. Protected DNS: UP with a check or observation within 3 minutes. Plain DNS: a successful reply within the configured health window and no current failure trigger. Unknown is not healthy.'
+      : 'В числитель входят только DNS со свежим снимком и наблюдениями: UP и проверка/наблюдение за 3 минуты для защищённых DNS; успешный ответ в health-окне без текущего триггера для обычных. Неизвестный статус не считается здоровым.';
   }
 
   function problemsTooltip() {
@@ -1131,12 +1137,13 @@
       info = nextInfo;
       resolverState = nextResolvers;
       snapshot = nextSnapshot;
+      overviewReceived = observationClock = Date.now(); overviewReadError = '';
       try {
         const nextPlain = await request('/plain-dns?limit=160', { signal: read.signal });
-        if (read.isCurrent()) plain = nextPlain;
-      } catch { /* Plain DNS may be unavailable without breaking the overview. */ }
+        if (read.isCurrent()) { plain = nextPlain; plainReceived = observationClock = Date.now(); plainReadError = ''; }
+      } catch (e) { if (read.isCurrent()) { plainReadError = String(e?.message || e); observationClock = Date.now(); } }
     } catch (e) {
-      if (read.isCurrent()) error = e?.message || String(e);
+      if (read.isCurrent()) { overviewReadError = String(e?.message || e); observationClock = Date.now(); }
     } finally {
       if (read.isCurrent()) loading = false;
       read.finish();
@@ -1214,6 +1221,7 @@
   }
 
   async function refreshCurrent() {
+    observationClock = Date.now();
     if (refreshBusy || document.hidden) return;
 
     // Resolver management is interaction-heavy. A full 5s refresh replaces
@@ -1636,6 +1644,14 @@
   {/if}
 
   {#if error}<div class="error-box"><strong>{L.moduleError}:</strong> {error}</div>{/if}
+  {#if !loading && (!overviewFresh || !plainFresh)}
+    <div class="error-box" role="status">
+      <strong>{rfUi('Последний снимок / неполные данные','Last snapshot / incomplete data')}</strong>
+      {#if !overviewFresh}<div>{rfUi('Защищённые DNS и инвентаризация: нет свежего снимка.','Protected DNS and inventory: no fresh snapshot.')} {overviewReadError}</div>{/if}
+      {#if !plainFresh}<div>{rfUi('Обычный DNS: нет свежего снимка.','Plain DNS: no fresh snapshot.')} {plainReadError}</div>{/if}
+      <small>{rfUi('Сохранённые показатели ниже могут быть историческими; обнови данные вручную.','Displayed counters may be historical; refresh manually.')}</small>
+    </div>
+  {/if}
   {#if success}<div class="success-box">{success}</div>{/if}
 
   {#if loading}
@@ -1651,6 +1667,7 @@
       <div class="metric-card">
         <span class="metric-label-help">{rfUi("DNS-СЕРВЕРЫ","DNS SERVERS")} <button class="health-help" type="button" aria-label={locale === 'en' ? 'Explain DNS server health' : 'Объяснить состояние DNS-серверов'} onmouseenter={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')}>?</button></span>
         <strong>{healthyCount}/{serverCount}</strong>
+        <small>{rfUi('Подтверждено наблюдениями','Supported by observations')} · {rfUi('нет свежего подтверждения','unconfirmed')} {healthEvidence.unknown}</small>
         <small>{activeCount} {locale === 'en' ? 'active' : 'активны'} · DOWN {downCount} · DEGRADED {degradedCount}</small>
       </div>
       <div class="metric-card"><span>{L.requests}</span><strong>{fmtInt(totalRequests)}</strong><small>{fmtInt(totalResponses)} {locale === 'en' ? 'responses' : 'ответов'}</small></div>
@@ -1658,7 +1675,7 @@
       <div class="metric-card" class:metric-warning={problemResolverCount > 0}>
         <span class="metric-label-help">{L.problems} <button class="health-help" type="button" aria-label={locale === 'en' ? 'Explain DNS problems' : 'Объяснить, что считается проблемой DNS'} onmouseenter={(e) => showHealthHelp(e, problemsTooltip(), locale === 'en' ? 'Problems now' : 'Проблемы сейчас')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, problemsTooltip(), locale === 'en' ? 'Problems now' : 'Проблемы сейчас')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, problemsTooltip(), locale === 'en' ? 'Problems now' : 'Проблемы сейчас')}>?</button></span>
         <strong>{problemResolverCount}</strong>
-        <small>{problemResolverCount ? (locale === 'en' ? `${problemResolverCount} of ${serverCount} need attention` : `${problemResolverCount} из ${serverCount} требуют внимания`) : (locale === 'en' ? 'no current health triggers' : 'сейчас проблем нет')}</small>
+        <small>{problemResolverCount ? (locale === 'en' ? `${problemResolverCount} of ${serverCount} need attention` : `${problemResolverCount} из ${serverCount} требуют внимания`) : (healthEvidence.unknown || !overviewFresh || !plainFresh ? rfUi('Нет подтверждённых проблем; данные неполные','No confirmed problems; evidence incomplete') : rfUi('Нет текущих триггеров','No current health triggers'))}</small>
       </div>
     </section>
 

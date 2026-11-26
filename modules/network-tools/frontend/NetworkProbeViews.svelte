@@ -1,10 +1,11 @@
 <script>
   let { section = 'summary', data = null, history = [], busy = false, message = '', lx, tr } = $props();
-  const icons={ping:'⌁',dns:'◎',http:'▣',tcp:'◉'};
-  const names={ping:'Ping',dns:'DNS',http:'HTTP',tcp:'TCP'};
+  const icons={ping:'⌁',dns:'◎',http:'▣',tcp:'◉',tls:'◇'};
+  const names={ping:'Ping',dns:'DNS',http:'HTTP',tcp:'TCP',tls:'TLS'};
   const detail=(kind,r) => {
     if (!r) return tr('noData');
-    if (kind==='ping') return r.rtt_avg_ms?'RTT '+Number(r.rtt_avg_ms).toFixed(1)+' ms':tr('time')+' '+r.duration_ms+' ms';
+    if (kind==='ping') return [r.rtt_measured_ms!=null?'RTT '+r.rtt_measured_ms.toFixed(1)+' ms':'',r.loss_measured_pct!=null?lx('Потери','Loss')+' '+r.loss_measured_pct.toFixed(1)+'%':'',r.rtt_variation_ms!=null?'mdev/stddev '+r.rtt_variation_ms.toFixed(1)+' ms':''].filter(Boolean).join(' · ')||tr('noData');
+    if (kind==='tls') return [r.tcp_ms!=null?'TCP '+r.tcp_ms+' ms':'',r.tls_ms!=null?'TLS '+r.tls_ms+' ms':'',r.error_class||''].filter(Boolean).join(' · ')||'—';
     if (kind==='dns') return (r.addresses||[]).join(', ')||tr('time')+' '+r.duration_ms+' ms';
     if (kind==='http') return r.status_code?'HTTP '+r.status_code+' · '+r.duration_ms+' ms':tr('time')+' '+r.duration_ms+' ms';
     return tr('time')+' '+r.duration_ms+' ms';

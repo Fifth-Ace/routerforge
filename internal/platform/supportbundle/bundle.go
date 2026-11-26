@@ -199,15 +199,36 @@ func validSavedDNSPolicy(v *SavedDNSPolicy) bool {
 	return v != nil && v.Lists != nil && *v.Lists >= 0 && *v.Lists <= 64 && (v.DNSSECMode == "off" || v.DNSSECMode == "request_do" || v.DNSSECMode == "require_ad") && v.DNS64Enabled != nil && v.NAT64Declared != nil && (!*v.NAT64Declared || *v.DNS64Enabled)
 }
 
+// Bounded numeric projections only. Never include probe targets or disk identities.
+type StorageObservations struct {
+	TrackedDisks     *int `json:"tracked_disks"`
+	CounterBaselines *int `json:"counter_baselines"`
+}
+type ProbeObservations struct {
+	Samples    *int `json:"samples"`
+	Successful *int `json:"successful"`
+	Failed     *int `json:"failed"`
+}
+
+func boundedCountE10(n *int, limit int) bool { return n != nil && *n >= 0 && *n <= limit }
+func validStorageE10(v *StorageObservations) bool {
+	return v != nil && boundedCountE10(v.TrackedDisks, 8) && boundedCountE10(v.CounterBaselines, 8) && *v.CounterBaselines <= *v.TrackedDisks
+}
+func validProbesE10(v *ProbeObservations) bool {
+	return v != nil && boundedCountE10(v.Samples, 64) && boundedCountE10(v.Successful, 64) && boundedCountE10(v.Failed, 64) && *v.Successful+*v.Failed == *v.Samples
+}
+
 type Health struct {
-	SavedDNSPolicy *SavedDNSPolicy `json:"saved_dns_policy,omitempty"`
-	ID             string          `json:"id"`
-	State          string          `json:"state"`
-	Version        string          `json:"version"`
-	Running        *bool           `json:"running,omitempty"`
-	Available      *bool           `json:"available,omitempty"`
-	Rules          *int            `json:"rules,omitempty"`
-	Upstreams      *int            `json:"upstreams,omitempty"`
+	StorageObservations *StorageObservations `json:"storage_observations,omitempty"`
+	ProbeObservations   *ProbeObservations   `json:"probe_observations,omitempty"`
+	SavedDNSPolicy      *SavedDNSPolicy      `json:"saved_dns_policy,omitempty"`
+	ID                  string               `json:"id"`
+	State               string               `json:"state"`
+	Version             string               `json:"version"`
+	Running             *bool                `json:"running,omitempty"`
+	Available           *bool                `json:"available,omitempty"`
+	Rules               *int                 `json:"rules,omitempty"`
+	Upstreams           *int                 `json:"upstreams,omitempty"`
 }
 
 func ProjectHealth(id string, raw []byte) Health {
@@ -216,15 +237,17 @@ func ProjectHealth(id string, raw []byte) Health {
 		return out
 	}
 	var p struct {
-		OK             *bool           `json:"ok"`
-		Status         string          `json:"status"`
-		Version        string          `json:"version"`
-		TargetRunning  *bool           `json:"target_running"`
-		Available      *bool           `json:"available"`
-		DNSListener    *bool           `json:"dns_listener"`
-		SavedDNSPolicy *SavedDNSPolicy `json:"saved_dns_policy"`
-		Rules          *int            `json:"rules"`
-		Upstreams      *int            `json:"upstreams"`
+		OK                  *bool                `json:"ok"`
+		Status              string               `json:"status"`
+		Version             string               `json:"version"`
+		TargetRunning       *bool                `json:"target_running"`
+		Available           *bool                `json:"available"`
+		DNSListener         *bool                `json:"dns_listener"`
+		SavedDNSPolicy      *SavedDNSPolicy      `json:"saved_dns_policy"`
+		StorageObservations *StorageObservations `json:"storage_observations"`
+		ProbeObservations   *ProbeObservations   `json:"probe_observations"`
+		Rules               *int                 `json:"rules"`
+		Upstreams           *int                 `json:"upstreams"`
 	}
 	if len(bytes.TrimSpace(raw)) == 0 || bytes.TrimSpace(raw)[0] != '{' || json.Unmarshal(raw, &p) != nil {
 		return out
@@ -247,6 +270,12 @@ func ProjectHealth(id string, raw []byte) Health {
 		}
 	}
 	out.Version = Version(p.Version)
+	if id == "monitoring" && validStorageE10(p.StorageObservations) {
+		out.StorageObservations = p.StorageObservations
+	}
+	if id == "network-tools" && validProbesE10(p.ProbeObservations) {
+		out.ProbeObservations = p.ProbeObservations
+	}
 	if id == "nfqws-manager" {
 		out.Running = p.TargetRunning
 		out.Available = p.Available

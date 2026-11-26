@@ -28,7 +28,7 @@ func serveMonitoringApp(socket, uiPath string) error {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"ok": true, "module": "monitoring", "version": version, "api_version": 1,
 			"mode": "read-only", "mutation_api": false,
-			"logical_modules": monitoringModuleIDs, "uptime_seconds": time.Since(started).Seconds(),
+			"logical_modules": monitoringModuleIDs, "uptime_seconds": time.Since(started).Seconds(), "storage_observations": doctorObserveE10.Summary(),
 		})
 	}))
 

@@ -673,6 +673,25 @@
                 {#if doctorExpanded===disk.device}
                   <div class="rf-doctor-details">
                     <strong>{doctorTr('Сведения о диске','Drive information')}</strong>
+                    {#if disk.observation}
+                      <div class="rf-doctor-mount"><span>{doctorTr('Идентичность для истории','History identity')}</span><strong>{disk.observation.identity_stable ? doctorTr('Аппаратный ID','Hardware ID') : doctorTr('Не подтверждена','Unconfirmed')}</strong></div>
+                      {#if disk.observation.io}
+                        {@const io = disk.observation.io}
+                        <div class="rf-doctor-mount"><span>{doctorTr('Чтение / запись','Read / write')}</span><strong>{bytes(io.read_bps)}/s · {bytes(io.write_bps)}/s</strong></div>
+                        <div class="rf-doctor-mount"><span>IOPS R/W · {doctorTr('Занятость','Busy')}</span><strong>{io.read_ops.toFixed(1)} / {io.write_ops.toFixed(1)} · {io.busy_pct.toFixed(1)}%</strong></div>
+                        <div class="rf-doctor-mount"><span>{doctorTr('Средняя задержка R/W','Mean I/O latency R/W')}</span><strong>{io.read_await_ms == null ? '—' : io.read_await_ms.toFixed(1)+' ms'} / {io.write_await_ms == null ? '—' : io.write_await_ms.toFixed(1)+' ms'}</strong></div>
+                        <small>{doctorTr('Окно измерения','Sample window')}: {io.window_seconds.toFixed(1)} s</small>
+                      {:else}<small>{doctorTr('I/O: ждём сопоставимые наблюдения (1–300 с).','I/O: waiting for comparable samples (1–300 s).')}</small>{/if}
+                      {#each disk.mounts || [] as mount (`capacity:${mount.mount}`)}
+                        {@const cap = disk.observation.capacity?.[mount.device+'|'+mount.mount]}
+                        {#if cap}
+                          <div class="rf-doctor-mount"><span>{mount.mount} · {doctorTr('Динамика свободного места','Free-space trend')}</span><strong>{cap.points.length} {doctorTr('замеров','samples')}</strong></div>
+                          {#if cap.points.length > 1}<small>{bytes(cap.points[0].available_bytes)} → {bytes(cap.points[cap.points.length-1].available_bytes)}</small>{/if}
+                          {#if cap.estimated_days != null}<small>{doctorTr('Линейная оценка до заполнения (не прогноз гарантии)','Linear time-to-full estimate (not a guarantee)')}: {cap.estimated_days.toFixed(1)} d</small>{/if}
+                        {/if}
+                      {/each}
+                      <small>{doctorTr('Наблюдения в памяти, штатный сбор Storage Doctor. SMART автоматически не запускается.','In-memory observations, existing Storage Doctor sampling. No automatic SMART.')}</small>
+                    {/if}
                     <div class="rf-doctor-mount"><span>{doctorTr('Устройство','Device')}</span><strong>{disk.device}</strong></div>
                     <div class="rf-doctor-mount"><span>{doctorTr('Разделы','Partitions')}</span><strong>{disk.partitions?.join(', ') || '—'}</strong></div>
                     {#each disk.mounts || [] as mount (`detail:${mount.mount}`)}

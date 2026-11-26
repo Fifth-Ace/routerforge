@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/platform/storageobserve"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -53,17 +54,18 @@ type doctorMount struct {
 	InodesTotal    *uint64 `json:"inodes_total,omitempty"`
 }
 type doctorDisk struct {
-	ID         string        `json:"id"`
-	Device     string        `json:"device"`
-	Model      string        `json:"model,omitempty"`
-	Vendor     string        `json:"vendor,omitempty"`
-	Transport  string        `json:"transport,omitempty"`
-	SizeBytes  uint64        `json:"size_bytes"`
-	Removable  bool          `json:"removable"`
-	ReadOnly   bool          `json:"read_only"`
-	Entware    bool          `json:"entware"`
-	Mounts     []doctorMount `json:"mounts"`
-	Partitions []string      `json:"partitions"`
+	Observation *storageobserve.Observation `json:"observation,omitempty"`
+	ID          string                      `json:"id"`
+	Device      string                      `json:"device"`
+	Model       string                      `json:"model,omitempty"`
+	Vendor      string                      `json:"vendor,omitempty"`
+	Transport   string                      `json:"transport,omitempty"`
+	SizeBytes   uint64                      `json:"size_bytes"`
+	Removable   bool                        `json:"removable"`
+	ReadOnly    bool                        `json:"read_only"`
+	Entware     bool                        `json:"entware"`
+	Mounts      []doctorMount               `json:"mounts"`
+	Partitions  []string                    `json:"partitions"`
 }
 type doctorEntware struct {
 	Mounted          bool   `json:"mounted"`
@@ -216,6 +218,7 @@ func doctorSnapshot(now time.Time) doctorView {
 	doctorTracker.Unlock()
 	_ = entwareMount
 	doctorHistoryAugment(&result, now)
+	augmentStorageE10(&result, now)
 	return result
 }
 func doctorExistsDir(path string) bool { f, e := os.Stat(path); return e == nil && f.IsDir() }

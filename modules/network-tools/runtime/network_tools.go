@@ -26,8 +26,9 @@ const (
 )
 
 var (
-	packetLossRE = regexp.MustCompile(`(?i)([0-9]+(?:\.[0-9]+)?)%\s*packet loss`)
-	pingAvgRE    = regexp.MustCompile(`(?i)(?:min/avg/max(?:/mdev)?|round-trip min/avg/max(?:/stddev)?)\s*=\s*[0-9.]+/([0-9.]+)/`)
+	pingVariationRE = regexp.MustCompile(`(?i)(?:min/avg/max/(?:mdev|stddev))\s*=\s*[0-9.]+/[0-9.]+/[0-9.]+/([0-9.]+)`)
+	packetLossRE    = regexp.MustCompile(`(?i)([0-9]+(?:\.[0-9]+)?)%\s*packet loss`)
+	pingAvgRE       = regexp.MustCompile(`(?i)(?:min/avg/max(?:/mdev)?|round-trip min/avg/max(?:/stddev)?)\s*=\s*[0-9.]+/([0-9.]+)/`)
 )
 
 type routeEntry struct {
@@ -56,17 +57,23 @@ type flowEntry struct {
 }
 
 type probeResult struct {
-	OK         bool     `json:"ok"`
-	Kind       string   `json:"kind"`
-	Target     string   `json:"target"`
-	Port       int      `json:"port,omitempty"`
-	DurationMS int64    `json:"duration_ms"`
-	RTTAvgMS   float64  `json:"rtt_avg_ms,omitempty"`
-	LossPct    float64  `json:"loss_pct,omitempty"`
-	Addresses  []string `json:"addresses,omitempty"`
-	StatusCode int      `json:"status_code,omitempty"`
-	Output     string   `json:"output,omitempty"`
-	Error      string   `json:"error,omitempty"`
+	ErrorClass   string   `json:"error_class,omitempty"`
+	TCPMS        *int64   `json:"tcp_ms,omitempty"`
+	TLSMS        *int64   `json:"tls_ms,omitempty"`
+	LossMeasured *float64 `json:"loss_measured_pct,omitempty"`
+	RTTMeasured  *float64 `json:"rtt_measured_ms,omitempty"`
+	RTTVariation *float64 `json:"rtt_variation_ms,omitempty"`
+	OK           bool     `json:"ok"`
+	Kind         string   `json:"kind"`
+	Target       string   `json:"target"`
+	Port         int      `json:"port,omitempty"`
+	DurationMS   int64    `json:"duration_ms"`
+	RTTAvgMS     float64  `json:"rtt_avg_ms,omitempty"`
+	LossPct      float64  `json:"loss_pct,omitempty"`
+	Addresses    []string `json:"addresses,omitempty"`
+	StatusCode   int      `json:"status_code,omitempty"`
+	Output       string   `json:"output,omitempty"`
+	Error        string   `json:"error,omitempty"`
 }
 
 type traceHop struct {
@@ -120,11 +127,18 @@ func registerNetworkToolsRoutes(mux *http.ServeMux) {
 		writeJSON(w, http.StatusOK, map[string]any{"flows": flows, "source": source, "limit": limit})
 	}))
 	mux.HandleFunc("/v1/flow-explorer", getOnly(handleFlowExplorer))
+	mux.HandleFunc("/v1/probe-history", getOnly(handleProbeHistoryE10))
 	mux.HandleFunc("/v1/probe", getOnly(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		target := strings.TrimSpace(r.URL.Query().Get("target"))
 		kind := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("kind")))
 		port := queryPort(r, defaultPort(kind))
 		result := runProbe(r.Context(), kind, target, port)
+		recentProbesE10.add(result)
 		status := http.StatusOK
 		if result.Error == "invalid target" || result.Error == "unsupported probe kind" || result.Error == "invalid port" {
 			status = http.StatusBadRequest
@@ -145,6 +159,11 @@ func registerNetworkToolsRoutes(mux *http.ServeMux) {
 		writeJSON(w, http.StatusOK, response)
 	}))
 	mux.HandleFunc("/v1/doctor", getOnly(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		writeJSON(w, http.StatusOK, networkDoctor(r))
 	}))
 }
@@ -521,6 +540,8 @@ func validTarget(target string) bool {
 
 func defaultPort(kind string) int {
 	switch kind {
+	case "tls":
+		return 443
 	case "http":
 		return 80
 	case "tcp":
@@ -549,7 +570,7 @@ func runProbe(parent context.Context, kind, target string, port int) probeResult
 		result.Error = "invalid target"
 		return result
 	}
-	if (kind == "tcp" || kind == "http") && (port < 1 || port > 65535) {
+	if (kind == "tcp" || kind == "http" || kind == "tls") && (port < 1 || port > 65535) {
 		result.Error = "invalid port"
 		return result
 	}
@@ -567,6 +588,7 @@ func runProbe(parent context.Context, kind, target string, port int) probeResult
 			result.OK = resolved.OK
 			result.Addresses = resolved.Addresses
 			result.Error = resolved.Error
+			result.ErrorClass = resolved.ErrorClass
 		}
 	case "tcp":
 		address := net.JoinHostPort(target, strconv.Itoa(port))
@@ -574,6 +596,13 @@ func runProbe(parent context.Context, kind, target string, port int) probeResult
 		result.OK = tcp.OK
 		result.DurationMS = tcp.LatencyMS
 		result.Error = tcp.Error
+		result.ErrorClass = tcp.ErrorClass
+	case "tls":
+		t := probe.TLS(ctx, net.JoinHostPort(target, strconv.Itoa(port)), target)
+		result.OK, result.TCPMS, result.TLSMS, result.ErrorClass = t.OK, t.TCPMS, t.HandshakeMS, t.ErrorClass
+		if !t.OK {
+			result.Error = t.ErrorClass
+		}
 	case "http":
 		result = httpProbe(ctx, target, port)
 	case "ping":
@@ -601,10 +630,21 @@ func pingProbe(ctx context.Context, target string) probeResult {
 	result.OK = err == nil
 
 	if match := packetLossRE.FindStringSubmatch(result.Output); len(match) == 2 {
-		result.LossPct, _ = strconv.ParseFloat(match[1], 64)
+		if n, e := strconv.ParseFloat(match[1], 64); e == nil && n >= 0 && n <= 100 {
+			result.LossPct = n
+			result.LossMeasured = &n
+		}
 	}
 	if match := pingAvgRE.FindStringSubmatch(result.Output); len(match) == 2 {
-		result.RTTAvgMS, _ = strconv.ParseFloat(match[1], 64)
+		if n, e := strconv.ParseFloat(match[1], 64); e == nil && n >= 0 {
+			result.RTTAvgMS = n
+			result.RTTMeasured = &n
+		}
+	}
+	if match := pingVariationRE.FindStringSubmatch(result.Output); len(match) == 2 {
+		if n, e := strconv.ParseFloat(match[1], 64); e == nil && n >= 0 {
+			result.RTTVariation = &n
+		}
 	}
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -951,6 +991,7 @@ func doctorVerdictFor(stages []doctorStage) doctorVerdict {
 		{"internet", "internet_unreachable", "upstream"},
 		{"dns", "dns_failure", "dns"},
 		{"tcp", "tcp_failure", "service"},
+		{"tls", "tls_failure", "tls"},
 		{"http", "http_failure", "service"},
 		{"ping", "target_unreachable", "target"},
 	}
@@ -1030,7 +1071,7 @@ func doctorActionsFor(verdict doctorVerdict) []doctorAction {
 			action("inspect-target-route", "high", "routing", "Inspect the kernel route decision and blocking route types for this target."),
 			action("inspect-policy-rules", "medium", "routing", "Check policy rules and the selected routing table."),
 		}
-	case "tcp_failure", "http_failure":
+	case "tcp_failure", "http_failure", "tls_failure":
 		return []doctorAction{
 			action("verify-service", "medium", "service", "Verify the target service, listening port, and remote filtering."),
 		}
@@ -1082,7 +1123,7 @@ func networkDoctor(r *http.Request) map[string]any {
 		if kind == "" || seen[kind] {
 			continue
 		}
-		if kind != "ping" && kind != "dns" && kind != "http" && kind != "tcp" {
+		if kind != "ping" && kind != "dns" && kind != "http" && kind != "tcp" && kind != "tls" {
 			return map[string]any{
 				"ok":            false,
 				"first_failure": "check-validation",
@@ -1310,6 +1351,8 @@ func networkDoctor(r *http.Request) map[string]any {
 	for _, kind := range checks {
 		port := 0
 		switch kind {
+		case "tls":
+			port = doctorPort(r, "tls_port", 443)
 		case "tcp":
 			port = doctorPort(r, "tcp_port", 443)
 		case "http":
@@ -1317,9 +1360,10 @@ func networkDoctor(r *http.Request) map[string]any {
 		}
 
 		result := runProbe(ctx, kind, target, port)
+		recentProbesE10.add(result)
 		probes[kind] = result
 
-		if result.OK && (kind == "tcp" || kind == "http") {
+		if result.OK && (kind == "tcp" || kind == "http" || kind == "tls") {
 			anyServiceOK = true
 		}
 

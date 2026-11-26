@@ -56,7 +56,7 @@ func serveNetworkTools(cfg runtimeConfig) error {
 			"api_version":    1,
 			"mode":           "read-only-diagnostics",
 			"mutation_api":   false,
-			"uptime_seconds": time.Since(started).Seconds(),
+			"uptime_seconds": time.Since(started).Seconds(), "probe_observations": recentProbesE10.summary(),
 		})
 	}))
 	registerNetworkToolsRoutes(mux)

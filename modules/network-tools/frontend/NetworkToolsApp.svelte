@@ -24,7 +24,8 @@
     flowState:'',flowSort:'recent',sourceFilter:'',destinationFilter:'',flowSearch:'',
     probeKind:'ping',probeTarget:'8.8.8.8',probePort:''
   });
-  let check = $state({ping:true,dns:true,http:false,tcp:true});
+  let check = $state({ping:true,dns:true,http:false,tcp:true,tls:false});
+  let serverProbeHistory = $state([]), serverProbeBusy = $state(false), serverProbeError = $state('');
   let state = $state({health:null,summary:null,doctor:null,interfaces:null,traceroute:null,route:null,flows:[],
     flowSource:'',flowEnrichment:{},flowGeneratedAt:'—',activeProbe:null,probeHistory:[],histories:{availability:[],rtt:[],loss:[],sessions:[]}});
   let flowLimit = $state(80);
@@ -91,9 +92,7 @@
     const checks=data.checks||[],probes=data.probes||{};
     let ok=0,rtts=[],loss=null;
     for(const kind of checks){const r=probes[kind]||{};if(r.ok)ok++;
-      if(Number(r.rtt_avg_ms)>0)rtts.push(Number(r.rtt_avg_ms));
-      else if(r.ok&&Number(r.duration_ms)>0&&(kind==='tcp'||kind==='http'))rtts.push(Number(r.duration_ms));
-      if(kind==='ping'&&Number.isFinite(Number(r.loss_pct)))loss=Number(r.loss_pct);
+      if(kind==='ping'){const measured=r.rtt_measured_ms??r.rtt_avg_ms;if(typeof measured==='number'&&Number.isFinite(measured))rtts.push(measured);const measuredLoss=r.loss_measured_pct??r.loss_pct;if(typeof measuredLoss==='number'&&Number.isFinite(measuredLoss))loss=measuredLoss;}
     }
     const availability=checks.length?ok/checks.length*100:0;
     const rtt=rtts.length?rtts.reduce((a,b)=>a+b,0)/rtts.length:0;
@@ -102,7 +101,7 @@
     putText('kpi-loss',loss===null?'—':loss.toFixed(1)+'%');
     historyPoint('availability',availability);if(rtt>0)historyPoint('rtt',rtt);if(loss!==null)historyPoint('loss',loss);
   }
-  function profileChanged(){const p=input.doctorProfile;check.ping=p!=='dns';check.dns=true;check.http=p==='web';check.tcp=p!=='dns';}
+  function profileChanged(){const p=input.doctorProfile;check.ping=p!=='dns';check.dns=true;check.http=p==='web';check.tcp=p!=='dns';check.tls=false;}
   async function runDoctor(){
     const target=input.doctorTarget.trim(),checks=Object.keys(check).filter(k=>check[k]);
     if(!checks.length){error('doctor-results',tr('doctorEmpty'));return;}
@@ -184,8 +183,8 @@
   function windowChanged(){if(autoTimer)clearInterval(autoTimer);autoTimer=null;
     const n=+input.flowWindow||0;if(n>0)autoTimer=setInterval(()=>{if(!document.hidden)void refreshFlows();},n*1000);void refreshFlows();}
 
-  let needsProbePort = $derived(input.probeKind==='tcp'||input.probeKind==='http');
-  function probeKindChanged(){input.probePort=input.probeKind==='tcp'?'443':input.probeKind==='http'?'80':'';}
+  let needsProbePort = $derived(input.probeKind==='tcp'||input.probeKind==='http'||input.probeKind==='tls');
+  function probeKindChanged(){input.probePort=(input.probeKind==='tcp'||input.probeKind==='tls')?'443':input.probeKind==='http'?'80':'';}
   async function runProbe(){if(probeBusy)return;probeBusy=true;output['probe-summary']='';
     try{const data=await read('/probe',{kind:input.probeKind,target:input.probeTarget.trim(),port:+input.probePort||0});state.activeProbe=data;
       state.probeHistory.push({at:new Date().toLocaleTimeString(locale==='ru'?'ru-RU':'en-US'),result:data});if(state.probeHistory.length>12)state.probeHistory.shift();
@@ -193,6 +192,7 @@
     }catch(e){if (mounted && e?.name !== 'AbortError') {stampError('probe-summary',e);putText('probe-output','FAIL: '+e.message);}}finally{probeBusy=false;stamp('probe-updated');}
   }
   function clearProbeHistory(){state.probeHistory=[];}
+  async function refreshServerProbes(){if(serverProbeBusy)return;serverProbeBusy=true;serverProbeError='';try{const data=await read('/probe-history',{});serverProbeHistory=Array.isArray(data.rows)?data.rows.slice(-64):[];}catch(e){if(mounted&&e?.name!=='AbortError')serverProbeError=String(e.message||e);}finally{serverProbeBusy=false;void height();}}
   function saveReport(){const report={generated_at:new Date().toISOString(),module:'network-tools',health:state.health,summary:state.summary,doctor:state.doctor,interfaces:state.interfaces,traceroute:state.traceroute,route:state.route,flow_source:state.flowSource,flow_enrichment:state.flowEnrichment,flows:state.flows,selected_flow:selectedFlow,active_probe:state.activeProbe,probe_history:state.probeHistory};
     const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='network-tools-report-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -242,7 +242,7 @@
   <section class="nt-view" id="panel-doctor" role="tabpanel" aria-labelledby="tab-doctor" data-panel="doctor" class:active={view==="doctor"} aria-hidden={view!=="doctor"}>
     <section class="nt-kpis" aria-label="Network summary">
       <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="availability">{tr("availability")}</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-availability">{output["kpi-availability"] || "—"}</div><div class="nt-trend">LIVE</div><div id="spark-availability"><NetworkSparkline values={state.histories.availability}/></div></div><small data-i18n="availabilityHint">{tr("availabilityHint")}</small></article>
-      <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="rtt">{tr("rtt")}</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-rtt">{output["kpi-rtt"] || "—"}</div><div class="nt-trend">LIVE</div><div id="spark-rtt"><NetworkSparkline values={state.histories.rtt}/></div></div><small data-i18n="rttHint">{tr("rttHint")}</small></article>
+      <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="rtt">{tr("rtt")}</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-rtt">{output["kpi-rtt"] || "—"}</div><div class="nt-trend">LIVE</div><div id="spark-rtt"><NetworkSparkline values={state.histories.rtt}/></div></div><small data-i18n="rttHint">{lx("Только ICMP RTT","ICMP RTT only")}</small></article>
       <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="loss">{tr("loss")}</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-loss">{output["kpi-loss"] || "—"}</div><div class="nt-trend bad">LIVE</div><div id="spark-loss"><NetworkSparkline values={state.histories.loss} bad={true}/></div></div><small data-i18n="lossHint">{tr("lossHint")}</small></article>
       <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="sessions">{tr("sessions")}</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-sessions">{output["kpi-sessions"] || "—"}</div><div class="nt-trend">LIVE</div><div id="spark-sessions"><NetworkSparkline values={state.histories.sessions}/></div></div><small data-i18n="sessionsHint">{tr("sessionsHint")}</small></article>
     </section>
@@ -256,7 +256,7 @@
         <button class="nt-button" id="doctor-copy" type="button" onclick={copyDoctor}><span>▣</span><span id="doctor-copy-label">{rfUi("Копировать","Copy")}</span></button>
       </div>
       <PolicyPicker consumer="network" disabled={doctorBusy} onChoose={values=>{if(doctorBusy)return false;input.doctorTarget=values[0];return true;}} />
-      <div class="nt-checks"><label class="nt-check"><input type="checkbox" id="check-ping" bind:checked={check.ping}> Ping</label><label class="nt-check"><input type="checkbox" id="check-dns" bind:checked={check.dns}> DNS</label><label class="nt-check"><input type="checkbox" id="check-http" bind:checked={check.http}> HTTP</label><label class="nt-check"><input type="checkbox" id="check-tcp" bind:checked={check.tcp}> TCP</label></div>
+      <div class="nt-checks"><label class="nt-check"><input type="checkbox" id="check-ping" bind:checked={check.ping}> Ping</label><label class="nt-check"><input type="checkbox" id="check-dns" bind:checked={check.dns}> DNS</label><label class="nt-check"><input type="checkbox" id="check-http" bind:checked={check.http}> HTTP</label><label class="nt-check"><input type="checkbox" id="check-tcp" bind:checked={check.tcp}> TCP</label><label class="nt-check"><input type="checkbox" id="check-tls" bind:checked={check.tls}> TLS</label></div>
       <div class="nt-result-list" id="doctor-results"><NetworkDoctorResults data={state.doctor} busy={doctorBusy} message={output["doctor-results"]} {lx} {tr}/></div>
     </article>
 
@@ -332,14 +332,14 @@
     <article class="nt-panel">
       <div class="nt-panel-head"><div><strong data-i18n="probeTitle">{tr("probeTitle")}</strong><small data-i18n="probeHint">{tr("probeHint")}</small></div><div class="nt-panel-head-actions"><span class="panel-updated" id="probe-updated">{output["probe-updated"] || "—"}</span><button class="nt-button compact" id="probe-clear-history" type="button" onclick={clearProbeHistory}>{lx("Очистить историю","Clear history")}</button></div></div>
       <div class="active-grid">
-        <select id="probe-kind" bind:value={input.probeKind} onchange={() => probeKindChanged()}><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option></select>
+        <select id="probe-kind" bind:value={input.probeKind} onchange={() => probeKindChanged()}><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option><option value="tls">TLS</option></select>
         <input id="probe-target" bind:value={input.probeTarget}>
         <input id="probe-port" inputmode="numeric" placeholder="n/a" bind:value={input.probePort} disabled={!needsProbePort}>
         <button class="nt-button primary" id="probe-run" onclick={runProbe} disabled={probeBusy}><span data-i18n="run">{tr("run")}</span>&nbsp;&#9654;</button>
         <button class="nt-button" id="probe-copy" type="button" onclick={copyProbe}>{lx("Копировать","Copy")}</button>
       </div>
       <PolicyPicker consumer="network" disabled={probeBusy} onChoose={values=>{if(probeBusy)return false;input.probeTarget=values[0];return true;}} />
-      <div class="probe-summary" id="probe-summary"><NetworkProbeViews section="summary" data={state.activeProbe} busy={probeBusy} message={output["probe-summary"]} {lx} {tr}/></div><div class="probe-history-title">Recent probes</div><div class="probe-history" id="probe-history"><NetworkProbeViews section="history" history={state.probeHistory} {lx} {tr}/></div><details class="probe-raw" id="probe-raw"><summary id="probe-raw-summary">{lx("Технические данны JSON","Raw JSON details")}</summary><pre class="nt-console" id="probe-output" data-i18n="probeReady">{output["probe-output"] || tr("probeReady")}</pre></details>
+      <div class="probe-summary" id="probe-summary"><NetworkProbeViews section="summary" data={state.activeProbe} busy={probeBusy} message={output["probe-summary"]} {lx} {tr}/></div><div class="probe-history-title">{lx('Проверки текущего окна','Current window probes')}</div><details><summary>{lx('История Network Tools (до 64)','Network Tools history (up to 64)')}</summary><small>{lx('Ручные проверки всех окон, в памяти процесса. Содержит адреса целей; не входит в Support Bundle.','Manual probes from all windows, in process memory. Contains targets; not included in Support Bundle.')}</small><button type="button" class="nt-button compact" onclick={refreshServerProbes} disabled={serverProbeBusy}>{lx('Загрузить историю','Load history')}</button>{#if serverProbeError}<div role="alert">{serverProbeError}</div>{/if}<NetworkProbeViews section="history" history={serverProbeHistory.map(item=>({...item,at:new Date(item.at).toLocaleString()}))} {lx} {tr}/></details><div class="probe-history" id="probe-history"><NetworkProbeViews section="history" history={state.probeHistory} {lx} {tr}/></div><details class="probe-raw" id="probe-raw"><summary id="probe-raw-summary">{lx("Технические данны JSON","Raw JSON details")}</summary><pre class="nt-console" id="probe-output" data-i18n="probeReady">{output["probe-output"] || tr("probeReady")}</pre></details>
     </article>
   </section>
 </main>

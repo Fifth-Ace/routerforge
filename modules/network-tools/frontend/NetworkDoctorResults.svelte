@@ -1,7 +1,7 @@
 <script>
   let { data = null, busy = false, message = '', lx, tr } = $props();
-  const icons = {ping:'⌁',dns:'◎',http:'▣',tcp:'◉'};
-  const names = {ping:'Ping',dns:'DNS',http:'HTTP',tcp:'TCP'};
+  const icons = {ping:'⌁',dns:'◎',http:'▣',tcp:'◉',tls:'◇'};
+  const names = {ping:'Ping',dns:'DNS',http:'HTTP',tcp:'TCP',tls:'TLS'};
   const verdictLabels = {
     healthy:['Сетевой путь исправен','Network path is healthy'], degraded:['Сеть работает с ограничениями','Network is operating with warnings'],
     no_default_route:['Нет маршрута по умолчанию','No default route'],interface_down:['Выходной интерфейс недоступен','Default interface is down'],
@@ -10,14 +10,14 @@
     egress_interface_failure:['Выбранный ядром интерфейс недоступен','Kernel-selected egress is unavailable'],
     gateway_interface_mismatch:['Шлюз и выходной интерфейс не согласованы','Route gateway/interface mismatch'],
     route_source_mismatch:['Исходный адрес не принадлежит интерфейсу','Route source does not belong to selected interface'],
-    target_unreachable:['Цель не отвечает на Ping','Target does not answer Ping'],tcp_failure:['TCP-сервис недоступен','TCP service is unreachable'],http_failure:['HTTP-проверка не прошла','HTTP check failed']
+    target_unreachable:['Цель не отвечает на Ping','Target does not answer Ping'],tcp_failure:['TCP-сервис недоступен','TCP service is unreachable'],tls_failure:['TLS-проверка не прошла','TLS check failed'],http_failure:['HTTP-проверка не прошла','HTTP check failed']
   };
   const stages = {
     default_route:['Маршрут по умолчанию','Default route'],interface:['Сетевой интерфейс','Network interface'],
     local_address:['Локальный адрес','Local address'],gateway:['Шлюз','Gateway'],internet:['Доступ в Интернет','Internet connectivity'],
     dns:['DNS','DNS'],target_route:['Маршрут к цели','Target route'],policy_routing:['Политика маршрутизации','Policy routing'],
     kernel_egress:['Выходной интерфейс ядра','Kernel-selected egress'],gateway_consistency:['Согласованность шлюза','Gateway/interface consistency'],
-    source_consistency:['Исходный адрес маршрута','Route/source consistency'],ping:['Ping','Ping'],tcp:['TCP','TCP'],http:['HTTP','HTTP']
+    source_consistency:['Исходный адрес маршрута','Route/source consistency'],ping:['Ping','Ping'],tcp:['TCP','TCP'],tls:['TLS','TLS'],http:['HTTP','HTTP']
   };
   const actionNames = {
     'review-warnings':['Проверить предупреждения','Review warnings'], 'inspect-default-route':['Проверить default route','Inspect default route'],
@@ -34,6 +34,7 @@
   const detail = (kind,r) => {
     if (!r) return tr('noData');
     if (kind === 'ping') return r.rtt_avg_ms ? 'RTT '+Number(r.rtt_avg_ms).toFixed(1)+' ms' : tr('time')+' '+r.duration_ms+' ms';
+    if (kind === 'tls') return [r.tcp_ms!=null?'TCP '+r.tcp_ms+' ms':'',r.tls_ms!=null?'TLS '+r.tls_ms+' ms':'',r.error_class||''].filter(Boolean).join(' · ')||'—';
     if (kind === 'dns') return (r.addresses||[]).join(', ') || tr('time')+' '+r.duration_ms+' ms';
     if (kind === 'http') return r.status_code ? 'HTTP '+r.status_code+' · '+r.duration_ms+' ms' : tr('time')+' '+r.duration_ms+' ms';
     return tr('time')+' '+r.duration_ms+' ms';

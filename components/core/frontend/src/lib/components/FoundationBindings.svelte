@@ -26,18 +26,19 @@
     await run(async()=>{await request('/commit',{operation:p.operation,target:p.target,groupId:p.groupId,catalogueETag:p.catalogueETag,token:p.token},true);plan=null;await readRows();notice=tr('Изменение подтверждено. Состояние активных правил не проверялось.','Change confirmed. Active rule state was not verified.');if(p.operation==='detach')reset();else operation='inspect';});}
   function statusLabel(status){switch(status){case 'saved_in_sync':return tr('Сохранённый список совпадает','Saved list matches');case 'needs_sync':return tr('Требуется синхронизация','Synchronization required');case 'native_conflict':return tr('Нативный список изменён вне привязки','Native list changed outside binding');case 'ready':return tr('Готово к сохранению','Ready to save');case 'pending_after_observed':return tr('Наблюдается ожидаемая новая редакция','Expected new revision observed');case 'pending_before_observed':return tr('Наблюдается исходная редакция','Original revision observed');case 'pending_conflict':return tr('Неизвестная редакция после операции','Unknown revision after operation');case 'rebase_metadata_only':return tr('Принять текущую редакцию без записи списка','Accept current revision without list write');case 'detach_metadata_only':return tr('Удаление только метаданных привязки','Remove binding metadata only');default:return status}}
 </script>
-<details class="panel rf-binding-panel">
-  <summary>{tr('Постоянные привязки списков','Persistent list bindings')}</summary>
-  <p>{tr('Привязка хранит контрольную редакцию существующего списка. Изменения каталога не применяются автоматически. Создайте отдельный список в родном модуле: dns.rf-binding-name или nfqws.rf-binding-name.list. DNS: локальный список без автообновления; NFQWS: непустой отсортированный список доменов, по одному на строку, без комментариев и дублей.','A binding tracks the checkpoint of an existing list. Catalogue changes never apply automatically. Create a dedicated list in its native module: dns.rf-binding-name or nfqws.rf-binding-name.list. DNS: local list without auto-updates; NFQWS: nonempty sorted domain list, one per line, without comments or duplicates.')}</p>
-  <div class="rf-bind-actions"><button type="button" class="button" disabled={busy||disabled||!catalogueETag} onclick={()=>run(readRows)}>{tr('Обновить привязки','Refresh bindings')}</button><button type="button" class="button" disabled={busy||disabled} onclick={reset}>{tr('Новая привязка','New binding')}</button></div>
+<section class="panel rf-binding-panel">
+  <div class="panel-head"><div><strong>{tr('Постоянные привязки списков','Persistent list bindings')}</strong><span>{tr('Изменения применяются только после подтверждения','Changes require explicit confirmation')}</span></div></div>
+  <div class="rf-binding-body">
+  <details class="rf-binding-help"><summary>{tr('Требования к спискам и синхронизации','List and synchronization requirements')}</summary><p>{tr('Привязка хранит контрольную редакцию существующего списка. Изменения каталога не применяются автоматически. Создайте отдельный список в родном модуле: dns.rf-binding-name или nfqws.rf-binding-name.list. DNS: локальный список без автообновления; NFQWS: непустой отсортированный список доменов, по одному на строку, без комментариев и дублей.','A binding tracks the checkpoint of an existing list. Catalogue changes never apply automatically. Create a dedicated list in its native module: dns.rf-binding-name or nfqws.rf-binding-name.list. DNS: local list without auto-updates; NFQWS: nonempty sorted domain list, one per line, without comments or duplicates.')}</p></details>
+  <div class="rf-bind-actions"><button type="button" class="button" disabled={busy||disabled||!catalogueETag} onclick={()=>run(readRows)}>{tr('Обновить привязки','Refresh bindings')}</button><button type="button" class="button primary" disabled={busy||disabled} onclick={reset}>{tr('Новая привязка','New binding')}</button></div>
   {#if loaded}
-    {#each rows as row (row.target)}<div class="rf-bind-row"><div><strong>{row.target}</strong><small>{row.groupId} · {row.count} · SHA {row.sha256.slice(0,12)} · {row.pending?tr('Незавершённая операция','Pending operation'):tr('Контрольная редакция','Checkpoint')}</small></div><button type="button" class="button" disabled={busy||disabled} onclick={()=>selectRow(row)}>{tr('Выбрать','Select')}</button></div>{:else}<p>{tr('Нет привязок','No bindings')}</p>{/each}
+    {#each rows as row (row.target)}<div class="rf-bind-row"><div><strong>{row.target}</strong><small>{row.groupId} · {row.count} · SHA {row.sha256.slice(0,12)} · {row.pending?tr('Незавершённая операция','Pending operation'):tr('Контрольная редакция','Checkpoint')}</small></div><button type="button" class="button" disabled={busy||disabled} onclick={()=>selectRow(row)}>{tr('Выбрать','Select')}</button></div>{:else}<div class="empty">{tr('Постоянных привязок пока нет','No persistent bindings yet')}</div>{/each}
     <div class="rf-bind-fields">
       <label>{tr('Целевой список','Target list')}<input bind:value={target} maxlength="96" disabled={busy||disabled||operation!=='attach'} placeholder="dns.rf-binding-name" oninput={clear}/></label>
       <label>{tr('Сохранённая группа','Saved group')}<select bind:value={groupId} disabled={busy||disabled||operation!=='attach'} onchange={clear}><option value="">—</option>{#each groups.filter(g=>g.type==='domain-group') as g (g.id)}<option value={g.id}>{g.name} ({g.id})</option>{/each}</select></label>
       <label>{tr('Операция','Operation')}<select bind:value={operation} disabled={busy||disabled} onchange={clear}><option value="attach">{tr('Создать привязку','Attach')}</option>{#if existing}<option value="inspect">{tr('Проверить','Inspect')}</option><option value="sync">{tr('Синхронизировать сохранённый список','Sync saved list')}</option>{#if existing.rollbackAvailable}<option value="rollback">{tr('Вернуть предыдущий состав','Restore previous membership')}</option>{/if}<option value="rebase">{tr('Принять ручные изменения','Accept manual changes')}</option>{#if existing.pending}<option value="reconcile">{tr('Проверить незавершённую операцию','Reconcile pending operation')}</option>{/if}<option value="detach">{tr('Отвязать (не менять список)','Detach (keep list)')}</option>{/if}</select></label>
     </div>
-    <button type="button" class="button" disabled={busy||disabled||!target.trim()||!groupId||!catalogueETag} onclick={inspect}>{tr('Предпросмотр / проверка','Preview / inspect')}</button>
+    <button type="button" class="button primary" disabled={busy||disabled||!target.trim()||!groupId||!catalogueETag} onclick={inspect}>{tr('Предпросмотр / проверка','Preview / inspect')}</button>
   {/if}
   {#if busy}<p role="status">{tr('Выполняется операция…','Operation in progress…')}</p>{/if}
   {#if error}<p role="alert">{error} · {tr('Обновите привязки и проверьте состояние. Не повторяйте сохранение вслепую.','Refresh bindings and inspect state. Do not blindly repeat a save.')}</p>{/if}
@@ -50,7 +51,25 @@
     {#if plan.added.length||plan.removed.length}<details open><summary>{tr('Изменения состава','Membership changes')} +{plan.added.length} / −{plan.removed.length}</summary><pre>{plan.added.map(v=>'+ '+v).concat(plan.removed.map(v=>'− '+v)).join('\n')}</pre></details>{/if}
     {#if plan.canCommit}<button type="button" class="button" disabled={busy||disabled} onclick={commit}>{tr('Подтвердить именно этот план','Confirm this exact plan')}</button>{/if}
   {/if}
-</details>
+  </div>
+</section>
 <style>
-  .rf-binding-panel{margin-block:12px;overflow-wrap:anywhere}.rf-binding-panel summary{cursor:pointer;font-weight:650}.rf-bind-actions,.rf-bind-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-block:8px}.rf-bind-row{justify-content:space-between}.rf-bind-row small{display:block}.rf-bind-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px;margin:10px 0}.rf-bind-fields label{display:grid;gap:5px;min-width:0}.rf-bind-fields input,.rf-bind-fields select{width:100%;min-width:0}.rf-binding-panel pre{max-height:240px;overflow:auto;white-space:pre-wrap}
+ .rf-binding-panel{margin:0;min-width:0;overflow-wrap:anywhere}
+ .rf-binding-panel .panel-head {min-height:40px;padding:10px 12px;flex-wrap:wrap}
+ .rf-binding-body {padding:12px;display:grid;gap:10px;min-width:0}
+ .rf-binding-body p {margin:0;line-height:1.5}
+ .rf-binding-help {border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--muted);font-size:12px}
+ .rf-binding-help summary {cursor:pointer;font-weight:600}
+ .rf-binding-help p {margin-top:8px}
+ .rf-bind-actions,.rf-bind-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ .rf-bind-row{justify-content:space-between;border-bottom:1px solid var(--border);padding:8px 0}
+ .rf-bind-row>div{min-width:0;flex:1}
+ .rf-bind-row small{display:block;color:var(--muted);margin-top:4px}
+ .rf-bind-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px}
+ .rf-bind-fields label{display:grid;gap:5px;min-width:0;color:var(--muted);font-size:12px}
+ .rf-bind-fields input,.rf-bind-fields select{width:100%;max-width:none;min-width:0;min-height:30px;height:auto;padding:7px 9px;border:1px solid var(--border);border-radius:5px;background:var(--surface-2);color:var(--text);font:inherit}
+ .rf-binding-panel pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);padding:8px;border-radius:5px;border:1px solid var(--border)}
+ .rf-binding-panel button:disabled{opacity:.5;cursor:not-allowed}
+ .rf-binding-panel button:focus-visible,.rf-binding-panel summary:focus-visible,.rf-binding-panel input:focus-visible,.rf-binding-panel select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+ .rf-binding-panel [role=alert]{color:var(--bad)}
 </style>

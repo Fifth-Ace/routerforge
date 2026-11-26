@@ -45,9 +45,26 @@
 <svelte:head><title>{tr('Объекты политик','Policy objects')} — RouterForge</title></svelte:head>
 <div class="page foundation-page">
  <div class="page-head"><h1>{tr('Объекты политик','Policy objects')}</h1><p>{tr('Общий каталог устройств и групп. Сохранение черновика не применяет сетевые правила.','Shared device and group catalogue. Saving a draft never applies network rules.')}</p></div>
+ {#if draft && state}<div class="rf-policy-metrics">
+  <div class="metric-card"><span>{tr('Группы','Groups')}</span><strong>{draft.policyObjects.length}</strong></div>
+  <div class="metric-card"><span>{tr('Устройства','Devices')}</span><strong>{draft.devices.length}</strong></div>
+  <div class="metric-card"><span>{tr('Редакция','Revision')}</span><strong>r{state.current.generation}</strong></div>
+ </div>{/if}
+ <section class="panel rf-policy-workspace">
+  <div class="subtabs">
+   {#each [['groups',tr('Группы','Groups')],['devices',tr('Устройства','Devices')],['bindings',tr('Привязки','Bindings')],['transfer',tr('Импорт / история','Import / history')],['events',tr('События','Events')]] as item}
+    <button type="button" class:active={tab===item[0]} aria-pressed={tab===item[0]} disabled={busy} onclick={()=>{tab=item[0];if(tab==='events')void readEvents()}}>{item[1]}</button>
+   {/each}
+  </div>
+  <div class="rf-policy-body">
+  {#if error}<p class="rf-foundation-error" role="alert">{error}</p>{/if}
+  {#if notice}<p role="status">{notice}</p>{/if}
+  {#if state}<div class="rf-policy-status"><span class="state-chip" class:warn={dirty} class:good={!dirty}>{dirty?tr('Есть черновик','Unsaved draft'):tr('Сохранено','Saved')}</span><span class="muted">{tr('Редакция каталога','Catalogue revision')}: {state.current.generation}</span></div>{/if}
+  {#if !draft}<button type="button" class="button" disabled={busy} onclick={reload}>{tr('Загрузить','Load')}</button>{/if}
+  <div class="rf-policy-resources" hidden={tab!=='bindings'}>
  {#if draft}
- <details class="panel"><summary>{tr('Ссылки и потребители каталога','Catalogue references and consumers')}</summary>
-  <p>{tr('DNS Router, NFQWS и Network Tools читают сохранённые группы. Подстановка создаёт локальный черновик, а не живую привязку к правилам.','DNS Router, NFQWS and Network Tools read saved groups. Insertion creates a local draft, not a live rule binding.')}</p>
+ <details class="panel rf-policy-reference"><summary>{tr('Ссылки и потребители каталога','Catalogue references and consumers')}</summary>
+  <div class="rf-policy-reference-body"><p>{tr('DNS Router, NFQWS и Network Tools читают сохранённые группы. Подстановка создаёт локальный черновик, а не живую привязку к правилам.','DNS Router, NFQWS and Network Tools read saved groups. Insertion creates a local draft, not a live rule binding.')}</p>
   <button type="button" class="button" disabled={busy||!state} onclick={loadNativeUses}>{tr('Ссылки на нативные списки (сохранённые)','Native list references (saved)')}</button>
   {#if nativeUses}<p>{tr('Редакция','Revision')}: {nativeUses.etag.slice(0,12)}</p>{#each nativeUses.references as item (item.ref)}<p style="overflow-wrap:anywhere"><strong>{item.ref}</strong> · {tr('Прямые и вложенные группы:','Direct and nested groups:')} {item.groups.join(', ')}</p>{:else}<p>{tr('Нет ссылок','No references')}</p>{/each}{/if}
   {#each draft.policyObjects as item (item.id)}
@@ -56,22 +73,13 @@
   {#each draft.devices as item (item.id)}
     <p><strong>{item.name}</strong> · {tr('Подключения:','Connections:')} {draft.connections.filter(c=>c.deviceId===item.id).length} · {tr('Группы:','Groups:')} {draft.policyObjects.filter(g=>g.members.some(m=>m.kind==='device'&&m.value===item.id)).map(g=>g.name).join(', ')||'—'}</p>
   {/each}
- </details>
+ </div></details>
  {/if}
  {#if state}<FoundationBindings catalogueETag={state.current.etag} groups={state.current.catalog.policyObjects} {locale} disabled={busy||dirty}/>{/if}
- <section class="panel">
-  <div class="rf-foundation-actions">
-   {#each [['groups',tr('Группы','Groups')],['devices',tr('Устройства','Devices')],['transfer',tr('Импорт / история','Import / history')],['events',tr('События','Events')]] as item}
-    <button type="button" class="button" class:active={tab===item[0]} disabled={busy} onclick={()=>{tab=item[0];if(tab==='events')void readEvents()}}>{item[1]}</button>
-   {/each}
   </div>
-  {#if error}<p class="rf-foundation-error" role="alert">{error}</p>{/if}
-  {#if notice}<p role="status">{notice}</p>{/if}
-  {#if state}<p>{tr('Редакция каталога','Catalogue revision')}: {state.current.generation} · {dirty?tr('Есть черновик','Unsaved draft'):tr('Сохранено','Saved')}</p>{/if}
-  {#if !draft}<button type="button" class="button" disabled={busy} onclick={reload}>{tr('Загрузить','Load')}</button>{/if}
   {#if draft && tab==='groups'}
-   <div class="rf-foundation-actions"><label>{tr('Поиск','Search')} <input bind:value={filter}/></label><button type="button" class="button" disabled={busy} onclick={()=>editGroup(null)}>{tr('Добавить группу','Add group')}</button></div>
-   <div class="rf-foundation-list">{#each filtered as x (x.id)}<div class="rf-foundation-row"><div><strong>{x.name}</strong><small>{x.id} · {x.type} · r{x.revision} · {x.members.length}</small></div><button type="button" class="button" disabled={busy} onclick={()=>editGroup(x)}>{tr('Изменить','Edit')}</button><button type="button" class="button" disabled={busy} onclick={()=>removeGroup(x.id)}>{tr('Удалить из черновика','Remove from draft')}</button></div>{:else}<p>{tr('Нет групп','No groups')}</p>{/each}</div>
+   <div class="rf-foundation-actions"><label class="search-control"><span aria-hidden="true">⌕</span><input aria-label={tr('Поиск групп','Search groups')} placeholder={tr('Поиск групп…','Search groups…')} bind:value={filter}/></label><button type="button" class="button primary" disabled={busy} onclick={()=>editGroup(null)}>{tr('Добавить группу','Add group')}</button></div>
+   <div class="rf-foundation-list">{#each filtered as x (x.id)}<div class="rf-foundation-row"><div><strong>{x.name}</strong><small>{x.id} · {x.type} · r{x.revision} · {x.members.length}</small></div><button type="button" class="button" disabled={busy} onclick={()=>editGroup(x)}>{tr('Изменить','Edit')}</button><button type="button" class="button" disabled={busy} onclick={()=>removeGroup(x.id)}>{tr('Удалить из черновика','Remove from draft')}</button></div>{:else}<div class="empty"><strong>{filter.trim()?tr('Ничего не найдено','No matching groups'):tr('Группы пока не созданы','No groups yet')}</strong><span>{filter.trim()?tr('Измените поисковый запрос.','Change the search query.'):tr('Добавьте группу для DNS Router, NFQWS или сетевых инструментов.','Add a group for DNS Router, NFQWS or Network Tools.')}</span></div>{/each}</div>
    {#if group}<div class="rf-foundation-editor">
     <h2>{tr('Редактор группы','Group editor')}</h2>
     <label>ID <input bind:value={group.id} readonly={group.existing} maxlength="96" /></label><label>{tr('Название','Name')} <input bind:value={group.name} maxlength="160"/></label>
@@ -87,12 +95,12 @@
      <small>{tr('Только домены из сохранённого списка; условия DNS/NFQWS не переносятся. После изменения источника потребуется новый pin.','Domain membership from a saved list only; DNS/NFQWS rule semantics are not transferred. Changes require a new pin.')}</small>
     {:else}<label>{tr('Значение','Value')} <input bind:value={member.value} placeholder={member.kind==='port'?'tcp:443':member.kind==='domain'?'*.example.org':member.kind==='cidr'?'192.0.2.0/24':''}/></label>{/if}
     <button type="button" class="button" onclick={()=>{group.members=group.members.filter((_,j)=>j!==i);group={...group}}}>{tr('Убрать','Remove')}</button></div>{/each}
-    <div class="rf-foundation-actions"><button type="button" class="button" onclick={()=>{group.members=[...group.members,{kind:memberKinds[group.type][0],value:''}];group={...group}}}>{tr('Добавить элемент','Add member')}</button><button type="button" class="button" onclick={saveGroup}>{tr('В черновик','Add to draft')}</button><button type="button" class="button" onclick={()=>group=null}>{tr('Отмена','Cancel')}</button></div>
+    <div class="rf-foundation-actions"><button type="button" class="button" onclick={()=>{group.members=[...group.members,{kind:memberKinds[group.type][0],value:''}];group={...group}}}>{tr('Добавить элемент','Add member')}</button><button type="button" class="button primary" onclick={saveGroup}>{tr('В черновик','Add to draft')}</button><button type="button" class="button" onclick={()=>group=null}>{tr('Отмена','Cancel')}</button></div>
    </div>{/if}
   {:else if draft && tab==='devices'}
-   <button type="button" class="button" disabled={busy} onclick={()=>editDevice(null)}>{tr('Добавить устройство','Add device')}</button>
-   {#each draft.devices as x (x.id)}<div class="rf-foundation-row"><div><strong>{x.name}</strong><small>{x.kind} · {x.id} · r{x.revision}</small></div><button type="button" class="button" disabled={busy} onclick={()=>editDevice(x)}>{tr('Изменить','Edit')}</button><button type="button" class="button" disabled={busy} onclick={()=>removeDevice(x.id)}>{tr('Удалить из черновика','Remove from draft')}</button></div>{:else}<p>{tr('Нет устройств','No devices')}</p>{/each}
-   {#if device}<div class="rf-foundation-editor"><h2>{tr('Устройство','Device')}</h2><label>{tr('Название','Name')} <input bind:value={device.name} maxlength="160"/></label><label>{tr('Тип','Kind')} <select bind:value={device.kind}>{#each deviceKinds as k}<option value={k}>{k}</option>{/each}</select></label><label>{tr('Теги через запятую','Comma-separated tags')} <input bind:value={device.tagText}/></label><label><input type="checkbox" bind:checked={device.enabled}/> {tr('Включено','Enabled')}</label><div class="rf-foundation-actions"><button type="button" class="button" onclick={saveDevice}>{tr('В черновик','Add to draft')}</button><button type="button" class="button" onclick={()=>device=null}>{tr('Отмена','Cancel')}</button></div></div>{/if}
+   <button type="button" class="button primary" disabled={busy} onclick={()=>editDevice(null)}>{tr('Добавить устройство','Add device')}</button>
+   {#each draft.devices as x (x.id)}<div class="rf-foundation-row"><div><strong>{x.name}</strong><small>{x.kind} · {x.id} · r{x.revision}</small></div><button type="button" class="button" disabled={busy} onclick={()=>editDevice(x)}>{tr('Изменить','Edit')}</button><button type="button" class="button" disabled={busy} onclick={()=>removeDevice(x.id)}>{tr('Удалить из черновика','Remove from draft')}</button></div>{:else}<div class="empty"><strong>{tr('Устройства пока не добавлены','No devices yet')}</strong><span>{tr('Добавьте устройство в общий каталог.','Add a device to the shared catalogue.')}</span></div>{/each}
+   {#if device}<div class="rf-foundation-editor"><h2>{tr('Устройство','Device')}</h2><label>{tr('Название','Name')} <input bind:value={device.name} maxlength="160"/></label><label>{tr('Тип','Kind')} <select bind:value={device.kind}>{#each deviceKinds as k}<option value={k}>{k}</option>{/each}</select></label><label>{tr('Теги через запятую','Comma-separated tags')} <input bind:value={device.tagText}/></label><label><input type="checkbox" bind:checked={device.enabled}/> {tr('Включено','Enabled')}</label><div class="rf-foundation-actions"><button type="button" class="button primary" onclick={saveDevice}>{tr('В черновик','Add to draft')}</button><button type="button" class="button" onclick={()=>device=null}>{tr('Отмена','Cancel')}</button></div></div>{/if}
   {:else if draft && tab==='transfer'}
    <p>{tr('Импорт только метаданных: без токенов, ключей, ссылок vault и приватных URL. Подключения пока не выполняются.','Metadata-only import: no tokens, keys, vault references or private URLs. Connections are not executed yet.')}</p>
    <div class="rf-foundation-actions"><button type="button" class="button" onclick={exportCurrent}>{tr('Экспорт сохранённого','Export saved catalogue')}</button><button type="button" class="button" onclick={()=>jsonText=JSON.stringify(draft,null,2)}>{tr('JSON черновика','Draft JSON')}</button></div>
@@ -101,22 +109,53 @@
   {:else if tab==='events'}
    <p>{tr('Нормализованные события текущего процесса Core, без сырых сообщений и секретных деталей.','Normalized events for the current Core process, without raw messages or secret details.')}</p><div class="rf-foundation-actions"><label>{tr('Компонент','Component')} <input bind:value={eventFilter}/></label><label>{tr('Уровень','Severity')} <select bind:value={eventSeverity}><option value="">{tr('Все','All')}</option>{#each ['info','warning','critical'] as s}<option value={s}>{s}</option>{/each}</select></label><button type="button" class="button" disabled={busy} onclick={readEvents}>{tr('Обновить','Refresh')}</button></div>{#each events as e (e.id)}<div class="rf-foundation-row"><div><strong>{e.type}</strong><small>{e.component} · {e.severity} · {e.observedAt}</small></div></div>{:else}<p>{tr('Нет событий','No events')}</p>{/each}
   {/if}
+  </div>
  </section>
- {#if draft && tab!=='events'}<section class="panel"><div class="rf-foundation-actions"><button type="button" class="button" disabled={busy} onclick={reload}>{tr('Перечитать','Reload')}</button><button type="button" class="button" disabled={busy||!dirty||!!group||!!device} onclick={inspect}>{tr('Проверить черновик','Preview draft')}</button>{#if preview}<button type="button" class="button" disabled={busy||!!group||!!device} onclick={commit}>{tr('Сохранить каталог','Save catalogue')}</button>{/if}</div>
+ {#if draft && tab!=='events'}<section class="panel rf-policy-footer"><div class="rf-foundation-actions"><button type="button" class="button" disabled={busy} onclick={reload}>{tr('Перечитать','Reload')}</button><button type="button" class="button primary" disabled={busy||!dirty||!!group||!!device} onclick={inspect}>{tr('Проверить черновик','Preview draft')}</button>{#if preview}<button type="button" class="button primary" disabled={busy||!!group||!!device} onclick={commit}>{tr('Сохранить каталог','Save catalogue')}</button>{/if}</div>
  {#if preview}<p>{tr('Добавлено','Added')}: {preview.added.length} · {tr('Изменено','Changed')}: {preview.changed.length} · {tr('Удалено','Removed')}: {preview.removed.length}</p>{#each [['+',preview.added],['~',preview.changed],['−',preview.removed]] as row}{#each row[1] as id}<div>{row[0]} {id}</div>{/each}{/each}<label>{tr('Разворачивание группы','Group expansion')} <select bind:value={expanded}><option value="">—</option>{#each Object.keys(preview.expanded) as id}<option value={id}>{id}</option>{/each}</select></label>{#if expanded}<pre>{JSON.stringify(preview.expanded[expanded],null,2)}</pre>{/if}<p>{tr('Ссылки list-ref не разрешаются до появления адаптера потребителя. Действующие правила не изменяются.','list-ref entries are unresolved until a consumer adapter is added. Active rules remain unchanged.')}</p>{/if}</section>{/if}
 </div>
 <style>
- .foundation-page {min-width:0; display:grid;gap:12px}
- .rf-foundation-actions {display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:8px 0}
- .rf-foundation-row {display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--rf-border,var(--border,#7775));overflow-wrap:anywhere}
- .rf-foundation-row>div:first-child {flex:1;min-width:150px}
- .rf-foundation-row small {display:block;opacity:.75}
- .rf-foundation-editor {display:grid;gap:8px;margin-top:12px;min-width:0}
- label {display:flex;flex-direction:column;gap:4px;min-width:0}
- input,select,textarea {max-width:100%;min-width:0;box-sizing:border-box;padding:7px;border:1px solid var(--rf-border,var(--border,#7775));background:var(--rf-surface,var(--panel,transparent));color:inherit;border-radius:5px}
- textarea {width:100%;font-family:monospace}
+ .foundation-page {min-width:0;display:grid;gap:12px}
+ .foundation-page .page-head {margin-bottom:0;min-height:0;align-items:center;flex-wrap:wrap;gap:8px 16px}
+ .foundation-page .panel {margin-bottom:0}
+ .rf-policy-metrics {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ .rf-policy-metrics .metric-card {min-height:68px;padding:10px 14px}
+ .rf-policy-metrics .metric-card strong {font-size:18px}
+ .rf-policy-workspace {min-width:0}
+ .rf-policy-workspace .subtabs {margin:0;padding:0 10px;overflow-x:auto;flex-wrap:wrap}
+ .rf-policy-workspace .subtabs button {white-space:nowrap}
+ .rf-policy-body {padding:12px 14px;min-width:0;display:grid;gap:10px}
+ .rf-policy-body p,.rf-policy-footer p,.rf-policy-reference p {margin:0;line-height:1.5;overflow-wrap:anywhere}
+ .rf-policy-resources[hidden] {display:none!important}
+ .rf-policy-resources {display:grid;gap:10px;min-width:0}
+ .rf-policy-reference summary {cursor:pointer;list-style:none;padding:10px 12px;display:flex;align-items:center;gap:8px;font-weight:600}
+ .rf-policy-reference summary::-webkit-details-marker {display:none}
+ .rf-policy-reference summary::before {content:'›';color:var(--muted);font-size:17px;line-height:1}
+ .rf-policy-reference[open] summary::before {transform:rotate(90deg)}
+ .rf-policy-reference[open] summary {border-bottom:1px solid var(--border)}
+ .rf-policy-reference .rf-policy-reference-body {display:grid;gap:10px;padding:12px}
+ .rf-policy-footer {padding:10px 14px;display:grid;gap:10px}
+ .rf-policy-status {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+ .rf-foundation-actions {display:flex;gap:8px;align-items:end;flex-wrap:wrap;min-width:0}
+ .rf-foundation-actions .search-control {min-width:min(180px,100%);max-width:440px;flex:1;display:flex;flex-direction:row;align-items:center;gap:8px}
+ .rf-foundation-actions .search-control input {border:0;padding:0;background:transparent;min-width:0;width:100%;height:auto}
+ .rf-foundation-row {display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+ .rf-foundation-row:last-child {border-bottom:0}
+ .rf-foundation-row>div:first-child {flex:1;min-width:min(150px,100%)}
+ .rf-foundation-row small {display:block;color:var(--muted);margin-top:3px}
+ .rf-foundation-list .empty,.rf-policy-body .empty {min-height:78px;display:grid;place-content:center;gap:4px;text-align:center}
+ .empty strong {color:var(--text);font-size:13px}
+ .rf-foundation-editor {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);min-width:0}
+ .rf-foundation-editor h2,.rf-foundation-editor .rf-foundation-actions,.rf-foundation-editor .rf-foundation-row {grid-column:1/-1}
+ h2 {font-size:14px;margin:0 0 2px}
+ label {display:flex;flex-direction:column;gap:5px;min-width:0;color:var(--muted);font-size:12px}
+ input,select,textarea {max-width:100%;min-width:0;box-sizing:border-box;padding:7px 9px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:5px;font:inherit}
+ select {height:auto;min-height:30px}
+ textarea {width:100%;font-family:var(--font-mono,monospace)}
  input[type=checkbox] {width:auto;align-self:start}
- .rf-foundation-error {color:var(--rf-danger,#ef4444);overflow-wrap:anywhere}
- .active {outline:1px solid currentColor}
- pre {max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+ button:disabled {opacity:.5;cursor:not-allowed}
+ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+ .rf-foundation-error {color:var(--bad);overflow-wrap:anywhere}
+ pre {max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;background:var(--bg);padding:10px;border:1px solid var(--border);border-radius:5px}
+ @media(max-width:640px){.rf-policy-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.rf-policy-metrics .metric-card{padding:8px;min-height:60px}.rf-policy-metrics .metric-card strong{font-size:15px}.rf-policy-body,.rf-policy-footer{padding:10px}.rf-foundation-editor{grid-template-columns:minmax(0,1fr)}.rf-foundation-row>div:first-child{flex-basis:100%}}
 </style>

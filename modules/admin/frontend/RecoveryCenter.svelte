@@ -3,6 +3,8 @@
   import RecoveryExtended from './RecoveryExtended.svelte';
   import { markUnauthorized } from '$lib/stores/auth.js';
   export let locale = 'ru';
+  export let initialPaths = [];
+  let initialSelectionDone = false;
   const base = '/api/modules/admin/maintenance/';
   let vault = null, archives = [], selected = '', artifact = '', compare = '', plan = null;
   let busy = false, error = '', result = null, notice = '', alive = true, controller = null;
@@ -41,6 +43,13 @@
     if(!alive)return;vault=next;plan=null;
     if(!vault.snapshots.some(x=>x.id===selected)){selected=vault.snapshots[0]?.id||'';artifact='';}
     if(!vault.snapshots.some(x=>x.id===compare))compare='';
+    if (!initialSelectionDone) {
+      initialSelectionDone = true;
+      if (initialPaths.length) {
+        const match=vault.snapshots.find(s=>s.artifacts.some(a=>initialPaths.includes(a.source_path)));
+        if(match){selected=match.id;artifact=match.artifacts.find(a=>initialPaths.includes(a.source_path)).id;}
+      }
+    }
   }
   async function capture() {
     if(!confirm(tr('Создать локальный снимок Config Vault? Старые снимки не будут удалены.','Create a local Config Vault snapshot? Existing snapshots will not be deleted.')))return;
@@ -63,6 +72,7 @@
   {#if notice}<p role="status">{notice}</p>{/if}
   {#if busy}<p role="status">{tr('Выполняется операция…','Working…')}</p>{/if}
   {#if vault}
+    {#if initialPaths.length}<p>{tr('Снимков со связанными файлами','Snapshots with related files')}: {vault.snapshots.filter(s=>s.artifacts.some(a=>initialPaths.includes(a.source_path))).length}. {tr('Совпадение пути не гарантирует возможность восстановления.','A path match does not guarantee restore eligibility.')}</p>{/if}
     <div class="stats"><span>{tr('Снимков','Snapshots')}: <b>{vault.snapshots.length} / {vault.retention.max_snapshots}</b></span><span>{tr('Хранилище','Storage')}: <b>{vault.root}</b></span><span>{tr('Лимит','Limit')}: <b>{Math.round(vault.retention.max_store_bytes/1048576)} MiB</b></span></div>
     <p>{tr('Снимки содержат метаданные файлов, а не гарантированно рабочую конфигурацию. Содержимое не выгружается в браузер.','Snapshots describe saved files, not guaranteed working configurations. File contents are not sent to the browser.')}</p>
     {#if vault.snapshots.length}

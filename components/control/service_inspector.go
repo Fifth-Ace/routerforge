@@ -53,6 +53,7 @@ type serviceInspectorResource struct {
 }
 
 type serviceInspectorItem struct {
+	Observation    *serviceObservation       `json:"observation,omitempty"`
 	ID             string                    `json:"id"`
 	Name           string                    `json:"name"`
 	InitScript     string                    `json:"init_script"`
@@ -97,6 +98,8 @@ func readServiceInspector() serviceInspectorResponse {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Name < items[j].Name
 	})
+
+	addServiceObservations(items)
 
 	return serviceInspectorResponse{
 		GeneratedAt: time.Now(),

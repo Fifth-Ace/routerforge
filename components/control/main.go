@@ -213,6 +213,7 @@ func main() {
 	mux.HandleFunc("/v1/services", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"services": readServices()})
 	}))
+	registerServiceObservationRoutes(mux)
 	mux.HandleFunc("/v1/service-inspector", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, readServiceInspector())
 	}))

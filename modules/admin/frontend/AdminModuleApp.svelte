@@ -34,6 +34,7 @@
   import SyslogPane from './SyslogPane.svelte';
   import RecoveryCenter from './RecoveryCenter.svelte';
   import SupportBundlePane from './SupportBundlePane.svelte';
+  import ServiceObservationPane from './ServiceObservationPane.svelte';
 
   const adminQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const terminalEmbed = adminQuery.get('embed') === 'terminal';
@@ -58,6 +59,8 @@
   let errorText = '';
   let actionText = '';
   let serviceActionResult = null;
+  let serviceSupportModule = "";
+  let serviceRecoveryPaths = [];
   let selectedServiceID = '';
   let selectedService = null;
   let fileOpenTarget = '';
@@ -227,6 +230,8 @@
   }
 
   function selectTab(next) {
+    serviceSupportModule = '';
+    serviceRecoveryPaths = [];
     if (next === 'files') fileOpenTarget = '';
     tab = next;
     search = '';
@@ -252,6 +257,26 @@
     return corpus.includes('routerforge') || corpus.includes('dns-monitor');
   }
 
+  function servicePresenceLabel(service, lang) {
+    const state = service?.observation?.process_state;
+    if (!state) return service?.running ? t(locale, 'common.running') : t(locale, 'common.notDetected');
+    const ru = {observed:'Процесс найден',not_detected:'Не обнаружен',unknown:'Не определено',zombie_only:'Zombie',blocked_observed:'D-state'};
+    const en = {observed:'Process found',not_detected:'Not detected',unknown:'Unknown',zombie_only:'Zombie',blocked_observed:'D-state'};
+    return (lang === 'ru' ? ru : en)[state] || '—';
+  }
+  function servicePresenceStyle(service) {
+    const state=service?.observation?.process_state;
+    if (!state) return service?.running?'good':'neutral';
+    return state==='blocked_observed'||state==='zombie_only'?'warn':state==='observed'?'info':'neutral';
+  }
+  function jumpServiceSupport(module) {
+    selectTab('maintenance');
+    serviceSupportModule = module || '';
+  }
+  function jumpServiceRecovery(paths) {
+    selectTab('recovery');
+    serviceRecoveryPaths = [...paths];
+  }
   function servicePathName(path) {
     const clean = String(path || '').replace(/\/+$/, '');
     return clean.slice(clean.lastIndexOf('/') + 1) || clean || '—';
@@ -715,8 +740,8 @@
                     <strong>{s.name}</strong>
                     <span class="cell-sub mono">{s.id || '—'}</span>
                   </div>
-                  <span class="state-chip {s.running ? 'good' : 'neutral'}">
-                    {s.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}
+                  <span class="state-chip {servicePresenceStyle(s)}">
+                    {servicePresenceLabel(s, locale)}
                   </span>
                 </div>
 
@@ -749,8 +774,8 @@
                   </span>
                 </div>
                 <div class="service-detail-state">
-                  <span class="state-chip {selectedService.running ? 'good' : 'neutral'}">
-                    {selectedService.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}
+                  <span class="state-chip {servicePresenceStyle(selectedService)}">
+                    {servicePresenceLabel(selectedService, locale)}
                   </span>
                   {#if guarded}<span class="state-chip neutral">GUARDED</span>{/if}
                 </div>
@@ -869,6 +894,9 @@
                 </section>
               </div>
 
+              {#key selectedService.id}
+                <ServiceObservationPane {locale} service={selectedService} onSupport={jumpServiceSupport} onRecovery={jumpServiceRecovery} />
+              {/key}
               <footer class="service-actionbar">
                 <div class="service-action-copy">
                   <strong>{t(locale, 'manage.serviceInspector.lifecycleTitle')}</strong>
@@ -913,7 +941,7 @@
       {/if}
     </section>
   {:else if tab === 'recovery'}
-    <RecoveryCenter {locale} />
+    <RecoveryCenter {locale} initialPaths={serviceRecoveryPaths} />
   {:else if tab === 'syslog'}
     <SyslogPane locale={locale} />
   {:else if tab === 'files'}
@@ -1000,7 +1028,7 @@
           </div>
         {/if}
 
-        <SupportBundlePane {locale} />
+        <SupportBundlePane {locale} initialModule={serviceSupportModule} />
       </section>
 
       <div class="maintenance-workbench">

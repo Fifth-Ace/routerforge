@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { markUnauthorized } from '$lib/stores/auth.js';
   export let locale = 'ru';
+  export let initialModule = '';
   const base = '/api/modules/admin/maintenance/';
   const sectionIDs = ['system','packages','modules','foundation','logs'];
   const moduleIDs = ['admin','dns','monitoring','network-tools','nfqws-manager','dns-router'];
@@ -9,7 +10,7 @@
   let sectionLabels; $: sectionLabels = {system:tr('Система и ресурсы','System and resources'),packages:tr('Версии пакетов','Package versions'),modules:tr('Состояние модулей','Module health'),foundation:tr('Каталог и события','Catalogue and events'),logs:tr('Сводка журналов','Log summary')};
   let stateLabels; $: stateLabels = {ok:tr('Собрано','Collected'),partial:tr('Частично','Partial'),skipped:tr('Пропущено','Skipped')};
   let reasonLabels; $: reasonLabels = {PARTIAL:tr('Часть данных недоступна','Some data unavailable'),NOT_AVAILABLE:tr('Источник недоступен','Source unavailable'),NO_LOG:tr('Локальный журнал не найден','Local log unavailable'),TIMEOUT:tr('Тайм-аут','Timeout'),INVALID_SOURCE:tr('Неподдерживаемый источник','Unsupported source')};
-  let selected = [...sectionIDs], modules = [...moduleIDs], preview = null, saved = null, bundles = [], maxFiles = 8;
+  let selected = [...sectionIDs], modules = moduleIDs.includes(initialModule)?[initialModule]:[...moduleIDs], preview = null, saved = null, bundles = [], maxFiles = 8;
   let busy = false, error = '', alive = true, controller = null;
   $: canPreview = selected.length > 0 && (!selected.includes('modules') || modules.length > 0);
   function invalidate(){ preview = null; }

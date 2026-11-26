@@ -1,6 +1,7 @@
 <script>
   import { rfUi } from './rf-localization.js';
   import {onMount} from 'svelte';
+  import DnsPolicyAudit from './DnsPolicyAudit.svelte';
 
   let loading = $state(false);
   let error = $state('');
@@ -48,6 +49,7 @@
 </script>
 
 <div class="p34-diagnostics" data-p34-native="true">
+  <DnsPolicyAudit />
   <p class="p25-settings-info">{rfUi("История запросов хранится только в памяти до перезапуска DNS. Окна приблизительные: последние 4 или 96 пятнадцатиминутных интервалов. Альтернативный DNS не обязательно означает аварию — это может быть балансировка.","Query history is held in memory until DNS restarts. Time windows are approximate: the latest 4 or 96 fifteen-minute intervals. Using another DNS does not necessarily indicate an outage; it may be load balancing.")}</p>
   <div class="actions"><button class="button" type="button" disabled={loading} onclick={refresh}>{loading?'Обновляем…':'↻ Обновить диагностику'}</button><span role="status">{error||('Последнее обновление: '+(updated||'—'))}</span></div>
   {#if !serviceActive}<p class="notice">{rfUi("DNS Lite остановлен: показатели появятся после запуска сервиса и обработки запросов.","DNS Lite is stopped. Metrics will appear after the service starts and handles queries.")}</p>{/if}

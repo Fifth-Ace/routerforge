@@ -187,14 +187,27 @@ func Packages(raw []byte) []Package {
 	return out
 }
 
+// Saved policy metadata is distinct from observed listener health.
+type SavedDNSPolicy struct {
+	Lists         *int   `json:"lists"`
+	DNSSECMode    string `json:"dnssec_mode"`
+	DNS64Enabled  *bool  `json:"dns64_enabled"`
+	NAT64Declared *bool  `json:"nat64_declared"`
+}
+
+func validSavedDNSPolicy(v *SavedDNSPolicy) bool {
+	return v != nil && v.Lists != nil && *v.Lists >= 0 && *v.Lists <= 64 && (v.DNSSECMode == "off" || v.DNSSECMode == "request_do" || v.DNSSECMode == "require_ad") && v.DNS64Enabled != nil && v.NAT64Declared != nil && (!*v.NAT64Declared || *v.DNS64Enabled)
+}
+
 type Health struct {
-	ID        string `json:"id"`
-	State     string `json:"state"`
-	Version   string `json:"version"`
-	Running   *bool  `json:"running,omitempty"`
-	Available *bool  `json:"available,omitempty"`
-	Rules     *int   `json:"rules,omitempty"`
-	Upstreams *int   `json:"upstreams,omitempty"`
+	SavedDNSPolicy *SavedDNSPolicy `json:"saved_dns_policy,omitempty"`
+	ID             string          `json:"id"`
+	State          string          `json:"state"`
+	Version        string          `json:"version"`
+	Running        *bool           `json:"running,omitempty"`
+	Available      *bool           `json:"available,omitempty"`
+	Rules          *int            `json:"rules,omitempty"`
+	Upstreams      *int            `json:"upstreams,omitempty"`
 }
 
 func ProjectHealth(id string, raw []byte) Health {
@@ -203,14 +216,15 @@ func ProjectHealth(id string, raw []byte) Health {
 		return out
 	}
 	var p struct {
-		OK            *bool  `json:"ok"`
-		Status        string `json:"status"`
-		Version       string `json:"version"`
-		TargetRunning *bool  `json:"target_running"`
-		Available     *bool  `json:"available"`
-		DNSListener   *bool  `json:"dns_listener"`
-		Rules         *int   `json:"rules"`
-		Upstreams     *int   `json:"upstreams"`
+		OK             *bool           `json:"ok"`
+		Status         string          `json:"status"`
+		Version        string          `json:"version"`
+		TargetRunning  *bool           `json:"target_running"`
+		Available      *bool           `json:"available"`
+		DNSListener    *bool           `json:"dns_listener"`
+		SavedDNSPolicy *SavedDNSPolicy `json:"saved_dns_policy"`
+		Rules          *int            `json:"rules"`
+		Upstreams      *int            `json:"upstreams"`
 	}
 	if len(bytes.TrimSpace(raw)) == 0 || bytes.TrimSpace(raw)[0] != '{' || json.Unmarshal(raw, &p) != nil {
 		return out
@@ -238,6 +252,9 @@ func ProjectHealth(id string, raw []byte) Health {
 		out.Available = p.Available
 	}
 	if id == "dns-router" {
+		if validSavedDNSPolicy(p.SavedDNSPolicy) {
+			out.SavedDNSPolicy = p.SavedDNSPolicy
+		}
 		out.Running = p.DNSListener
 		if p.Rules != nil && *p.Rules >= 0 && *p.Rules <= 100000 {
 			out.Rules = p.Rules

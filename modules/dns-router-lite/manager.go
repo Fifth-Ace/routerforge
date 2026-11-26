@@ -219,6 +219,9 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m.mu.Unlock()
 		jsonResponse(w, 200, map[string]any{"enabled": monitor != nil, "protocol": "tcp/tls/http/https", "entries": monitor.Snapshot()})
 		return
+	case "/v1/service/policy-audit":
+		m.servePolicyAuditE09(w, r)
+		return
 	case "/v1/service/diagnostics":
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

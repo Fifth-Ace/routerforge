@@ -6,8 +6,6 @@
     adminServiceAction,
     adminMaintenanceBackup,
     adminMaintenanceRestore,
-    adminSupportBundleDownloadURL,
-    createAdminSupportBundle,
     getAdminSupportBundles,
     getAdminSupportStatus,
     configureAdminWatchdog,
@@ -35,6 +33,7 @@
   import FileManagerPane from './FileManagerPane.svelte';
   import SyslogPane from './SyslogPane.svelte';
   import RecoveryCenter from './RecoveryCenter.svelte';
+  import SupportBundlePane from './SupportBundlePane.svelte';
 
   const adminQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const terminalEmbed = adminQuery.get('embed') === 'terminal';
@@ -82,7 +81,6 @@
   let snapshotBusy = false;
   let supportStatus = null;
   let supportBundles = [];
-  let supportBusy = false;
 
   let integrations = [];
   let integrationsBusy = false;
@@ -306,33 +304,6 @@
       errorText = errorMessage(error);
     }
   }
-  async function createSupportBundle() {
-    if (supportBusy) return;
-    supportBusy = true;
-    errorText = '';
-    try {
-      const result = await createAdminSupportBundle();
-      if (mounted && tab === 'maintenance') {
-        const read = adminReads.begin('support');
-        try {
-          const [status, bundles] = await Promise.all([
-            getAdminSupportStatus(read.signal),
-            getAdminSupportBundles(read.signal)
-          ]);
-          if (read.isCurrent() && tab === 'maintenance') {
-            supportStatus = status;
-            supportBundles = bundles.bundles || [];
-          }
-        } finally { read.finish(); }
-      }
-      setAction(`${t(locale, 'manage.adminMessages.supportCreated')}: ${result.bundle?.name || 'OK'}`);
-    } catch (error) {
-      errorText = errorMessage(error);
-    } finally {
-      supportBusy = false;
-    }
-  }
-
   async function loadMaintenance() {
     if (!mounted || tab !== 'maintenance') return;
     const read = adminReads.begin('maintenance');
@@ -1029,35 +1000,7 @@
           </div>
         {/if}
 
-        <div class="p22-support-actions">
-          <div>
-            <strong>{t(locale, 'manage.supportPanel.bundle')}</strong>
-            <span>{t(locale, 'manage.supportPanel.bundleDescription')}</span>
-          </div>
-          <button class="button primary" onclick={createSupportBundle} disabled={supportBusy}>
-            {supportBusy ? '…' : (t(locale, 'manage.supportPanel.createBundle'))}
-          </button>
-        </div>
-
-        {#if supportBundles.length}
-          <div class="maintenance-list p22-bundle-list">
-            {#each supportBundles as bundle}
-              <div class="maintenance-list-row">
-                <div class="maintenance-list-copy">
-                  <strong class="mono">{bundle.name}</strong>
-                  <span class="cell-sub mono">{bytes(bundle.size || 0)} · {new Date(bundle.modified_at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}</span>
-                </div>
-                <a class="button" href={adminSupportBundleDownloadURL(bundle.path)}>
-                  {t(locale, 'manage.supportPanel.download')}
-                </a>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div class="maintenance-empty">
-            {t(locale, 'manage.supportPanel.emptyBundles')}
-          </div>
-        {/if}
+        <SupportBundlePane {locale} />
       </section>
 
       <div class="maintenance-workbench">

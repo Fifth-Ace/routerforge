@@ -1,8 +1,6 @@
 package main
 
 import (
-	"archive/zip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,8 +10,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -60,7 +56,8 @@ type adminSupportStatus struct {
 func registerAdminSupportRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/maintenance/support/status", getOnly(handleAdminSupportStatus))
 	mux.HandleFunc("/v1/maintenance/support-bundles", getOnly(handleAdminSupportBundles))
-	mux.HandleFunc("/v1/maintenance/support-bundle", mutationOnly(handleAdminSupportBundleCreate))
+	mux.HandleFunc("/v1/maintenance/support-bundle", mutationOnly(handleSupportV2Create))
+	registerSupportV2Routes(mux)
 	mux.HandleFunc("/v1/maintenance/support-bundle/download", handleAdminSupportBundleDownload)
 }
 
@@ -83,29 +80,8 @@ func handleAdminSupportBundles(w http.ResponseWriter, _ *http.Request) {
 		"bundles":   bundles,
 		"max_files": adminSupportBundleMaxFiles,
 		"max_bytes": adminSupportBundleMaxBytes,
-		"redacted":  true,
-	})
-}
-
-func handleAdminSupportBundleCreate(w http.ResponseWriter, r *http.Request) {
-	var request adminSupportBundleRequest
-	if err := decodeMutationJSON(w, r, &request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid support bundle request"})
-		return
-	}
-	if request.Confirm != "SUPPORT_BUNDLE" {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal SUPPORT_BUNDLE"})
-		return
-	}
-	bundle, err := createAdminSupportBundle(time.Now().UTC())
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":       true,
-		"bundle":   bundle,
-		"redacted": true,
+		"redacted":  false, // legacy inventory may contain unverified archives
+		"privacy":   "mixed-legacy-and-v2",
 	})
 }
 
@@ -120,7 +96,7 @@ func handleAdminSupportBundleDownload(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	file, err := os.Open(path)
+	file, err := supportOpen(adminSupportBundleRoot, filepath.Base(path))
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "support bundle not found"})
 		return
@@ -252,186 +228,6 @@ func supportBackupSummary() (int, string) {
 	return count, latest.UTC().Format(time.RFC3339)
 }
 
-func createAdminSupportBundle(now time.Time) (adminSupportBundleInfo, error) {
-	status, err := buildAdminSupportStatus(now)
-	if err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := os.MkdirAll(adminSupportBundleRoot, 0700); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	name := fmt.Sprintf("routerforge-support-%d.zip", now.UnixNano())
-	path := filepath.Join(adminSupportBundleRoot, name)
-	file, err := safety.CreateExclusiveFile(path, 0600)
-	if err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	success := false
-	defer func() {
-		_ = file.Close()
-		if !success {
-			_ = os.Remove(path)
-		}
-	}()
-
-	writer := zip.NewWriter(file)
-	total := int64(0)
-	addJSON := func(entry string, value any) error {
-		content, err := json.MarshalIndent(value, "", "  ")
-		if err != nil {
-			return err
-		}
-		content = append(content, '\n')
-		return writeAdminSupportZipEntry(writer, entry, content, &total)
-	}
-	addText := func(entry, value string) error {
-		return writeAdminSupportZipEntry(writer, entry, []byte(value), &total)
-	}
-
-	hostname, _ := os.Hostname()
-	manifest := map[string]any{
-		"schema_version": 1,
-		"created_at":     now,
-		"routerforge": map[string]any{
-			"component": "admin",
-			"version":   version,
-		},
-		"device": map[string]any{
-			"hostname":     hostname,
-			"architecture": readSummary().Architecture,
-		},
-		"privacy": map[string]any{
-			"redacted":          true,
-			"config_files":      false,
-			"process_arguments": false,
-			"cron_commands":     false,
-		},
-		"contents": []string{
-			"summary.json",
-			"storage.json",
-			"thermal.json",
-			"services.json",
-			"integrations.json",
-			"watchdogs.json",
-			"status.json",
-			"logs.txt",
-			"README.txt",
-		},
-	}
-	if err := addJSON("manifest.json", manifest); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-
-	if err := addJSON("status.json", status); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := addJSON("summary.json", readSummary()); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := addJSON("storage.json", readStorage()); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := addJSON("thermal.json", readThermals()); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := addJSON("services.json", readServices()); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-
-	processes := readProcesses()
-	services := readServices()
-	ports := readPorts()
-	integrations := make([]adminIntegrationInfo, 0, len(adminIntegrationDefinitions))
-	for _, definition := range adminIntegrationDefinitions {
-		integrations = append(integrations, detectAdminIntegration(definition, processes, services, ports))
-	}
-	if err := addJSON("integrations.json", integrations); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-
-	watchdogs := adminWatchdogs.statuses(now)
-	for i := range watchdogs {
-		watchdogs[i].LastAttemptOutput = redactAdminSupportText(watchdogs[i].LastAttemptOutput)
-	}
-	if err := addJSON("watchdogs.json", watchdogs); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-
-	logSource, logContent := adminSupportLogTail()
-	logHeader := "# RouterForge redacted support log\n# source: " + logSource + "\n\n"
-	if err := addText("logs.txt", logHeader+redactAdminSupportText(logContent)); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-
-	readme := "RouterForge support bundle\n\n" +
-		"This archive contains bounded diagnostic metadata only.\n" +
-		"RouterForge config files, process arguments and cron command bodies are intentionally excluded.\n" +
-		"Known credential-like values and private-key blocks are redacted from included log text.\n"
-	if err := addText("README.txt", readme); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-
-	if err := writer.Close(); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := file.Sync(); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if err := file.Close(); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	if info.Size() > adminSupportBundleMaxBytes {
-		return adminSupportBundleInfo{}, fmt.Errorf("support bundle exceeds %d bytes", adminSupportBundleMaxBytes)
-	}
-	if err := pruneAdminSupportBundles(); err != nil {
-		return adminSupportBundleInfo{}, err
-	}
-	success = true
-	return adminSupportBundleInfo{
-		Path:       path,
-		Name:       name,
-		Size:       info.Size(),
-		ModifiedAt: info.ModTime().UTC(),
-	}, nil
-}
-
-func writeAdminSupportZipEntry(writer *zip.Writer, name string, content []byte, total *int64) error {
-	if int64(len(content)) > adminSupportBundleMaxSource {
-		return fmt.Errorf("support bundle entry %s exceeds %d bytes", name, adminSupportBundleMaxSource)
-	}
-	*total += int64(len(content))
-	if *total > adminSupportBundleMaxBytes {
-		return fmt.Errorf("support bundle source data exceeds %d bytes", adminSupportBundleMaxBytes)
-	}
-	header := &zip.FileHeader{Name: name, Method: zip.Deflate}
-	header.SetMode(0600)
-	header.Modified = time.Date(1980, time.January, 1, 0, 0, 0, 0, time.UTC)
-	entry, err := writer.CreateHeader(header)
-	if err != nil {
-		return err
-	}
-	_, err = entry.Write(content)
-	return err
-}
-
-func adminSupportLogTail() (string, string) {
-	for _, path := range []string{
-		"/opt/var/log/routerforge.log",
-		"/opt/var/log/messages",
-		"/var/log/messages",
-	} {
-		content, err := readTailFile(path, adminSupportBundleLogBytes)
-		if err == nil {
-			return path, content
-		}
-	}
-	return "", ""
-}
-
 func redactAdminSupportText(input string) string {
 	if input == "" {
 		return ""
@@ -483,52 +279,18 @@ func redactAdminSupportText(input string) string {
 }
 
 func listAdminSupportBundles() ([]adminSupportBundleInfo, error) {
-	entries, err := os.ReadDir(adminSupportBundleRoot)
+	rows, err := supportInventory(adminSupportBundleRoot)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []adminSupportBundleInfo{}, nil
-		}
 		return nil, err
 	}
-	result := make([]adminSupportBundleInfo, 0)
-	for _, entry := range entries {
-		if !validAdminSupportBundleName(entry.Name()) {
-			continue
-		}
-		path := filepath.Join(adminSupportBundleRoot, entry.Name())
-		info, err := os.Lstat(path)
-		if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
-			continue
-		}
-		result = append(result, adminSupportBundleInfo{
-			Path:       path,
-			Name:       entry.Name(),
-			Size:       info.Size(),
-			ModifiedAt: info.ModTime().UTC(),
-		})
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].ModifiedAt.After(result[j].ModifiedAt)
-	})
-	return result, nil
-}
-
-func pruneAdminSupportBundles() error {
-	bundles, err := listAdminSupportBundles()
-	if err != nil {
-		return err
-	}
-	for len(bundles) > adminSupportBundleMaxFiles {
-		oldest := bundles[len(bundles)-1]
-		if err := os.Remove(oldest.Path); err != nil {
-			return err
-		}
-		bundles = bundles[:len(bundles)-1]
-	}
-	return nil
+	sort.Slice(rows, func(i, j int) bool { return rows[i].ModifiedAt.After(rows[j].ModifiedAt) })
+	return rows, nil
 }
 
 func resolveAdminSupportBundlePath(path string) (string, error) {
+	if err := supportRootCheck(adminSupportBundleRoot, false); err != nil {
+		return "", err
+	}
 	clean := filepath.Clean(strings.TrimSpace(path))
 	if !filepath.IsAbs(clean) || filepath.Dir(clean) != filepath.Clean(adminSupportBundleRoot) {
 		return "", errors.New("support bundle must be directly inside RouterForge support directory")
@@ -546,11 +308,7 @@ func resolveAdminSupportBundlePath(path string) (string, error) {
 	return clean, nil
 }
 
-func validAdminSupportBundleName(name string) bool {
-	return strings.HasPrefix(name, "routerforge-support-") &&
-		strings.HasSuffix(name, ".zip") &&
-		!strings.ContainsAny(name, `/\`)
-}
+func validAdminSupportBundleName(name string) bool { return supportNameRE.MatchString(name) }
 
 // Compile-time check that ServeContent's io.Seeker requirement stays explicit.
 var _ io.Seeker = (*os.File)(nil)

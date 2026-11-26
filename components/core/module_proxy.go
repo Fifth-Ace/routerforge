@@ -558,6 +558,11 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		req.URL.RawPath = ""
 		req.Host = "unix"
 		if moduleID == "admin" {
+			// Never trust a browser-supplied internal observation header.
+			req.Header.Del("X-RouterForge-Support-Observation")
+			if adminMutationAuthorized(r) && req.Method == http.MethodPost && targetPath == "/v1/maintenance/support-preview" {
+				req.Header.Set("X-RouterForge-Support-Observation", supportFoundationObservationHeader())
+			}
 			req.Header.Del(adminMutationAuthorizationHeader)
 			if adminMutationAuthorized(r) {
 				req.Header.Set(adminMutationAuthorizationHeader, adminMutationAuthorizationValue)

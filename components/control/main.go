@@ -140,6 +140,13 @@ type thermalInfo struct {
 }
 
 func main() {
+	// A bounded diagnostic worker never starts sockets, services or logging.
+	if len(os.Args) == 2 && os.Args[1] == "--support-collect-worker" {
+		if supportCollectWorker(os.Stdin, os.Stdout) != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	// Isolated bounded external-storage worker: no socket, daemon or log setup.
 	if len(os.Args) > 1 && os.Args[1] == "--recovery-storage-worker" {
 		if recoveryStorageWorker(os.Args[2:], os.Stdin, os.Stdout) != nil {

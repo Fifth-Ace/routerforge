@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -11,7 +12,35 @@ import (
 
 	"github.com/Fifth-Ace/routerforge/internal/platform/contract"
 	platformevents "github.com/Fifth-Ace/routerforge/internal/platform/events"
+	sb "github.com/Fifth-Ace/routerforge/internal/platform/supportbundle"
 )
+
+// Aggregate only normalized in-memory events; identifiers, messages and
+// context are never included in the Admin support observation header.
+func supportFoundationObservationHeader() string {
+	o := sb.Observation{Available: foundationObserverID != "", CoreVersion: sb.Version(version)}
+	if o.Available {
+		for _, event := range coreEventEngine.Snapshot(512) {
+			v, ok := platformevents.Normalize(event, foundationObserverID)
+			if !ok {
+				continue
+			}
+			switch v.Severity {
+			case platformevents.Info:
+				o.Info++
+			case platformevents.Warning:
+				o.Warning++
+			case platformevents.Critical:
+				o.Critical++
+			}
+		}
+	}
+	if cpu, ok := coreCPUUsageSampler.sample(); ok && cpu >= 0 && cpu <= 100 {
+		o.CPUPercent = &cpu
+	}
+	raw, _ := json.Marshal(o)
+	return string(raw)
+}
 
 const foundationPath = "/api/platform/foundation"
 

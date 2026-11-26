@@ -86,14 +86,14 @@
     result.cpu=cpuRows.length?percent(cpuRows.reduce((sum,c)=>sum+c.usage_pct,0)/cpuRows.length,`${cpuRows.length} ${tr('ядер','cores')}`,cpuRows.map((c,i)=>`CPU ${i} · ${c.usage_pct.toFixed(0)}%`)):unknown();
     const total=numeric(memory?.total_kb),used=numeric(memory?.used_kb);
     const ram=pct(memory?.used_pct)??(total>0&&used!==null?pct(used/total*100):null);
-    result.ram=percent(ram,total>0&&used!==null?`${bytes(used*1024)} / ${bytes(total*1024)}`:'');
+    result.ram=percent(ram,total>0&&used!==null?`${bytes(used*1024)} / ${bytes(total*1024)}`:'',total>0&&used!==null&&used>=0&&used<=total?[`${tr('Свободно','Available')} · ${bytes((total-used)*1024)}`]:[]);
     const sensors=(telem.thermal?.sensors||telem.thermal?.thermal?.sensors||[]).filter(x=>['soc','cpu'].includes(String(x.role||'').toLowerCase())&&numeric(x.temp_c)!==null);
     const temp=sensors.length?Math.max(...sensors.map(x=>x.temp_c)):null;
     result.thermal=temp===null?unknown():make(`${temp.toFixed(0)}°C`,tr('CPU / SoC','CPU / SoC'),null,sensors.map(x=>`${String(x.name||x.role)} · ${x.temp_c.toFixed(0)}°C`));
     result.thermal.numeric=temp;
     const usedBytes=numeric(opt.used_bytes),totalBytes=numeric(opt.total_bytes);
     const storage=pct(opt.used_pct)??(totalBytes>0&&usedBytes!==null?pct(usedBytes/totalBytes*100):null);
-    result.storage=percent(storage,totalBytes>0&&usedBytes!==null?`/opt · ${bytes(usedBytes)} / ${bytes(totalBytes)}`:'/opt');
+    result.storage=percent(storage,totalBytes>0&&usedBytes!==null?`/opt · ${bytes(usedBytes)} / ${bytes(totalBytes)}`:'/opt',totalBytes>0&&usedBytes!==null&&usedBytes>=0&&usedBytes<=totalBytes?[`${tr('Свободно','Available')} · ${bytes(totalBytes-usedBytes)}`]:[]);
     if(Array.isArray(telem.networkRoutes?.routes)){
       const routes=telem.networkRoutes.routes.filter(x=>x.destination==='0.0.0.0'&&(!x.mask||x.mask==='0.0.0.0'));
       result.route=make(routes.length?tr('Есть','Present'):tr('Нет','Missing'),tr('Маршрут по умолчанию, не проверка интернета','Default route, not an internet probe'),null,[],routes.length?'normal':'warning');
@@ -103,7 +103,7 @@
     const bad=observed.filter(x=>['DOWN','DEGRADED'].includes(String(x.health_status).toUpperCase())).length;
     result.dns=observed.length?make(`${observed.length-bad}/${observed.length}`,tr('Без DOWN / DEGRADED среди известных','Not DOWN / DEGRADED among known'),null,observed.map(x=>`${String(x.name||x.sni||x.target||'DNS')} · ${x.health_status}`),bad?'warning':'normal'):unknown();
     result.core=ready?make(online?tr('В сети','Online'):tr('Не в сети','Offline'),String(snapshot?.version||''),null,[],online?'normal':'critical'):unknown();
-    result.updates=catalogReady&&catalogOnline?make(String(updates.length),tr('Установленные компоненты','Installed components'),null,updates.map(x=>String(x.name||x.id)),updates.length?'warning':'normal'):unknown();
+    result.updates=catalogReady&&catalogOnline?make(String(updates.length),tr('Установленные компоненты','Installed components'),null,updates.map(x=>`${String(x.name||x.id)}${x.version?` · ${x.version}`:''}${x.release?.version||x.available_version?` → ${x.release?.version||x.available_version}`:''}`),updates.length?'warning':'normal'):unknown();
     const uptime=numeric(telem.platform?.uptime_seconds);
     result.uptime=uptime!==null&&uptime>=0?make(fmtDuration(uptime,locale),tr('С момента запуска','Since boot')):unknown();
     const known=catalogReady&&catalogOnline?modules.filter(x=>x.installed&&!x.builtin&&typeof x.service_running==='boolean'):[];
@@ -126,7 +126,7 @@
     // Monitoring rates are bytes per second, not bits. One exact interface only.
     if(rx!==null&&tx!==null&&rx>=0&&tx>=0&&typeof net?.sampled_at==='string'&&Number.isFinite(Date.parse(net.sampled_at))){
       const mbps=v=>`${(v*8/1000000).toFixed(2)} ${tr('Мбит/с','Mbps')}`;
-      result.traffic={...make(`↓ ${mbps(rx)}`,`↑ ${mbps(tx)} · ${iface.name}`,null,[tr('Интерфейс маршрута по умолчанию','Default route interface')]),rx:rx*8/1000000,tx:tx*8/1000000,sampleKey:`${iface.name}|${net.sampled_at}`};
+      result.traffic={...make(`↓ ${mbps(rx)}`,`↑ ${mbps(tx)} · ${iface.name}`,null,[tr('Интерфейс маршрута по умолчанию','Default route interface')]),rx:rx*8/1000000,tx:tx*8/1000000,interfaceName:iface.name,sampleKey:`${iface.name}|${net.sampled_at}`};
     }
     return result;
   }
@@ -492,7 +492,7 @@
   </section>
   {/snippet}
 
-  <HomeWorkspace {locale} metrics={workspaceMetrics} sampleKeys={{cpu:telem.cpu,ram:memory,thermal:telem.thermal,'traffic-rx':workspaceMetrics.traffic?.sampleKey,'traffic-tx':workspaceMetrics.traffic?.sampleKey}} ready={$backendReady} online={$backendOnline} issueCount={actionableIssues.length} criticalCount={actionableIssues.filter(x=>x.severity==='critical').length} {attention} modules={installedPanel} />
+  <HomeWorkspace {locale} metrics={workspaceMetrics} sampleKeys={{cpu:telem.cpu,ram:memory,thermal:telem.thermal,'traffic-rx':workspaceMetrics.traffic?.sampleKey,'traffic-tx':workspaceMetrics.traffic?.sampleKey}} ready={$backendReady} online={$backendOnline} issueCount={actionableIssues.length} criticalCount={actionableIssues.filter(x=>x.severity==='critical').length} alerts={issues} installed={($catalogReady&&$catalogOnline)?[...installedModules.map(item=>({name:item.name||item.id,state:$backendOnline?stateClass(item):'neutral',href:hrefFor(item)})),...installedIntegrations.map(item=>({name:item.name||item.id,state:stateClass(item),href:'/apps?tab=integrations'}))]:[]} catalogKnown={$catalogReady&&$catalogOnline} {attention} modules={installedPanel} />
 </div>
 
 {#if webWorkspace}

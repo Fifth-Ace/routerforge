@@ -106,3 +106,40 @@ export function chartSegments(samples,id,sharedMax){
  const lo=id==='thermal'?Math.min(0,...finite):0,hi=id.startsWith('traffic-')?Math.max(1,sharedMax||0,...finite):id==='thermal'?Math.max(100,...finite):100;const out=[];let current=[];
  samples.forEach((s,i)=>{if(finiteMetric(s.value)===null){if(current.length>1)out.push(current.join(' '));current=[];return;}current.push(`${(i/(samples.length-1)*200).toFixed(2)},${(38-(s.value-lo)/(hi-lo)*34).toFixed(2)}`);});if(current.length>1)out.push(current.join(' '));return out;
 }
+
+// Smart packing is a presentation layer over the original v1 storage contract.
+// Persist only the canonical four-column grid; viewport projection never writes storage.
+export function columnsForWidth(width){return width>=1800?8:width>=1250?6:width>=720?4:width>=360?2:1;}
+export function compactTiles(tiles){return spatialOrder(packTiles(tiles.map(t=>({...t}))));}
+export function compactReorder(tiles,id,target){return spatialOrder(reorder(tiles,id,target));}
+export function compactLayout(value){const d=normalizeLayout(value);return normalizeLayout({...d,spaces:d.spaces.map(s=>({...s,tiles:compactTiles(spatialOrder(s.tiles))}))});}
+export function projectTiles(tiles,cols){
+ if(![1,2,4,6,8].includes(cols))throw Error('INVALID_COLUMNS');
+ const out=[],used=new Set();
+ for(const t of spatialOrder(tiles)){
+  const [width,height]=dimensions(t.size),w=Math.min(width,cols),h=cols===1?Math.min(height,2):height;
+  let found=null;
+  for(let y=0;y<256&&!found;y++)for(let x=0;x<=cols-w;x++){
+   let free=true;for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)if(used.has((y+dy)*cols+x+dx))free=false;
+   if(!free)continue;found={...t,x,y,w,h};for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)used.add((y+dy)*cols+x+dx);break;
+  }
+  if(!found)throw Error('PROJECT_GRID_FULL');out.push(found);
+ }
+ return out.sort((a,b)=>a.y-b.y||a.x-b.x);
+}
+export function compactResize(tiles,id,size){
+ const t=tiles.find(t=>t.id===id);if(!t)return tiles.slice();if(!widgetFor(t).sizes.includes(size))throw Error('INVALID_SIZE');
+ return compactTiles(spatialOrder(tiles).map(t=>t.id===id?{...t,size}:t));
+}
+export function moveToCell(tiles,visual,id,x,y){
+ const from=visual.find(t=>t.id===id);if(!from)return tiles.slice();
+ const others=visual.filter(t=>t.id!==id);
+ // Prefer an actual hit; otherwise choose the nearest occupied cell. A drag into
+ // trailing space goes to the last position, never creates a permanent hole.
+ let target=others.find(t=>x>=t.x&&x<t.x+t.w&&y>=t.y&&y<t.y+t.h);
+ if(!target&&x===from.x&&y===from.y)return tiles.slice();
+ if(!target&&others.length){let score=Infinity;for(const t of others){const dx=Math.max(t.x-x,0,x-(t.x+t.w-1)),dy=Math.max(t.y-y,0,y-(t.y+t.h-1));const s=dy*16+dx;if(s<score){score=s;target=t;}}}
+ return target?compactReorder(tiles,id,target.id):tiles.slice();
+}
+export function metricStats(samples){const values=(samples||[]).map(s=>s.value).filter(v=>finiteMetric(v)!==null);return values.length?{mean:values.reduce((a,b)=>a+b,0)/values.length,peak:Math.max(...values),count:values.length}:null;}
+export function widgetCategory(w){if(w.type==='shortcut'||w.type==='external')return 'shortcuts';if(w.id==='attention')return 'events';if(w.id==='dns'||w.id==='dns-router-status')return 'dns';if(['traffic','route','interfaces'].includes(w.id))return 'network';if(['cpu','ram','thermal','storage','uptime'].includes(w.id))return 'system';return 'management';}

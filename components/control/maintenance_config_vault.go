@@ -23,6 +23,7 @@ const (
 )
 
 type adminConfigVaultCaptureRequest struct {
+	NoPrune       bool   `json:"no_prune,omitempty"`
 	Reason        string `json:"reason"`
 	TransactionID string `json:"transaction_id"`
 	Confirm       string `json:"confirm"`
@@ -56,6 +57,7 @@ type adminConfigVaultDiff struct {
 }
 
 func registerAdminConfigVaultRoutes(mux *http.ServeMux) {
+	registerAdminRecoveryRoutes(mux)
 	mux.HandleFunc("/v1/maintenance/config-vault", getOnly(handleAdminConfigVaultOverview))
 	mux.HandleFunc("/v1/maintenance/config-vault/", getOnly(handleAdminConfigVaultGet))
 	mux.HandleFunc("/v1/maintenance/config-vault-diff", getOnly(handleAdminConfigVaultDiff))
@@ -235,6 +237,8 @@ func handleAdminConfigVaultCapture(w http.ResponseWriter, r *http.Request) {
 	}
 	manifest, err := store.Capture(configvault.CaptureRequest{
 		Component:     "admin",
+		NoPrune:       request.NoPrune,
+		Version:       version,
 		Reason:        request.Reason,
 		TransactionID: request.TransactionID,
 		Artifacts:     specs,

@@ -34,6 +34,7 @@
   import TerminalPane from './TerminalPane.svelte';
   import FileManagerPane from './FileManagerPane.svelte';
   import SyslogPane from './SyslogPane.svelte';
+  import RecoveryCenter from './RecoveryCenter.svelte';
 
   const adminQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const terminalEmbed = adminQuery.get('embed') === 'terminal';
@@ -139,6 +140,7 @@
     ['files', copy.files],
     ['terminal', copy.terminal],
     ['maintenance', copy.maintenance],
+    ['recovery', locale === 'ru' ? 'Восстановление' : 'Recovery'],
     ['syslog', 'Syslog']
   ];
 
@@ -179,7 +181,7 @@
       adminReads.cancel('support');
     }
     if (next !== 'integrations') adminReads.cancel('integrations');
-    if (next === 'files' || next === 'terminal' || next === 'syslog') {
+    if (next === 'files' || next === 'terminal' || next === 'syslog' || next === 'recovery') {
       loading = false;
       packageLoading = false;
       return;
@@ -648,7 +650,7 @@
     {/each}
   </div>
 
-  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance' && tab !== 'syslog'}
+  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance' && tab !== 'syslog' && tab !== 'recovery'}
     <div class="toolbar">
       <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
       <button class="button" onclick={() => load(tab)} disabled={loading}>↻ {t(locale, 'common.refresh')}</button>
@@ -939,6 +941,8 @@
         {/if}
       {/if}
     </section>
+  {:else if tab === 'recovery'}
+    <RecoveryCenter {locale} />
   {:else if tab === 'syslog'}
     <SyslogPane locale={locale} />
   {:else if tab === 'files'}

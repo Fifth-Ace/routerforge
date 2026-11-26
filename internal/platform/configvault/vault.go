@@ -58,6 +58,9 @@ type ArtifactSpec struct {
 }
 
 type CaptureRequest struct {
+	// NoPrune refuses a new capture rather than evicting any existing snapshot.
+	NoPrune       bool
+	Version       string
 	Component     string
 	Reason        string
 	TransactionID string
@@ -74,6 +77,7 @@ type ArtifactRecord struct {
 }
 
 type Manifest struct {
+	Version       string           `json:"version,omitempty"`
 	SchemaVersion int              `json:"schema_version"`
 	ID            string           `json:"id"`
 	Component     string           `json:"component"`
@@ -153,6 +157,9 @@ func (s *Store) Capture(request CaptureRequest) (Manifest, error) {
 	if !idPattern.MatchString(request.Component) {
 		return Manifest{}, errors.New("invalid component id")
 	}
+	if len(request.Version) > 128 {
+		return Manifest{}, errors.New("snapshot version too long")
+	}
 	if len(request.Reason) > 512 {
 		return Manifest{}, errors.New("snapshot reason is too long")
 	}
@@ -163,6 +170,23 @@ func (s *Store) Capture(request CaptureRequest) (Manifest, error) {
 		return Manifest{}, err
 	}
 
+	var initialUsage int64
+	if request.NoPrune {
+		manifests, err := s.List()
+		if err != nil {
+			return Manifest{}, err
+		}
+		if len(manifests) >= s.maxSnapshots {
+			return Manifest{}, errors.New("config vault no-prune snapshot limit")
+		}
+		initialUsage, err = s.storeBytes()
+		if err != nil {
+			return Manifest{}, err
+		}
+		if initialUsage > s.maxStoreBytes-manifestReadLimit {
+			return Manifest{}, errors.New("config vault no-prune space limit")
+		}
+	}
 	seen := make(map[string]struct{}, len(request.Artifacts))
 	records := make([]ArtifactRecord, 0, len(request.Artifacts))
 	var total int64
@@ -183,6 +207,10 @@ func (s *Store) Capture(request CaptureRequest) (Manifest, error) {
 			return Manifest{}, fmt.Errorf("snapshot exceeds %d bytes", s.maxSnapshotBytes)
 		}
 		total += record.Size
+		// Conservative upper bound including duplicate objects and maximum manifest.
+		if request.NoPrune && total > s.maxStoreBytes-initialUsage-manifestReadLimit {
+			return Manifest{}, errors.New("config vault no-prune space limit")
+		}
 		if err := s.ensureObject(record.SHA256, content); err != nil {
 			return Manifest{}, fmt.Errorf("artifact %s object: %w", spec.ID, err)
 		}
@@ -196,6 +224,7 @@ func (s *Store) Capture(request CaptureRequest) (Manifest, error) {
 		return Manifest{}, err
 	}
 	manifest := Manifest{
+		Version:       request.Version,
 		SchemaVersion: SchemaVersion,
 		ID:            id,
 		Component:     request.Component,
@@ -217,6 +246,10 @@ func (s *Store) Capture(request CaptureRequest) (Manifest, error) {
 	manifestPath := s.manifestPath(id)
 	if err := safety.WriteFileAtomic(manifestPath, payload, 0600); err != nil {
 		return Manifest{}, err
+	}
+	if request.NoPrune {
+		// Never run retention or garbage collection for explicit no-prune captures.
+		return manifest, nil
 	}
 	if err := s.prune(id); err != nil {
 		_ = os.Remove(manifestPath)

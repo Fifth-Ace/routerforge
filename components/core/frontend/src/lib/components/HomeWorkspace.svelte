@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, dimensions, nearestSize, spatialOrder, safeExternal, recordHistory, chartSegments, columnsForWidth, compactTiles, compactLayout, projectTiles, compactResize, moveToCell, metricStats, widgetCategory } from '$lib/workspace.js';
+  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, dimensions, nearestSize, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, projectTiles, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint } from '$lib/workspace.js';
   export let locale='ru';
   export let metrics={};
   export let sampleKeys={};
@@ -12,17 +12,16 @@
   export let modules;
   let layout=compactLayout(defaultLayout()), editing=false, adding=false, transfer=false, transferText='', error='', persisted=true, loaded=false, dragId='', profile='default', name='';
   let grid, gridWidth=0, gesture=null, preview=null, selected='', tileTitle='', tileAccent='auto', tileDetail=true, linkTitle='', linkURL='', history={}, historyKeys={};
-  let manageOpen=false, search='', category='all', past=[], future=[], previewTiles=null, fullPanel='';
+  let manageOpen=false, search='', category='all', past=[], future=[], previewTiles=null, fullPanel='', panelRows={}, chartHover=null;
   export let alerts=[];
   export let installed=[];
   export let catalogKnown=false;
   $: columns=columnsForWidth(gridWidth);
-  $: ordered=projectTiles(active.tiles,columns);
+  $: ordered=projectTiles(active.tiles,columns,panelRows);
   $: available=WIDGETS.filter(w=>!active.tiles.some(t=>t.id===w.id)&&(category==='all'||widgetCategory(w)===category)&&`${w.ru} ${w.en} ${w.id}`.toLowerCase().includes(search.trim().toLowerCase()));
   const categories=['all','system','network','dns','management','events','shortcuts'];
   const categoryName=(c,en)=>({all:tr('Все','All',en),system:tr('Система','System',en),network:tr('Сеть','Network',en),dns:'DNS',management:tr('Управление','Management',en),events:tr('События','Events',en),shortcuts:tr('Ярлыки','Shortcuts',en)})[c];
   $: sampleHistory(metrics,sampleKeys,online);
-  $: trafficMax=Math.max(1,...['traffic-rx','traffic-tx'].flatMap(id=>(history[id]||[]).map(s=>s.value??0)));
   $: selectedTile=active.tiles.find(t=>t.id===selected);
   function sampleHistory(m,k,o){const r=recordHistory(history,historyKeys,m,k,o);history=r.history;historyKeys=r.keys;}
   $: en=locale==='en';
@@ -51,7 +50,14 @@
   function showCatalog(){adding=!adding;manageOpen=false;transfer=false;selected='';search='';category='all';}
   function showManage(){manageOpen=!manageOpen;adding=false;transfer=false;selected='';}
   function closeSettings(){selected='';}
-  function showFull(id){if(editing)return;fullPanel=fullPanel===id?'':id;if(fullPanel)requestAnimationFrame(()=>document.getElementById('rf-workspace-details')?.scrollIntoView({block:'nearest'}));}
+  function showFull(id,force=false){if(editing)return;const t=active.tiles.find(t=>t.id===id);if(t){fullPanel='';commit(updateSpace(layout,active.id,s=>({...s,tiles:s.tiles.map(x=>x.id===id?{...x,expanded:force||!x.expanded}:x)})),false);if(force)requestAnimationFrame(()=>grid?.querySelector('[data-widget="'+id+'"]')?.scrollIntoView({block:'nearest'}));}else{fullPanel=fullPanel===id?'':id;if(fullPanel)requestAnimationFrame(()=>document.getElementById('rf-workspace-details')?.scrollIntoView({block:'nearest'}));}}
+  function measurePanel(node,id){let current=id;const update=()=>{const rows=panelTrackCount(node.getBoundingClientRect().height);if(panelRows[current]!==rows)panelRows={...panelRows,[current]:rows};};const ro=typeof ResizeObserver==='undefined'?null:new ResizeObserver(update);ro?.observe(node);update();return {update(id){current=id;update();},destroy(){ro?.disconnect();const next={...panelRows};delete next[current];panelRows=next;}};}
+  function hover(e,id,parts){if(editing)return;const rect=e.currentTarget.getBoundingClientRect();const x=(e.clientX-rect.left)/Math.max(1,rect.width)*240;const values=parts.map(part=>nearestChartPoint(part,x));chartHover={id,values};}
+  function chartTime(ms){return new Date(ms).toLocaleTimeString(locale==='en'?'en-GB':'ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+  function sizeOptions(tile){return widgetFor(tile).type==='panel'?['2x2','4x2']:widgetFor(tile).sizes;}
+  function sizeLabel(tile,size){return widgetFor(tile).type==='panel'?(size.startsWith('2')?tr('Узкая','Narrow',en):tr('Широкая','Wide',en)):size;}
+  function sizeValue(tile){return widgetFor(tile).type==='panel'?(tile.size.startsWith('2')?'2x2':'4x2'):tile.size;}
+
 
   function change(fn){try{commit(updateSpace(layout,active.id,fn));error='';}catch{error='invalid';}}
   function selectSpace(id){fullPanel='';commit({...layout,active:id},false);name='';error='';selected='';cancelPointer();}
@@ -88,14 +94,14 @@
     if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>6)g.moved=true;
     if(!dx&&!dy){preview={...t};previewTiles=null;return;}
     if(g.kind==='resize'){
-      const [w,h]=dimensions(t.size),size=nearestSize(widgetFor(t),Math.max(1,w+dx),Math.max(1,h+dy));
+      const [w,h]=dimensions(t.size),size=nearestSize(widgetFor(t),Math.max(1,w+dx),Math.max(1,h+Math.round(dy/2)));
       previewTiles=compactResize(g.original,g.id,size);
     }else{
       const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-widget]')?.getAttribute('data-widget');
       if(target&&target!==g.id)previewTiles=compactReorder(g.original,g.id,target);
       else previewTiles=moveToCell(g.original,g.visual,g.id,Math.max(0,Math.min(columns-1,t.x+dx)),Math.max(0,t.y+dy));
     }
-    preview=projectTiles(previewTiles,columns).find(x=>x.id===g.id)||{...t};
+    preview=projectTiles(previewTiles,columns,panelRows).find(x=>x.id===g.id)||{...t};
   }
   function cancelPointer(){
     const g=gesture;gesture=null;preview=null;previewTiles=null;dragId='';
@@ -118,6 +124,35 @@
   function reset(){if(!confirm(tr('Заменить текущую компоновку шаблоном?','Replace current layout with template?',en)))return;selected='';change(s=>({...s,profile,tiles:compactTiles(profileTiles(profile))}));}
   function valueFor(id,data){const v=data[id];return v&&typeof v.value==='string'?v:{value:'—',detail:'',percent:null,state:'unknown'};}
 </script>
+{#snippet shortcutIcon(id)}
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    {#if id==='network'}<rect x="3" y="3" width="7" height="6" rx="1"/><rect x="14" y="15" width="7" height="6" rx="1"/><path d="M6.5 9v8h7.5M17.5 15V7H10"/>
+    {:else if id==='manage'}<circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/><circle cx="12" cy="12" r="8"/>
+    {:else if id==='routing'}<path d="M3 8h17m-5-5 5 5-5 5M21 16H4m5-5-5 5 5 5"/>
+    {:else if id==='monitoring'}<path d="M3 4v16h18M5 14l4-5 4 4 4-8 4 3"/>
+    {:else if id==='policies'}<path d="M12 3 3 7l9 4 9-4-9-4Zm-9 9 9 4 9-4m-18 5 9 4 9-4"/>
+    {:else if id==='apps'}<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    {:else}<path d="M13 3h8v8m0-8-11 11M10 5H4v15h15v-6"/>{/if}
+  </svg>
+{/snippet}
+{#snippet plot(id,series,large)}
+  {@const domain=chartDomain(series,id)}
+  {@const parts=series.map(samples=>chartGeometry(samples,domain))}
+  {@const unit=id==='traffic'?tr('Мбит/с','Mbps',en):id==='thermal'?'°C':'%'}
+  {#if parts.some(p=>p.some(x=>x.points.length))}
+    <div class="rf-ws-plot" class:large>
+      {#if large}<div class="rf-ws-plot-axis"><span>{domain.hi.toLocaleString(en?'en':'ru',{maximumFractionDigits:4})} {unit}</span><span>{((domain.hi+domain.lo)/2).toLocaleString(en?'en':'ru',{maximumFractionDigits:4})}</span><span>{domain.lo}</span></div>{/if}
+      <svg class="rf-ws-chart" viewBox="0 0 240 60" preserveAspectRatio="none" role="img" aria-label={tr('График за текущий сеанс','Current session chart',en)} onpointermove={e=>hover(e,id,parts)} onpointerleave={()=>chartHover=null}>
+        <defs>{#each parts as part,i}<linearGradient id={'rf-fill-'+id+'-'+i} x1="0" x2="0" y1="0" y2="1" gradientUnits="objectBoundingBox"><stop offset="0%" stop-color={i?'var(--rf-chart-tx,#a78bfa)':'var(--tile-accent)'} stop-opacity=".28"/><stop offset="100%" stop-color={i?'var(--rf-chart-tx,#a78bfa)':'var(--tile-accent)'} stop-opacity=".015"/></linearGradient>{/each}</defs>
+        {#each [2,30,58] as y}<line x1="0" x2="240" y1={y} y2={y} stroke="var(--border)" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>{/each}
+        {#each parts as part,i}{#each part as segment}{#if segment.area}<path d={segment.area} fill={'url(#rf-fill-'+id+'-'+i+')'}/>{/if}{#if segment.points.length>1}<polyline points={segment.line} fill="none" stroke={i?'var(--rf-chart-tx,#a78bfa)':'var(--tile-accent)'} stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>{:else}<circle cx={segment.points[0].x} cy={segment.points[0].y} r="2" fill={i?'var(--rf-chart-tx,#a78bfa)':'var(--tile-accent)'}/>{/if}{/each}{/each}
+        {#if chartHover?.id===id}{@const cursor=chartHover.values.find(Boolean)}{#if cursor}<line x1={cursor.x} x2={cursor.x} y1="0" y2="60" stroke="var(--muted)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>{/if}{/if}
+      </svg>
+      {#if large}<div class="rf-ws-plot-time"><span>{chartTime(domain.start)}</span><span>{chartTime(domain.end)}</span></div>{/if}
+      {#if chartHover?.id===id}<div class="rf-ws-plot-tooltip">{#each chartHover.values as value,i}{#if value}<span>{id==='traffic'?(i?'TX ':'RX '):''}{value.value.toFixed(id==='traffic'?2:1)} {unit} · {chartTime(value.time)}</span>{/if}{/each}</div>{/if}
+    </div>
+  {/if}
+{/snippet}
 <section class="rf-workspace" aria-label={tr('Рабочее пространство','Workspace',en)}>
   <div class="rf-ws-toolbar">
     <div class="rf-ws-heading"><strong>RouterForge Workspace</strong><small>{tr('Ваше рабочее пространство','Your workspace',en)}</small></div>
@@ -125,6 +160,7 @@
       {#each layout.spaces as space (space.id)}<option value={space.id}>{space.name||profileLabel(space.profile,en)}</option>{/each}
     </select>
     <button type="button" class="button" onclick={editMode}>{editing?tr('Готово','Done',en):tr('Настроить','Customize',en)}</button>
+    {#if !editing}<button type="button" class="button rf-ws-module-nav" onclick={()=>showFull('modules',true)}>{tr('Модули и интеграции','Modules and integrations',en)}</button>{/if}
   </div>
   {#if !ready || !online}<div class="rf-ws-message" role="status">{!ready?tr('Получение данных Core…','Loading Core data…',en):tr('Core недоступен; значения могут быть устаревшими.','Core unavailable; values may be stale.',en)}</div>{/if}
   {#if issueCount>0}<div class="rf-ws-message" class:critical={criticalCount>0} role="status"><strong>{tr('Требует внимания','Needs attention',en)}: {issueCount}</strong>{#if !active.tiles.some(t=>t.id==='attention')}<button class="button" type="button" onclick={()=>add('attention')}>{tr('Показать предупреждения','Show warnings',en)}</button>{/if}</div>{/if}
@@ -158,7 +194,7 @@
         <div class="rf-ws-catalog">{#each available as w (w.id)}<button type="button" class="rf-ws-catalog-card" data-widget-choice={w.id} onclick={()=>add(w.id)}><span class="rf-ws-icon">{w.icon}</span><strong>＋ {title(w,en)}</strong><small>{categoryName(widgetCategory(w),en)} · {w.size}</small><span class="rf-ws-catalog-value">{w.type==='metric'?(online||w.id==='core'?valueFor(w.id,metrics).value:'—'):'↗'}</span></button>{:else}<small>{tr('Нет подходящих виджетов','No matching widgets',en)}</small>{/each}</div>
         {#if category==='all'||category==='shortcuts'}<div class="rf-ws-actions"><input aria-label={tr('Название ярлыка','Shortcut title',en)} placeholder={tr('Название ярлыка','Shortcut title',en)} maxlength="64" bind:value={linkTitle}/><input aria-label={tr('Адрес HTTP(S)','HTTP(S) address',en)} placeholder="https://example.net/" maxlength="512" bind:value={linkURL}/><button class="button" type="button" onclick={addLink}>{tr('Добавить внешний ярлык','Add external shortcut',en)}</button><small>{tr('Без логинов, токенов и секретных путей.','No credentials, tokens or secret paths.',en)}</small></div>{/if}
       {:else if selectedTile}
-        <div class="rf-ws-actions rf-ws-tile-settings"><strong>{title(widgetFor(selectedTile),en)}</strong><input aria-label={tr('Заголовок плитки','Tile title',en)} maxlength="64" placeholder={tr('Заголовок плитки','Tile title',en)} bind:value={tileTitle}/><select aria-label={tr('Акцент плитки','Tile accent',en)} bind:value={tileAccent}>{#each ACCENTS as color}<option value={color}>{({auto:tr('Тема','Theme',en),green:tr('Зелёный','Green',en),blue:tr('Синий','Blue',en),violet:tr('Фиолетовый','Violet',en),amber:tr('Янтарный','Amber',en)})[color]}</option>{/each}</select><select aria-label={tr('Размер плитки','Tile size',en)} value={selectedTile.size} onchange={e=>change(s=>({...s,tiles:compactResize(s.tiles,selectedTile.id,e.currentTarget.value)}))}>{#each widgetFor(selectedTile).sizes as size}<option value={size}>{size}</option>{/each}</select><label><input type="checkbox" bind:checked={tileDetail}/> {tr('Подробности','Details',en)}</label><button class="button primary" type="button" onclick={saveTile}>{tr('Сохранить плитку','Save tile',en)}</button><button class="button" type="button" onclick={()=>{const id=selected;selected='';remove(id);}}>{tr('Удалить плитку','Remove tile',en)}</button><button class="button" type="button" onclick={closeSettings}>{tr('Закрыть','Close',en)}</button></div>
+        <div class="rf-ws-actions rf-ws-tile-settings"><strong>{title(widgetFor(selectedTile),en)}</strong><input aria-label={tr('Заголовок плитки','Tile title',en)} maxlength="64" placeholder={tr('Заголовок плитки','Tile title',en)} bind:value={tileTitle}/><select aria-label={tr('Акцент плитки','Tile accent',en)} bind:value={tileAccent}>{#each ACCENTS as color}<option value={color}>{({auto:tr('Тема','Theme',en),green:tr('Зелёный','Green',en),blue:tr('Синий','Blue',en),violet:tr('Фиолетовый','Violet',en),amber:tr('Янтарный','Amber',en)})[color]}</option>{/each}</select><select aria-label={tr('Размер плитки','Tile size',en)} value={sizeValue(selectedTile)} onchange={e=>change(s=>({...s,tiles:compactResize(s.tiles,selectedTile.id,e.currentTarget.value)}))}>{#each sizeOptions(selectedTile) as size}<option value={size}>{sizeLabel(selectedTile,size)}</option>{/each}</select><label><input type="checkbox" bind:checked={tileDetail}/> {tr('Подробности','Details',en)}</label><button class="button primary" type="button" onclick={saveTile}>{tr('Сохранить плитку','Save tile',en)}</button><button class="button" type="button" onclick={()=>{const id=selected;selected='';remove(id);}}>{tr('Удалить плитку','Remove tile',en)}</button><button class="button" type="button" onclick={closeSettings}>{tr('Закрыть','Close',en)}</button></div>
       {/if}
     </div>
     {/if}
@@ -174,31 +210,27 @@
       {@const w=widgetFor(tile)}
       {@const data=valueFor(tile.id,metrics)}
       {@const label=tile.title||title(w,en)}
-      {@const segments=chartSegments(history[tile.id],tile.id)}
-      {@const rxSegments=tile.id==='traffic'?chartSegments(history['traffic-rx'],'traffic-rx',trafficMax):[]}
-      {@const txSegments=tile.id==='traffic'?chartSegments(history['traffic-tx'],'traffic-tx',trafficMax):[]}
-      <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} data-widget={tile.id} data-accent={tile.accent||'auto'} class:selected={selected===tile.id&&editing} data-size={tile.size} style={positionStyle(tile)}>
+      <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} class:info-tile={w.type==='panel'} class:expandable={canExpand(w)&&w.type==='metric'} data-widget={tile.id} data-accent={tile.accent||'auto'} class:selected={selected===tile.id&&editing} data-size={tile.size} style={positionStyle(tile)}>
         {#if editing}
           <button type="button" class="rf-ws-handle rf-ws-controls" aria-label={tr('Настройки плитки','Tile settings',en)+' '+label} title={tr('Нажми для настройки, перетащи для перемещения','Click to configure, drag to move',en)} onpointerdown={e=>beginPointer(e,tile,'move')} onkeydown={e=>nudge(e,tile)} onclick={e=>{if(e.detail===0)selectTile(tile);}}><span aria-hidden="true">⠿</span></button>
         {/if}
         {#if w.type==='panel'}
-          <div class="rf-ws-panel-content">
-            <div class="rf-ws-panel-head"><strong>{label}</strong><span>{w.id==='attention'?issueCount:catalogKnown?installed.length:'—'}</span></div>
-            {#if w.id==='attention'}
-              {#if alerts.length}<div class="rf-ws-summary-list">{#each alerts.slice(0,tile.h>=4?8:3) as item}<a href={item.href||'/apps'} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-dot" data-state={item.severity}></span><span>{item.title}</span><span aria-hidden="true">›</span></a>{/each}</div>{#if alerts.length>(tile.h>=4?8:3)}<button type="button" class="rf-ws-more" onclick={()=>showFull('attention')}>{tr('Ещё','More',en)} {alerts.length-(tile.h>=4?8:3)} ↗</button>{/if}
+          <div class="rf-ws-panel-content" use:measurePanel={tile.id}>
+            <button type="button" class="rf-ws-panel-head rf-ws-more" aria-label={label} aria-expanded={!!tile.expanded&&!editing} onclick={()=>showFull(tile.id)} disabled={editing}><strong>{label}</strong><span>{w.id==='attention'?issueCount:catalogKnown?installed.length:'—'}</span><span class="rf-ws-chevron" aria-hidden="true">{tile.expanded&&!editing?'⌃':'⌄'}</span></button>
+            {#if tile.expanded&&!editing}
+              <div class="rf-ws-inline-details" data-expanded={tile.id}>{#if tile.id==='attention'}{@render attention()}{:else}{@render modules()}{/if}</div>
+            {:else if w.id==='attention'}
+              {#if alerts.length}<div class="rf-ws-summary-list">{#each alerts.slice(0,2) as item}<a href={item.href||'/apps'} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-dot" data-state={item.severity}></span><span>{item.title}</span><span aria-hidden="true">›</span></a>{/each}</div>{#if alerts.length>2}<small>+{alerts.length-2} {tr('событий','events',en)}</small>{/if}
               {:else}<small>{ready&&online&&catalogKnown?tr('Нет активных предупреждений','No active warnings',en):tr('Ожидание данных','Waiting for data',en)}</small>{/if}
-              <button type="button" class="rf-ws-more" onclick={()=>showFull('attention')}>{tr('Все подробности','All details',en)} ↗</button>
             {:else}
-              <small>{catalogKnown?tr('Установлено компонентов','Installed components',en):tr('Ожидание данных','Waiting for data',en)}</small>
-              <div class="rf-ws-module-list">{#each installed.slice(0,tile.h>=4?12:4) as item}<a href={item.href||'/apps'} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-dot" data-state={item.state}></span><span>{item.name}</span></a>{/each}</div>
-              <a class="rf-ws-more" href="/apps" tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}>{tr('Центр приложений','App Center',en)} ↗</a>
-              <button type="button" class="rf-ws-more" onclick={()=>showFull('modules')}>{tr('Все подробности','All details',en)} ↗</button>
+              <div class="rf-ws-module-stats"><span><b>{catalogKnown?installed.filter(x=>x.state==='good').length:'—'}</b> {tr('Активны','Active',en)}</span><span><b>{catalogKnown?installed.filter(x=>x.state==='warn'||x.state==='warning'||x.state==='error'||x.state==='critical').length:'—'}</b> {tr('Внимание','Attention',en)}</span><span><b>{catalogKnown?installed.filter(x=>!['good','warn','warning','error','critical'].includes(x.state)).length:'—'}</b> {tr('Прочие','Other',en)}</span></div>
+              <div class="rf-ws-module-list">{#each installed.slice(0,3) as item}<a href={item.href||'/apps'} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-dot" data-state={item.state}></span><span>{item.name}</span></a>{/each}</div>
             {/if}
           </div>
         {:else if w.type==='external'}
-          <a class="rf-ws-link" tabindex={editing?-1:0} href={tile.url} target="_blank" rel="noopener noreferrer" onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-icon">↗</span><strong>{label}</strong><small>{new URL(tile.url).hostname}</small></a>
+          <a class="rf-ws-link" tabindex={editing?-1:0} href={tile.url} title={new URL(tile.url).hostname} target="_blank" rel="noopener noreferrer" onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-shortcut-icon" aria-hidden="true">{@render shortcutIcon(tile.id)}</span><strong>{label}</strong><small>{new URL(tile.url).hostname}</small></a>
         {:else if w.type==='shortcut'}
-          <a class="rf-ws-link" tabindex={editing?-1:0} href={w.route} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-icon">{w.icon}</span><strong>{label}</strong><span class="rf-ws-arrow">↗</span></a>
+          <a class="rf-ws-link" tabindex={editing?-1:0} href={w.route} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-shortcut-icon" aria-hidden="true">{@render shortcutIcon(w.id)}</span><strong>{label}</strong><span class="rf-ws-arrow">↗</span></a>
         {:else}
           <a class="rf-ws-link" tabindex={editing?-1:0} href={w.route} onclick={e=>{if(editing)e.preventDefault();}} data-state={data.state||'unknown'}>
             <span class="rf-ws-label"><span class="rf-ws-icon">{w.icon}</span>{label}</span>
@@ -206,16 +238,35 @@
             {#if tile.id==='traffic'&&online&&Number.isFinite(data.rx)&&Number.isFinite(data.tx)}
               <div class="rf-ws-traffic-values"><strong class="rf-ws-value">↓ {data.rx.toFixed(2)}</strong><strong class="rf-ws-tx">↑ {data.tx.toFixed(2)}</strong><small>{tr('Мбит/с','Mbps',en)}</small></div>
             {:else}<strong class="rf-ws-value">{online||tile.id==='core'?data.value:'—'}</strong>{/if}
-            {#if online && tile.showDetail!==false && tile.size!=='1x1' && data.detail}<small>{tile.id==='traffic'?(data.interfaceName||data.detail):data.detail}</small>{/if}
-            {#if online && tile.showDetail!==false && tile.size!=='1x1' && boundedPercent(data.percent)!==null}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
-            {#if online && tile.showDetail!==false && tile.size!=='1x1' && tile.id==='traffic' && (rxSegments.length||txSegments.length)}<svg class="rf-ws-chart" viewBox="0 0 200 42" preserveAspectRatio="none" role="img" aria-label={tr('Получение и отправка за сеанс','Session receive and transmit',en)}>{#each [4,21,38] as y}<line x1="0" x2="200" y1={y} y2={y} stroke="var(--border)" vector-effect="non-scaling-stroke"/>{/each}{#each rxSegments as points}<polyline {points} fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>{/each}{#each txSegments as points}<polyline {points} fill="none" stroke="var(--muted)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>{/each}</svg>{#if tile.h>=2}<small class="rf-ws-chart-caption">0–{trafficMax.toFixed(2)} {tr('Мбит/с','Mbps',en)} · RX / TX · {tr('Отсчёты за сеанс','Session samples',en)}: {Math.max(history['traffic-rx']?.length||0,history['traffic-tx']?.length||0)}</small>{/if}{/if}
-            {#if online && tile.showDetail!==false && tile.size!=='1x1' && segments.length}<svg class="rf-ws-chart" viewBox="0 0 200 42" preserveAspectRatio="none" role="img" aria-label={tr('История наблюдений за текущий сеанс','Observation history for this session',en)}>{#each segments as points}<polyline {points} fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>{/each}</svg>{#if tile.h>=2&&metricStats(history[tile.id])}{@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}{/if}
-            {#if online && tile.showDetail!==false && tile.h>=2 && tile.id!=='traffic' && Array.isArray(data.rows)}<div class="rf-ws-rows">{#each data.rows.slice(0,3) as row}<span>{row}</span>{/each}</div>{/if}
+            {#if online && tile.showDetail!==false && data.detail && (tile.size!=='1x1'||['ram','storage','core','dns','updates','route'].includes(tile.id))}<small class="rf-ws-metric-detail">{tile.id==='traffic'?(data.interfaceName||data.detail):data.detail}</small>{/if}
+            {#if online && tile.showDetail!==false && boundedPercent(data.percent)!==null && (tile.size!=='1x1'||!['cpu','ram'].includes(tile.id)||!(history[tile.id]||[]).some(x=>Number.isFinite(x.value)))}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
+            {#if online && tile.showDetail!==false && tile.id==='traffic' && tile.size!=='1x1'}{@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],tile.h>=4)}{/if}
+            {#if online && tile.showDetail!==false && ['cpu','ram','thermal'].includes(tile.id)}{@render plot(tile.id,[history[tile.id]||[]],tile.h>=4)}{/if}
+            {#if online && tile.showDetail!==false && tile.h>=4 && ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}{@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}
+            {#if online && tile.showDetail!==false && tile.h>=4 && tile.id!=='traffic' && Array.isArray(data.rows)}<div class="rf-ws-rows">{#each data.rows.slice(0,3) as row}<span>{row}</span>{/each}</div>{/if}
             {#if !online}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
             </div>
           </a>
         {/if}
-        {#if editing && columns>=2}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')}>◢</button>{/if}
+        {#if w.type==='metric'&&canExpand(w)&&!editing}
+          <button type="button" class="rf-ws-metric-expand" aria-label={tr('Подробности','Details',en)+' '+label} title={tr('Подробности','Details',en)} aria-expanded={!!tile.expanded} onclick={()=>showFull(tile.id)}>{tile.expanded?'⌃':'⌄'}</button>
+          {#if tile.expanded}
+            <div class="rf-ws-expanded-metric" use:measurePanel={tile.id}>
+              {#if online&&data.value!=='—'}
+                {#if data.detail}<small>{data.detail}</small>{/if}
+                {#if Array.isArray(data.rows)&&data.rows.length}<div class="rf-ws-expanded-rows">{#each data.rows as row}<span>{row}</span>{/each}</div>{/if}
+                {#if tile.id==='traffic'}
+                  {#if tile.size==='1x1'}{@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],true)}{/if}
+                  {#if metricStats(history['traffic-rx'])&&metricStats(history['traffic-tx'])}<small>RX {tr('пик','peak',en)}: {metricStats(history['traffic-rx']).peak.toFixed(2)} · TX {tr('пик','peak',en)}: {metricStats(history['traffic-tx']).peak.toFixed(2)} {tr('Мбит/с','Mbps',en)}</small>{/if}
+                {:else if ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}
+                  {@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>
+                {/if}
+              {:else}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
+              <a class="rf-ws-more" href={w.route}>{tr('Открыть модуль','Open module',en)} ↗</a>
+            </div>
+          {/if}
+        {/if}
+        {#if editing && columns>=2 && w.type!=='panel'}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')}>◢</button>{/if}
       </article>
     {:else}<div class="rf-ws-message">{tr('Добавьте первую плитку в режиме настройки.','Add your first tile in customize mode.',en)}</div>{/each}
     {#if preview}<div class="rf-ws-preview" style={positionStyle(preview)} aria-hidden="true"></div>{/if}
@@ -243,4 +294,21 @@
   .rf-workspace button:focus-visible,.rf-workspace a:focus-visible,.rf-workspace select:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.rf-ws-tile-settings label{display:flex;align-items:center;gap:4px}.rf-ws-tile-settings input[type='checkbox']{width:auto}
   @container (max-width:220px){.rf-ws-tile[data-size='2x1'] .rf-ws-metric-body:has(.rf-ws-chart){display:flex}.rf-ws-tile[data-size='2x1'] .rf-ws-chart{height:0;flex:1 1 18px;align-self:stretch}.rf-ws-link{padding:8px;gap:4px}.rf-ws-label{font-size:11px}.rf-ws-traffic-values{gap:3px 6px}.rf-ws-panel-content{padding:7px}.rf-ws-module-list{grid-template-columns:1fr}}
   @media(max-width:420px){.rf-ws-toolbar select{width:100%}}
+  .rf-ws-grid,.rf-ws-grid.compact{grid-auto-rows:56px;align-items:stretch}
+  .rf-ws-tile.info-tile{align-self:start;height:auto;min-height:0;overflow:visible}
+  .rf-ws-panel-content{flex:none;overflow:visible;padding:9px;gap:5px}
+  .rf-ws-panel-head.rf-ws-more{width:100%;display:flex;text-align:left;align-items:center;color:var(--text);font-size:13px;padding:2px 0;gap:9px}
+  .rf-ws-panel-head strong{flex:1;min-width:0;overflow-wrap:anywhere}.rf-ws-chevron{font-size:18px;line-height:1;color:var(--muted)!important}
+  .rf-ws-module-stats{display:flex;flex-wrap:wrap;gap:7px 12px;font-size:11px;color:var(--muted)}.rf-ws-module-stats b{color:var(--text);font-size:16px}
+  .rf-ws-module-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,100px),1fr))}.rf-ws-summary-list a,.rf-ws-module-list a{padding:4px 6px;font-size:11px}
+  .rf-ws-inline-details{min-width:0;display:grid;gap:6px;border-top:1px solid var(--border);padding-top:6px;overflow-wrap:anywhere}
+  .rf-ws-inline-details :global(.routerforge-installed-groups){display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.rf-ws-inline-details :global(.routerforge-installed-list),.rf-ws-inline-details :global(.routerforge-attention-list){max-height:none;overflow:visible}.rf-ws-inline-details :global(.panel){margin:0}.rf-ws-inline-details :global(.routerforge-installed-row),.rf-ws-inline-details :global(.routerforge-attention-row){min-width:0;overflow-wrap:anywhere}.rf-ws-inline-details :global(.routerforge-attention-copy small){white-space:normal;overflow-wrap:anywhere}
+  .rf-ws-tile.shortcut .rf-ws-link{flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;padding:8px 10px;overflow:hidden}.rf-ws-tile.shortcut .rf-ws-link strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.rf-ws-tile.shortcut .rf-ws-link small{display:none}.rf-ws-shortcut-icon{font-size:16px;color:var(--tile-accent);width:28px;height:28px;background:color-mix(in srgb,var(--tile-accent) 12%,transparent);display:grid;place-items:center;border-radius:6px;flex:none}.rf-ws-tile.shortcut .rf-ws-arrow{align-self:center}
+  .rf-ws-link{padding:9px 11px;gap:4px}.rf-ws-value{font-size:clamp(17px,10cqi,30px)}.rf-ws-metric-detail{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rf-ws-meter{height:5px}
+  .rf-ws-plot{display:flex;flex-direction:column;position:relative;flex:1 1 24px;min-height:24px;min-width:0;gap:3px;color:var(--muted)}.rf-ws-plot.large{min-height:76px}.rf-ws-plot .rf-ws-chart{height:0;min-height:20px;flex:1 1 0;width:100%;overflow:visible}.rf-ws-plot-axis,.rf-ws-plot-time{display:flex;justify-content:space-between;gap:4px;font-size:10px;white-space:nowrap}.rf-ws-plot-tooltip{position:absolute;top:0;right:0;z-index:2;max-width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;pointer-events:none;display:grid}.rf-ws-tx{color:var(--rf-chart-tx,#a78bfa)}
+  .rf-ws-tile[data-size='2x1'] .rf-ws-metric-body:has(.rf-ws-plot){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:min-content;align-content:center;gap:3px 8px}.rf-ws-tile[data-size='2x1'] .rf-ws-metric-body:has(.rf-ws-plot)>:not(.rf-ws-plot){grid-column:1}.rf-ws-tile[data-size='2x1'] .rf-ws-plot{grid-column:2;grid-row:1/span 4;height:58px;align-self:center}.rf-ws-tile[data-size='2x1'] .rf-ws-plot .rf-ws-chart{height:0;min-height:24px;align-self:stretch}
+  @container(max-width:220px){.rf-ws-tile[data-size='2x1'] .rf-ws-metric-body:has(.rf-ws-plot){display:flex}.rf-ws-tile[data-size='2x1'] .rf-ws-plot{height:28px;align-self:stretch}.rf-ws-tile.shortcut .rf-ws-link{padding:5px}.rf-ws-shortcut-icon{width:22px;height:22px}}
+  .rf-ws-tile.expandable .rf-ws-label{padding-right:22px}.rf-ws-metric-expand{position:absolute;top:5px;right:5px;z-index:1;border:0;border-radius:4px;background:transparent;color:var(--muted);font-size:17px;line-height:1;width:24px;height:24px;cursor:pointer}.rf-ws-metric-expand:hover,.rf-ws-metric-expand:focus-visible{background:var(--surface-2);color:var(--accent)}
+  .rf-ws-expanded-metric{padding:8px 10px;display:grid;flex:none;gap:6px;border-top:1px solid var(--border);min-width:0;overflow-wrap:anywhere}.rf-ws-expanded-rows{display:grid;gap:3px;font-size:11px;color:var(--text)}.rf-ws-expanded-rows span{padding:4px 6px;border-radius:4px;background:var(--surface-2);overflow-wrap:anywhere}.rf-ws-expanded-metric .rf-ws-plot.large{height:110px}
+  .rf-ws-plot.large{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(42px,1fr) auto;gap:3px 7px}.rf-ws-plot.large .rf-ws-plot-axis{grid-column:1;grid-row:1;flex-direction:column;justify-content:space-between;align-items:flex-end}.rf-ws-plot.large .rf-ws-chart{grid-column:2;grid-row:1;height:100%;min-height:42px}.rf-ws-plot.large .rf-ws-plot-time{grid-column:2;grid-row:2}.rf-ws-plot.large .rf-ws-plot-tooltip{max-width:85%}
 </style>

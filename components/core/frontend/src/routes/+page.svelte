@@ -96,14 +96,17 @@
     result.storage=percent(storage,totalBytes>0&&usedBytes!==null?`/opt · ${bytes(usedBytes)} / ${bytes(totalBytes)}`:'/opt',totalBytes>0&&usedBytes!==null&&usedBytes>=0&&usedBytes<=totalBytes?[`${tr('Свободно','Available')} · ${bytes(totalBytes-usedBytes)}`]:[]);
     if(Array.isArray(telem.networkRoutes?.routes)){
       const routes=telem.networkRoutes.routes.filter(x=>x.destination==='0.0.0.0'&&(!x.mask||x.mask==='0.0.0.0'));
-      result.route=make(routes.length?tr('Есть','Present'):tr('Нет','Missing'),tr('Маршрут по умолчанию, не проверка интернета','Default route, not an internet probe'),null,[],routes.length?'normal':'warning');
+      const best=routes.length?Math.min(...routes.map(x=>Number.isFinite(x.metric)?x.metric:Infinity)):null;
+      const preferred=routes.filter(x=>x.metric===best);
+      const hint=preferred.length===1?[preferred[0].interface,preferred[0].gateway].filter(x=>typeof x==='string'&&x).join(' · '):'';
+      result.route=make(routes.length?tr('Есть','Present'):tr('Нет','Missing'),hint||tr('Маршрут по умолчанию','Default route'),null,[],routes.length?'normal':'warning');
     }else result.route=unknown();
     const upstreams=Array.isArray(snapshot?.upstreams)?snapshot.upstreams:[];
     const observed=upstreams.filter(x=>['UP','OK','HEALTHY','DOWN','DEGRADED'].includes(String(x.health_status||'').toUpperCase()));
     const bad=observed.filter(x=>['DOWN','DEGRADED'].includes(String(x.health_status).toUpperCase())).length;
-    result.dns=observed.length?make(`${observed.length-bad}/${observed.length}`,tr('Без DOWN / DEGRADED среди известных','Not DOWN / DEGRADED among known'),null,observed.map(x=>`${String(x.name||x.sni||x.target||'DNS')} · ${x.health_status}`),bad?'warning':'normal'):unknown();
-    result.core=ready?make(online?tr('В сети','Online'):tr('Не в сети','Offline'),String(snapshot?.version||''),null,[],online?'normal':'critical'):unknown();
-    result.updates=catalogReady&&catalogOnline?make(String(updates.length),tr('Установленные компоненты','Installed components'),null,updates.map(x=>`${String(x.name||x.id)}${x.version?` · ${x.version}`:''}${x.release?.version||x.available_version?` → ${x.release?.version||x.available_version}`:''}`),updates.length?'warning':'normal'):unknown();
+    result.dns=observed.length?make(`${observed.length-bad}/${observed.length}`,bad?`${bad} ${tr('требуют внимания','need attention')}`:tr('Наблюдаемые upstream без ошибок','Observed upstreams without errors'),null,observed.map(x=>`${String(x.name||x.sni||x.target||'DNS')} · ${x.health_status}`),bad?'warning':'normal'):unknown();
+    result.core=ready?make(online?tr('В сети','Online'):tr('Не в сети','Offline'),[snapshot?.version,Number.isFinite(telem.platform?.uptime_seconds)?fmtDuration(telem.platform.uptime_seconds,locale):''].filter(Boolean).join(' · '),null,[],online?'normal':'critical'):unknown();
+    result.updates=catalogReady&&catalogOnline?make(String(updates.length),updates.length?updates.slice(0,2).map(x=>String(x.name||x.id)).join(' · '):tr('Нет обновлений','Up to date'),null,updates.map(x=>`${String(x.name||x.id)}${x.version?` · ${x.version}`:''}${x.release?.version||x.available_version?` → ${x.release?.version||x.available_version}`:''}`),updates.length?'warning':'normal'):unknown();
     const uptime=numeric(telem.platform?.uptime_seconds);
     result.uptime=uptime!==null&&uptime>=0?make(fmtDuration(uptime,locale),tr('С момента запуска','Since boot')):unknown();
     const known=catalogReady&&catalogOnline?modules.filter(x=>x.installed&&!x.builtin&&typeof x.service_running==='boolean'):[];

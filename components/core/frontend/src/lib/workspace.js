@@ -20,7 +20,7 @@ export const WIDGETS = Object.freeze([
  w('dns-router-status','dns-router','Служба DNS Router','DNS Router service','DNS',metric,'2x1','metric','/routing','catalog.modules'),
  w('nfqws-status','nfqws-manager','Служба NFQWS','NFQWS service','NFQ',metric,'2x1','metric','/apps?tab=installed','catalog.modules'),
  w('attention','core','Предупреждения','Attention','!',panel,'4x2','panel','','home.issues'),
- w('modules','core','Модули и интеграции','Modules and integrations','APP',panel,'4x4','panel','','catalog.installed'),
+ w('modules','core','Модули и интеграции','Modules and integrations','APP',panel,'4x2','panel','','catalog.installed'),
  w('monitoring','monitoring','Мониторинг','Monitoring','▥',shortcut,'1x1','shortcut','/monitoring',''),
  w('network','network-tools','Сетевые инструменты','Network tools','↔',shortcut,'1x1','shortcut','/network-tools',''),
  w('manage','admin','Управление','Management','⚙',shortcut,'1x1','shortcut','/manage',''),
@@ -76,6 +76,7 @@ export function normalizeLayout(value){
    const t={id:tile.id,size:tile.size};if(external)t.url=safeExternal(tile.url);
    if(tile.title!==undefined){if(!validLabel(tile.title))throw Error('INVALID_TITLE');if(tile.title.trim())t.title=tile.title.trim();}
    if(tile.accent!==undefined){if(!ACCENTS.includes(tile.accent))throw Error('INVALID_ACCENT');if(tile.accent!=='auto')t.accent=tile.accent;}
+   if(tile.expanded!==undefined){if(!canExpand(widget)||typeof tile.expanded!=='boolean')throw Error('INVALID_EXPANSION');if(tile.expanded)t.expanded=true;}
    if(tile.showDetail!==undefined){if(typeof tile.showDetail!=='boolean')throw Error('INVALID_DETAIL');if(!tile.showDetail)t.showDetail=false;}
    if(tile.x!==undefined||tile.y!==undefined){t.x=tile.x;t.y=tile.y;if(!validPosition(t))throw Error('INVALID_POSITION');}
    tiles.push(t);
@@ -113,13 +114,15 @@ export function columnsForWidth(width){return width>=1800?8:width>=1250?6:width>
 export function compactTiles(tiles){return spatialOrder(packTiles(tiles.map(t=>({...t}))));}
 export function compactReorder(tiles,id,target){return spatialOrder(reorder(tiles,id,target));}
 export function compactLayout(value){const d=normalizeLayout(value);return normalizeLayout({...d,spaces:d.spaces.map(s=>({...s,tiles:compactTiles(spatialOrder(s.tiles))}))});}
-export function projectTiles(tiles,cols){
+export function canExpand(widget){return !!widget&&(widget.type==='panel'||['cpu','ram','thermal','storage','traffic','dns','updates','interfaces','services','route','core'].includes(widget.id));}
+export function projectTiles(tiles,cols,panelRows=null){
  if(![1,2,4,6,8].includes(cols))throw Error('INVALID_COLUMNS');
  const out=[],used=new Set();
  for(const t of spatialOrder(tiles)){
-  const [width,height]=dimensions(t.size),w=Math.min(width,cols),h=cols===1?Math.min(height,2):height;
+  const [width,height]=dimensions(t.size),w=Math.min(width,cols),kind=widgetFor(t).type;
+  const h=panelRows===null?(cols===1?Math.min(height,2):height):kind==='panel'?Math.max(1,Math.min(96,panelRows[t.id]||2)):kind==='shortcut'||kind==='external'?1:2*(cols===1?Math.min(height,2):height)+(t.expanded?Math.max(0,Math.min(96,panelRows[t.id]||0)):0);
   let found=null;
-  for(let y=0;y<256&&!found;y++)for(let x=0;x<=cols-w;x++){
+  for(let y=0;y<1024&&!found;y++)for(let x=0;x<=cols-w;x++){
    let free=true;for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)if(used.has((y+dy)*cols+x+dx))free=false;
    if(!free)continue;found={...t,x,y,w,h};for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)used.add((y+dy)*cols+x+dx);break;
   }
@@ -143,3 +146,19 @@ export function moveToCell(tiles,visual,id,x,y){
 }
 export function metricStats(samples){const values=(samples||[]).map(s=>s.value).filter(v=>finiteMetric(v)!==null);return values.length?{mean:values.reduce((a,b)=>a+b,0)/values.length,peak:Math.max(...values),count:values.length}:null;}
 export function widgetCategory(w){if(w.type==='shortcut'||w.type==='external')return 'shortcuts';if(w.id==='attention')return 'events';if(w.id==='dns'||w.id==='dns-router-status')return 'dns';if(['traffic','route','interfaces'].includes(w.id))return 'network';if(['cpu','ram','thermal','storage','uptime'].includes(w.id))return 'system';return 'management';}
+
+// Visual tracks are half-height; the persisted v1 coordinates and sizes remain unchanged.
+export function panelTrackCount(height,row=56,gap=9){return Number.isFinite(height)&&height>0&&row>0&&gap>=0?Math.max(1,Math.min(96,Math.ceil((height+2+gap)/(row+gap)))):2;}
+export function chartDomain(series,id){
+ const all=series.flat().filter(s=>Number.isFinite(s?.time));const vals=all.map(s=>s.value).filter(v=>Number.isFinite(v));
+ const start=all.length?Math.min(...all.map(s=>s.time)):0,end=all.length?Math.max(...all.map(s=>s.time)):start;
+ let lo=0,hi=100;
+ if(id==='traffic'){const max=Math.max(0,...vals);const base=max>0?10**Math.floor(Math.log10(max)):1;hi=([1,2,5,10].find(n=>n*base>=max)||10)*base;}
+ if(id==='thermal'){lo=Math.min(0,...vals);hi=Math.max(100,...vals);}
+ return {start,end:Math.max(start+1,end),lo,hi};
+}
+export function chartGeometry(samples,domain){
+ const parts=[];let points=[];const flush=()=>{if(points.length){const line=points.map(p=>`${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');parts.push({line,area:points.length>1?`M${points[0].x.toFixed(2)},60 L${line.replaceAll(' ',' L')} L${points.at(-1).x.toFixed(2)},60 Z`:'',points});points=[];}};
+ for(const s of samples||[]){if(!Number.isFinite(s?.time)||!Number.isFinite(s?.value)){flush();continue;}const x=Math.max(0,Math.min(240,(s.time-domain.start)/(domain.end-domain.start)*240)),y=Math.max(2,Math.min(58,58-(s.value-domain.lo)/(domain.hi-domain.lo)*56));points.push({x,y,time:s.time,value:s.value});}flush();return parts;
+}
+export function nearestChartPoint(parts,x){let best=null;for(const part of parts)for(const p of part.points)if(!best||Math.abs(p.x-x)<Math.abs(best.x-x))best=p;return best;}

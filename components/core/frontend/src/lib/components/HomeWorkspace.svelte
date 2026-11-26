@@ -26,12 +26,17 @@
   onMount(()=>{
     try{const raw=localStorage.getItem(STORAGE_KEY);if(raw)layout=parseLayout(raw);}catch{error='restore';}
     loaded=true;
-    if(typeof ResizeObserver==='undefined'){gridWidth=grid?.clientWidth||0;return;}
-    const observer=new ResizeObserver(entries=>{gridWidth=entries[0].contentRect.width;});
-    if(grid)observer.observe(grid);
-    return ()=>observer.disconnect();
+    const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(entries=>{gridWidth=entries[0].contentRect.width;});
+    gridWidth=grid?.clientWidth||0;
+    if(grid&&observer)observer.observe(grid);
+    // Pointer capture is an optimization, not the lifetime of a gesture.
+    // Window listeners survive loss of capture or replacement of a tile's handle.
+    const handlers=[['pointermove',updatePointer],['pointerup',endPointer],['pointercancel',abortPointer],['blur',blurPointer],['keydown',escapePointer]];
+    for(const [type,handler] of handlers)window.addEventListener(type,handler,true);
+    document.addEventListener('visibilitychange',visibilityPointer);
+    return ()=>{cancelPointer();observer?.disconnect();for(const [type,handler] of handlers)window.removeEventListener(type,handler,true);document.removeEventListener('visibilitychange',visibilityPointer);};
   });
-  function commit(next){layout=normalizeLayout(next);if(loaded){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(layout));persisted=true;}catch{persisted=false;}}}
+  function commit(next){if(gesture)cancelPointer();layout=normalizeLayout(next);if(loaded){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(layout));persisted=true;}catch{persisted=false;}}}
   function change(fn){try{commit(updateSpace(layout,active.id,fn));error='';}catch{error='invalid';}}
   function selectSpace(id){commit({...layout,active:id});name='';error='';selected='';cancelPointer();}
   function addSpace(copy=false){if(layout.spaces.length>=8)return;const id='space-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);const label=name.trim().slice(0,64);try{commit({...layout,active:id,spaces:[...layout.spaces,{id,name:label,profile,tiles:copy?active.tiles.map(x=>({...x})):profileTiles(profile)}]});name='';selected='';error='';}catch{error='invalid';}}
@@ -45,10 +50,47 @@
   function addLink(){try{const url=safeExternal(linkURL);if(active.tiles.filter(t=>widgetFor(t).type==='external').length>=12)throw Error('LINK_LIMIT');const id='link-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);commit(updateSpace(layout,active.id,s=>({...s,tiles:[...s.tiles,{id,size:'1x1',url,title:linkTitle.trim()||new URL(url).hostname.slice(0,64)}]})));linkTitle='';linkURL='';error='';}catch{error='invalid';}}
   function positionStyle(tile,columns){if(columns!==4){const [w,h]=dimensions(tile.size);return `grid-column:span ${Math.min(w,columns)};grid-row:span ${columns===1?1:Math.min(h,2)};`;}const [w,h]=dimensions(tile.size);return `grid-column:${tile.x+1}/span ${w};grid-row:${tile.y+1}/span ${h};`;}
   function nudge(e,tile){const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!delta)return;e.preventDefault();if(columns!==4){move(tile.id,delta[0]||delta[1]);return;}const [w,h]=dimensions(tile.size);const x=Math.max(0,Math.min(COLS-w,tile.x+delta[0])),y=Math.max(0,Math.min(MAX_ROWS-h,tile.y+delta[1]));change(s=>({...s,tiles:placeTile(s.tiles,tile.id,x,y)}));}
-  function beginPointer(e,tile,kind){if(!editing||e.button!==0||gesture)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);gesture={id:tile.id,kind,pointer:e.pointerId,x:e.clientX,y:e.clientY,tile:{...tile},columns};dragId=tile.id;preview=columns===4?{...tile}:null;}
-  function updatePointer(e){if(!gesture||gesture.pointer!==e.pointerId||gesture.columns!==4||columns!==4)return;const t=gesture.tile,[w,h]=dimensions(t.size),pitch=(grid.getBoundingClientRect().width+9)/4;const dx=Math.round((e.clientX-gesture.x)/pitch),dy=Math.round((e.clientY-gesture.y)/(parseFloat(getComputedStyle(grid).gridAutoRows)+9));if(gesture.kind==='resize'){const size=nearestSize(widgetFor(t),Math.max(1,w+dx),Math.max(1,h+dy)),[nw,nh]=dimensions(size);preview={...t,size,x:Math.min(t.x,COLS-nw),y:Math.min(t.y,MAX_ROWS-nh)};}else preview={...t,x:Math.max(0,Math.min(COLS-w,t.x+dx)),y:Math.max(0,Math.min(MAX_ROWS-h,t.y+dy))};}
-  function cancelPointer(){gesture=null;preview=null;dragId='';}
-  function endPointer(e){if(!gesture||gesture.pointer!==e.pointerId)return;const g=gesture;updatePointer(e);if(columns===4&&g.columns===4&&preview){const p=preview;change(s=>({...s,tiles:placeTile(s.tiles,g.id,p.x,p.y,p.size)}));}else if(g.kind==='move'&&g.columns===columns){const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-widget]')?.getAttribute('data-widget');if(target&&target!==g.id)change(s=>({...s,tiles:reorder(s.tiles,g.id,target)}));}cancelPointer();}
+  function beginPointer(e,tile,kind){
+    if(!editing||e.button!==0||e.isPrimary===false||gesture)return;
+    e.preventDefault();
+    const handle=e.currentTarget;
+    gesture={id:tile.id,kind,pointer:e.pointerId,x:e.clientX,y:e.clientY,tile:{...tile},columns,handle,layout};
+    dragId=tile.id;preview=columns===4?{...tile}:null;
+    try{handle.setPointerCapture(e.pointerId);}catch{/* Window listeners remain active if capture is unavailable. */}
+  }
+  function validGesture(e){
+    if(!gesture||gesture.pointer!==e.pointerId)return false;
+    if(!editing||gesture.layout!==layout||gesture.columns!==columns){cancelPointer();return false;}
+    return true;
+  }
+  function updatePointer(e){
+    if(!validGesture(e))return;
+    if(e.pointerType==='mouse'&&e.type==='pointermove'&&!(e.buttons&1)){cancelPointer();return;}
+    if(columns!==4)return;
+    const t=gesture.tile,[w,h]=dimensions(t.size),css=getComputedStyle(grid);
+    const pitchX=(grid.getBoundingClientRect().width+parseFloat(css.columnGap))/4,pitchY=parseFloat(css.gridAutoRows)+parseFloat(css.rowGap);
+    if(!Number.isFinite(pitchX)||!Number.isFinite(pitchY)||pitchX<=0||pitchY<=0){cancelPointer();return;}
+    const dx=Math.round((e.clientX-gesture.x)/pitchX),dy=Math.round((e.clientY-gesture.y)/pitchY);
+    if(gesture.kind==='resize'){const size=nearestSize(widgetFor(t),Math.max(1,w+dx),Math.max(1,h+dy)),[nw,nh]=dimensions(size);preview={...t,size,x:Math.min(t.x,COLS-nw),y:Math.min(t.y,MAX_ROWS-nh)};}
+    else preview={...t,x:Math.max(0,Math.min(COLS-w,t.x+dx)),y:Math.max(0,Math.min(MAX_ROWS-h,t.y+dy))};
+  }
+  function cancelPointer(){
+    const g=gesture;gesture=null;preview=null;dragId='';
+    if(g){try{if(g.handle.hasPointerCapture(g.pointer))g.handle.releasePointerCapture(g.pointer);}catch{/* Detached handles do not retain capture. */}}
+  }
+  function abortPointer(e){if(gesture?.pointer===e.pointerId)cancelPointer();}
+  function escapePointer(e){if(gesture&&e.key==='Escape'){e.preventDefault();cancelPointer();}}
+  function blurPointer(e){if(e.target===window)cancelPointer();}
+  function visibilityPointer(){if(document.hidden)cancelPointer();}
+  function endPointer(e){
+    if(!validGesture(e))return;
+    const g=gesture;updatePointer(e);if(!gesture)return;
+    const p=preview;
+    const target=columns!==4&&g.kind==='move'?document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-widget]')?.getAttribute('data-widget'):null;
+    cancelPointer();
+    if(columns===4&&p)change(s=>({...s,tiles:placeTile(s.tiles,g.id,p.x,p.y,p.size)}));
+    else if(target&&target!==g.id)change(s=>({...s,tiles:reorder(s.tiles,g.id,target)}));
+  }
   function importLayout(){try{const next=parseLayout(transferText);if(!confirm(tr('Заменить все рабочие пространства?','Replace all workspaces?',en)))return;commit(next);selected='';transfer=false;error='';}catch{error='invalid';}}
   function exportLayout(){transferText=JSON.stringify(layout,null,2);transfer=true;error='';}
   function reset(){if(!confirm(tr('Заменить текущую компоновку шаблоном?','Replace current layout with template?',en)))return;selected='';change(s=>({...s,profile,tiles:profileTiles(profile)}));}
@@ -98,7 +140,7 @@
       <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} data-widget={tile.id} data-accent={tile.accent||'auto'} style={positionStyle(tile,columns)}>
         {#if editing}
           <div class="rf-ws-controls">
-            <button type="button" class="rf-ws-handle" aria-label={tr('Перетащить','Drag',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'move')} onpointermove={updatePointer} onpointerup={endPointer} onpointercancel={cancelPointer} onlostpointercapture={cancelPointer} onkeydown={e=>nudge(e,tile)}>⠿</button>
+            <button type="button" class="rf-ws-handle" aria-label={tr('Перетащить','Drag',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'move')} onkeydown={e=>nudge(e,tile)}>⠿</button>
             <button type="button" aria-label={tr('Настройки плитки','Tile settings',en)+' '+label} onclick={()=>selectTile(tile)}>⚙</button>
             <button type="button" aria-label={tr('Изменить размер','Resize',en)+' '+label} onclick={()=>change(s=>({...s,tiles:resize(s.tiles,tile.id)}))}>{tile.size}</button>
             <button type="button" aria-label={tr('Удалить плитку','Remove tile',en)+' '+label} onclick={()=>{if(selected===tile.id)selected='';remove(tile.id);}}>×</button>
@@ -122,7 +164,7 @@
             {#if !online}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
           </a>
         {/if}
-        {#if editing && columns===4}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')} onpointermove={updatePointer} onpointerup={endPointer} onpointercancel={cancelPointer} onlostpointercapture={cancelPointer}>◢</button>{/if}
+        {#if editing && columns===4}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')}>◢</button>{/if}
       </article>
     {:else}<div class="rf-ws-message">{tr('Добавьте первую плитку в режиме настройки.','Add your first tile in customize mode.',en)}</div>{/each}
     {#if preview&&columns===4}<div class="rf-ws-preview" style={positionStyle(preview,columns)} aria-hidden="true"></div>{/if}

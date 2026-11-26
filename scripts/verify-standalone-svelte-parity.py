@@ -124,6 +124,73 @@ def extend_network_reference(page):
     }""")
 
 
+# E10 extends the historical reference with the approved controls. This is
+# independently authored static expected HTML, not DOM copied from the app.
+# All original screenshots, geometry, API comparisons and tolerances remain.
+def extend_network_e10_reference(page):
+    page.evaluate("""() => {
+        const one = (selector) => {
+            const nodes = document.querySelectorAll(selector);
+            if (nodes.length !== 1) throw Error('E10_REFERENCE_ANCHOR: '+selector);
+            return nodes[0];
+        };
+        one('#panel-doctor [data-i18n="rttHint"]').textContent = 'Только ICMP RTT';
+        const label = document.createElement('label'); label.className='nt-check';
+        const input = document.createElement('input'); input.type='checkbox'; input.id='check-tls';
+        label.append(input, document.createTextNode(' TLS'));
+        one('#panel-doctor .nt-checks').append(label);
+        one('#probe-kind').append(new Option('TLS','tls'));
+        const heading = one('#panel-probes .probe-history-title');
+        heading.textContent='Проверки текущего окна';
+        const history = document.createElement('details');
+        const summary = document.createElement('summary'); summary.textContent='История Network Tools (до 64)';
+        history.append(summary); heading.after(history);
+    }""")
+
+
+def check_network_e10(page, scenario, viewport):
+    # Exercise the production bundle only, after unmodified parity evidence.
+    # No real network is involved; the original fixture intercepts every fetch.
+    if scenario == 'doctor':
+        tls = page.locator('#check-tls')
+        assert tls.count() == 1 and tls.is_visible() and not tls.is_checked(), 'E10_TLS_OPT_IN'
+        page.evaluate("""() => {
+            window.__calls=[];
+            window.__api['/doctor']={target:'tls-fixture.example',checks:['ping','dns','tcp','tls'],
+              probes:{ping:{ok:true,rtt_measured_ms:10,loss_measured_pct:0},dns:{ok:true,addresses:['192.0.2.1']},tcp:{ok:true,duration_ms:90},tls:{ok:false,tcp_ms:15,tls_ms:200,error_class:'timeout'}},
+              diagnosis:{verdict:{code:'tls_failure',severity:'fail',fault_domain:'service'},stages:[{id:'tls',status:'fail',detail:'TLS fixture timeout'}],actions:[]}};
+        }""")
+        page.locator('#doctor-target').fill('tls-fixture.example')
+        tls.check()
+        page.locator('#doctor-run').click()
+        page.locator('#doctor-results').get_by_text('TLS-проверка не прошла',exact=True).wait_for(state='visible')
+        assert page.locator('#kpi-rtt').inner_text().strip() == '10 ms', 'E10_ICMP_RTT_MIXED'
+        assert page.locator('#kpi-loss').inner_text().strip() == '0.0%', 'E10_MEASURED_ZERO_LOSS'
+        calls = page.evaluate('window.__calls.filter(c=>c.path==="/doctor")')
+        assert calls == [{'path':'/doctor','query':{'target':'tls-fixture.example','checks':'ping,dns,tcp,tls','tcp_port':'443','http_port':'80'}}], f'E10_DOCTOR_CALL: {calls}'
+    else:
+        summary = page.locator('#panel-probes details > summary').filter(has_text='История Network Tools (до 64)')
+        assert summary.count() == 1 and summary.is_visible(), 'E10_HISTORY_MISSING'
+        assert not page.evaluate("window.__calls.some(c=>c.path==='/probe-history')"), 'E10_HISTORY_AUTO_FETCH'
+        page.evaluate("""() => {
+            window.__calls=[];
+            window.__api['/probe']={ok:false,kind:'tls',target:'tls-fixture.example',port:443,tcp_ms:12,tls_ms:80,error_class:'timeout'};
+            window.__api['/probe-history']={scope:'network-tools-process',limit:64,rows:[{at:'2026-11-06T09:19:01Z',result:{ok:true,kind:'tls',target:'history-fixture.example',port:443,tcp_ms:7,tls_ms:9}}]};
+        }""")
+        page.locator('#probe-kind').select_option('tls')
+        assert page.locator('#probe-port').is_enabled() and page.locator('#probe-port').input_value() == '443', 'E10_TLS_PORT'
+        page.locator('#probe-target').fill('tls-fixture.example')
+        page.locator('#probe-run').click()
+        page.locator('#probe-summary').get_by_text('TCP 12 ms · TLS 80 ms · timeout',exact=True).wait_for(state='visible')
+        assert not page.evaluate("window.__calls.some(c=>c.path==='/probe-history')"), 'E10_HISTORY_IMPLICIT_FETCH'
+        summary.click()
+        page.get_by_role('button',name='Загрузить историю',exact=True).click()
+        page.get_by_text('history-fixture.example',exact=True).wait_for(state='visible')
+        calls = page.evaluate('window.__calls.filter(c=>["/probe","/probe-history"].includes(c.path))')
+        assert calls == [{'path':'/probe','query':{'kind':'tls','target':'tls-fixture.example','port':'443'}},{'path':'/probe-history','query':{}}], f'E10_PROBE_CALLS: {calls}'
+    print(f'E10_NETWORK_BROWSER: PASS / {scenario} / {viewport}',flush=True)
+
+
 def check_network_picker(page, scenario, viewport):
     # Run after the unmodified production screenshot and original API call
     # capture. The fixture uses reserved names and mocked same-origin GETs.
@@ -212,6 +279,8 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         page.wait_for_timeout(160)
         if module=='network-tools' and which=='legacy':
             extend_network_reference(page)
+        if module=='network-tools' and which=='legacy':
+            extend_network_e10_reference(page)
         if errors:raise AssertionError(f'JAVASCRIPT_ERRORS: {module} {which} {scenario} {errors[:2]}')
         if module=='antiscan-manager':
             contents[which]=page.locator('#configState').inner_text()
@@ -253,6 +322,7 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         calls[which]=page.evaluate('window.__calls')
         if module=='network-tools' and which=='svelte' and scenario in ('doctor','probes'):
             check_network_picker(page, scenario, viewport)
+            check_network_e10(page, scenario, viewport)
             if errors:raise AssertionError(f'E02_PICKER_JAVASCRIPT_ERRORS: {errors[:2]}')
         page.close()
     if Image.open(shots['legacy']).size != Image.open(shots['svelte']).size:

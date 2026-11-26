@@ -140,6 +140,13 @@ type thermalInfo struct {
 }
 
 func main() {
+	// Isolated bounded external-storage worker: no socket, daemon or log setup.
+	if len(os.Args) > 1 && os.Args[1] == "--recovery-storage-worker" {
+		if recoveryStorageWorker(os.Args[2:], os.Stdin, os.Stdout) != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	socket := flag.String("socket", defaultSocket, "Unix socket path")
 	uiPath := flag.String("ui", "/opt/share/routerforge/modules/admin/ui", "module UI path")
 	flag.Parse()

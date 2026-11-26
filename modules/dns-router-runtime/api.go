@@ -760,6 +760,7 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, ReadOnlyKeeneticDiscovery())
 	})
+	a.registerRecoveryPolicy(mux)
 	mux.HandleFunc("/v1/config", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

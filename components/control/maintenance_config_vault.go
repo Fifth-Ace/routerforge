@@ -58,6 +58,8 @@ type adminConfigVaultDiff struct {
 
 func registerAdminConfigVaultRoutes(mux *http.ServeMux) {
 	registerAdminRecoveryRoutes(mux)
+	registerRecoveryNativeRoutes(mux)
+	registerRecoveryStorageRoutes(mux)
 	mux.HandleFunc("/v1/maintenance/config-vault", getOnly(handleAdminConfigVaultOverview))
 	mux.HandleFunc("/v1/maintenance/config-vault/", getOnly(handleAdminConfigVaultGet))
 	mux.HandleFunc("/v1/maintenance/config-vault-diff", getOnly(handleAdminConfigVaultDiff))

@@ -537,6 +537,12 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// Native recovery endpoints are internal to Admin's safety-snapshot workflow.
+	// Ordinary native DNS editing remains unchanged.
+	if moduleID == "dns-router" && strings.HasPrefix(targetPath, "/v1/recovery-policy-") {
+		http.NotFound(w, r)
+		return
+	}
 
 	transport := moduleTransport(socket)
 	defer transport.CloseIdleConnections()

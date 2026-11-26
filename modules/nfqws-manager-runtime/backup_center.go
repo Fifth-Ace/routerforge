@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Fifth-Ace/routerforge/internal/safety"
@@ -62,6 +63,7 @@ type backupPruneRequest struct {
 }
 
 func registerBackupCenterRoutes(mux *http.ServeMux) {
+	registerNFRecoveryRoutes(mux)
 	mux.HandleFunc("/v1/backups", getOnly(handleBackupCenterList))
 	mux.HandleFunc("/v1/backups/read", getOnly(handleBackupCenterRead))
 	mux.HandleFunc("/v1/backups/restore", mutationOnly(handleBackupCenterRestore))
@@ -187,7 +189,30 @@ func recordPersistentBackup(label string, data []byte, mode os.FileMode) (string
 	return recordPersistentBackupTarget(label, kind, target, data, mode)
 }
 
+var persistentBackupMu sync.Mutex
+
 func recordPersistentBackupTarget(label, kind, target string, data []byte, mode os.FileMode) (string, error) {
+	return recordPersistentBackupTargetWithRetention(label, kind, target, data, mode, false)
+}
+
+func recordPersistentBackupTargetWithRetention(label, kind, target string, data []byte, mode os.FileMode, noPrune bool) (string, error) {
+	persistentBackupMu.Lock()
+	defer persistentBackupMu.Unlock()
+	if noPrune {
+		entries, err := os.ReadDir(persistentBackupRoot)
+		if err != nil {
+			return "", err
+		}
+		count := 0
+		for _, entry := range entries {
+			if entry.IsDir() && safeBackupID(entry.Name()) {
+				count++
+			}
+		}
+		if count >= persistentBackupMax {
+			return "", errors.New("persistent backup no-prune limit")
+		}
+	}
 	if err := ensurePersistentBackupRoot(); err != nil {
 		return "", err
 	}
@@ -225,7 +250,9 @@ func recordPersistentBackupTarget(label, kind, target string, data []byte, mode 
 		cleanup()
 		return "", err
 	}
-	_ = prunePersistentBackups()
+	if !noPrune {
+		_ = prunePersistentBackupsLocked()
+	}
 	return id, nil
 }
 
@@ -355,6 +382,11 @@ func readBackupCenterInventory() []backupCenterEntry {
 }
 
 func prunePersistentBackups() error {
+	persistentBackupMu.Lock()
+	defer persistentBackupMu.Unlock()
+	return prunePersistentBackupsLocked()
+}
+func prunePersistentBackupsLocked() error {
 	entries, err := os.ReadDir(persistentBackupRoot)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -607,6 +639,8 @@ func handleBackupCenterDelete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal NFQWS_BACKUP_DELETE"})
 		return
 	}
+	persistentBackupMu.Lock()
+	defer persistentBackupMu.Unlock()
 	dir, err := persistentBackupDir(strings.TrimSpace(request.ID))
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "backup not found"})

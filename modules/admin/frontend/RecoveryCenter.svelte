@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import RecoveryExtended from './RecoveryExtended.svelte';
   import { markUnauthorized } from '$lib/stores/auth.js';
   export let locale = 'ru';
   const base = '/api/modules/admin/maintenance/';
@@ -78,6 +79,7 @@
   <p class="limit">{tr('Выборочная запись в E06.1 доступна только для существующего logging.json в стандартном режиме Entware. Связанные состояния, настройки безопасности и произвольные файлы — только просмотр метаданных.','E06.1 selective writes support only existing logging.json in standard Entware mode. Coupled state, security settings and arbitrary files are metadata-only.')}</p>
   <details><summary>{tr('Существующие архивы обслуживания','Existing maintenance archives')}</summary><button class="button" disabled={busy} onclick={legacy}>{tr('Загрузить перечень','Load inventory')}</button>{#each archives as a}<div class="diff"><span>{a.name} · {a.modified_at} · {a.size} B</span><strong>{a.valid?'VALID':'UNVERIFIED'}</strong></div>{/each}<p>{tr('Для архивов используется прежний механизм обслуживания; новых действий восстановления здесь нет.','Archives retain their existing maintenance workflow; no new restore actions here.')}</p></details>
 </section>
+<RecoveryExtended {locale} {snapshot} {artifact} parentBusy={busy} onRefresh={()=>run(load)} />
 <style>
   .recovery{display:grid;gap:12px;padding:14px;min-width:0}.head,.actions,.stats,.diff{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.head,.diff{justify-content:space-between}.head>div:first-child,.meta,.preview,.file span{display:grid;gap:5px;min-width:0}.recovery small,.limit{color:var(--rf-muted,#8d98a4);overflow-wrap:anywhere}.selectors{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}.selectors label{display:grid;gap:5px;min-width:0}.selectors select{min-width:0;width:100%}.files{display:grid;gap:4px;max-height:320px;overflow:auto}.file{display:flex;gap:8px;align-items:flex-start;padding:6px;border-bottom:1px solid var(--rf-border,#29313a);overflow-wrap:anywhere}.file input{flex:none}.preview,details{border:1px solid var(--rf-border,#29313a);border-radius:6px;padding:10px;overflow-wrap:anywhere}.preview button{justify-self:start}.diff{padding:6px 0;border-bottom:1px solid var(--rf-border,#29313a)}.err{color:var(--danger,#e66)}.stats{font-size:12px}.recovery p{margin:0}.recovery code{overflow-wrap:anywhere}
 </style>

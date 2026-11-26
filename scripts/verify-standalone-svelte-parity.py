@@ -111,7 +111,23 @@ def app_body(html:str,module:str)->str:
 # markup/CSS for that one control. Do not copy DOM/styles from the Svelte app,
 # remove/mask production elements, or change the pixel/API parity thresholds.
 def extend_network_reference(page):
-    page.add_style_tag(content='.rf-policy-picker{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0;min-width:0}')
+    # E14.7: approved closed catalogue control, independent of production CSS.
+    page.add_style_tag(content="""
+        .rf-policy-picker {
+            display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+            min-width:0; max-width:100%; margin:0 12px 10px; padding:2px 0;
+            color:var(--rf-text,var(--text,#f5f7fa)); font-size:12px;
+        }
+        .rf-policy-picker > button {
+            appearance:none; display:inline-flex; align-items:center; justify-content:center;
+            gap:6px; box-sizing:border-box; min-height:34px; max-width:100%;
+            padding:7px 12px; border:1px solid var(--rf-accent,var(--accent,#38bdf8));
+            border-radius:var(--rf-radius,6px);
+            background:var(--rf-accent-soft,var(--accent-soft,rgba(56,189,248,.10)));
+            color:var(--rf-accent,var(--accent,#38bdf8)); font:inherit; font-weight:600;
+            line-height:1.35; white-space:normal; overflow-wrap:anywhere; cursor:pointer;
+        }
+    """)
     page.evaluate("""() => {
         for (const selector of ['#panel-doctor .nt-checks', '#panel-probes #probe-summary']) {
             const matches = document.querySelectorAll(selector);

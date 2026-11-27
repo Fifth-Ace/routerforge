@@ -26,11 +26,35 @@ owned() {
   [ "$(proc_start "$p")" = "$started" ] || return 1
   [ "$(readlink "/proc/$p/exe" 2>/dev/null)" = "$BIN" ]
 }
+monotonic_seconds() { awk '{print int($1)}' /proc/uptime; }
+wait_ready() {
+  begin=$(monotonic_seconds) || return 1
+  previous=UNKNOWN
+  while :; do
+    if ! kill -0 "$p" 2>/dev/null; then
+      fail EARLY_EXIT; return 1
+    fi
+    if owned && [ -S "$SOCK" ]; then
+      state=$("$BIN" --socket "$SOCK" --startup-status 2>/dev/null) || state=PROBE_PENDING
+      if [ "$state" != "$previous" ]; then
+        echo "RF_DNS_ROUTER_DEV: STARTUP:$state"
+        previous=$state
+      fi
+      case "$state" in
+      READY) now=$(monotonic_seconds); echo "RF_DNS_ROUTER_DEV: READY:$p elapsed_s=$((now-begin))"; return 0 ;;
+      DEGRADED) fail STARTUP_DEGRADED; return 1 ;;
+      esac
+    fi
+    now=$(monotonic_seconds) || return 1
+    if [ "$((now-begin))" -ge 60 ]; then fail STARTUP_READINESS_TIMEOUT; return 1; fi
+    sleep 1
+  done
+}
 start_service() {
   [ -x "$BIN" ] || { fail MISSING_BINARY; return 1; }
   [ -f "$CFG" ] && [ ! -L "$CFG" ] || { fail CONFIG_MISSING; return 1; }
   "$BIN" --version >/dev/null || { fail BINARY_INVALID; return 1; }
-  if owned; then echo "RF_DNS_ROUTER_DEV: RUNNING:$p"; return 0; fi
+  if owned; then wait_ready; return $?; fi
   if [ -e "$PIDFILE" ] || [ -L "$PIDFILE" ]; then
     read_pid || { fail FOREIGN_PIDFILE; return 1; }
     if kill -0 "$p" 2>/dev/null; then fail PID_CONFLICT; return 1; fi
@@ -45,24 +69,28 @@ start_service() {
   started=$(proc_start "$p") || { fail DAEMON_EXITED; return 1; }
   printf '%s %s\n' "$p" "$started" >"$PIDFILE.tmp.$$" || return 1
   mv "$PIDFILE.tmp.$$" "$PIDFILE" || return 1
-  i=0
-  while [ "$i" -lt 20 ]; do
-    if owned && [ -S "$SOCK" ]; then echo "RF_DNS_ROUTER_DEV: READY:$p"; return 0; fi
-    if ! kill -0 "$p" 2>/dev/null; then rm -f "$PIDFILE"; fail EARLY_EXIT; return 1; fi
-    sleep 1; i=$((i+1))
-  done
-  fail SOCKET_NOT_READY
+  wait_ready
 }
 stop_service() {
   operation="${1:-maintenance}"
   if owned; then
     # Restore an owned client DNS profile before disabling the listener.
     # A failed restoration leaves management running for manual recovery.
-    "$BIN" --config "$CFG" --socket "$SOCK" --service-control "$operation" || return 1
+    begin=$(monotonic_seconds) || return 1
+    if ! "$BIN" --config "$CFG" --socket "$SOCK" --service-control "$operation"; then
+      now=$(monotonic_seconds); echo "RF_DNS_ROUTER_DEV: CONTROL_FAILED elapsed_s=$((now-begin))" >&2
+      return 1
+    fi
+    now=$(monotonic_seconds); echo "RF_DNS_ROUTER_DEV: CONTROL_PASS elapsed_s=$((now-begin))"
+    begin=$now
     kill -TERM "$p" || return 1
     i=0
     while [ "$i" -lt 30 ]; do
-      if ! owned; then rm -f "$PIDFILE"; echo 'RF_DNS_ROUTER_DEV: STOP_PASS'; return 0; fi
+      if ! owned; then
+        if kill -0 "$p" 2>/dev/null; then fail STOP_OWNERSHIP_CHANGED; return 1; fi
+        rm -f "$PIDFILE" || return 1
+        now=$(monotonic_seconds); echo "RF_DNS_ROUTER_DEV: STOP_PASS elapsed_s=$((now-begin))"; return 0
+      fi
       sleep 1; i=$((i+1))
     done
     fail STOP_TIMEOUT_NO_SIGKILL; return 1

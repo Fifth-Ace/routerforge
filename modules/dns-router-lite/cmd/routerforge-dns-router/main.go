@@ -68,6 +68,7 @@ func run() error {
 	control := flag.String("service-control", "", "control independent DNS through its Unix socket")
 	verify := flag.String("verify-dns", "", "verify direct or system DNS destination IP:port using per-query attribution")
 	status := flag.Bool("service-status", false, "read service status through Unix socket")
+	startupProbe := flag.Bool("startup-status", false, "read verified startup readiness through Unix socket")
 	upgrade := flag.Bool("upgrade-precheck", false, "read-only check that no legacy/owned client DNS is connected before package upgrade")
 	supervise := flag.Bool("supervise", false, "supervise the management process and preserve ON/OFF across crashes")
 	gateNotify := flag.Bool("gate-notify", false, "notify the running controller of a netfilter reload")
@@ -77,6 +78,29 @@ func run() error {
 	flag.Parse()
 	if *ver {
 		fmt.Println(version)
+		return nil
+	}
+	if *startupProbe {
+		client := apiClient(*socket)
+		client.Timeout = 2 * time.Second
+		var startup startupStatus
+		if e := getJSON(client, "startup", &startup); e != nil {
+			return e
+		}
+		state, e := checkedStartupState(startup, version)
+		if e != nil {
+			return e
+		}
+		if state == "READY" {
+			var live startupServiceStatus
+			if e = getJSON(client, "service/status", &live); e != nil {
+				return e
+			}
+			if !live.ready() {
+				state = "DEGRADED"
+			}
+		}
+		fmt.Println(state)
 		return nil
 	}
 	if *supervise {
@@ -247,12 +271,6 @@ func run() error {
 		return e
 	}
 	manager := &lite.Manager{Store: store, Path: *config, Profile: &lite.ProfileManager{Path: *config + ".profile-state.json", Executor: dr.NewRealNDMCM()}, Gate: lite.NewGateManager(), Health: lite.NewUpstreamHealthTracker()}
-	if e = manager.Resume(); e != nil {
-		log.Printf("DNS resume failed; management remains available: %v", e)
-	}
-	if e = manager.Profile.Reconcile(context.Background()); e != nil {
-		log.Printf("DNS client connection needs inspection: %v", e)
-	}
 	defer manager.Close()
 	defer manager.Gate.Close()
 	if !filepath.IsAbs(*socket) {
@@ -284,20 +302,47 @@ func run() error {
 	api := dr.NewAPI(store, *ui)
 	api.Service = manager
 	api.LedgerO = dr.NewLedgerStoreO(*config + ".managed-state.json")
-	server := &http.Server{Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 30 * time.Second}
+	gate := &startupGate{next: api.Handler(), build: version}
+	server := &http.Server{Handler: gate, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 30 * time.Second}
+	defer server.Close()
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	served := make(chan error, 1)
+	go func() { served <- server.Serve(listener) }()
+	go func() {
+		<-ctx.Done()
+		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdown)
+	}()
+	log.Print("RF_DNS_STARTUP: MANAGEMENT_BOUND / STARTING")
+	began := time.Now()
+	resumeErr := manager.Resume()
+	log.Printf("RF_DNS_STARTUP: RESUME elapsed_ms=%d ok=%t", time.Since(began).Milliseconds(), resumeErr == nil)
+	if resumeErr != nil {
+		log.Printf("DNS resume failed; management remains available: %v", resumeErr)
+	}
+	began = time.Now()
+	var profileErr error
+	if ctx.Err() == nil {
+		profileCtx, cancelProfile := context.WithTimeout(ctx, 15*time.Second)
+		profileErr = manager.Profile.Reconcile(profileCtx)
+		cancelProfile()
+		log.Printf("RF_DNS_STARTUP: PROFILE elapsed_ms=%d ok=%t", time.Since(began).Milliseconds(), profileErr == nil)
+		if profileErr != nil {
+			log.Printf("DNS client connection needs inspection: %v", profileErr)
+		}
+	}
+	if ctx.Err() != nil {
+		return nil
+	}
+	gate.complete(resumeErr, profileErr)
+	log.Printf("RF_DNS_STARTUP: RESTORE_COMPLETE ok=%t", resumeErr == nil && profileErr == nil)
 	go manager.RunDeviceDiscovery(ctx)
 	go manager.RunHealthChecks(ctx)
 	go manager.RunController(ctx)
 	go dr.RunManagedListUpdater(ctx, store, nil, log.Printf) // opt-in URL refresh updates the draft; runtime Apply stays explicit
-	go func() {
-		<-ctx.Done()
-		s, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_ = server.Shutdown(s)
-	}()
-	e = server.Serve(listener)
+	e = <-served
 	if e == http.ErrServerClosed {
 		return nil
 	}

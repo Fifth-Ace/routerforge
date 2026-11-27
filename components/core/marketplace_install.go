@@ -201,6 +201,7 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 
 	log := &catalogActionLog{emit: emit}
 	var err error
+	planStarted := time.Now()
 	switch plan.Method {
 	case "routerforge-release":
 		err = runRouterForgeReleasePlan(ctx, item, action, plan, &result, log)
@@ -219,13 +220,16 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 	default:
 		err = fmt.Errorf("unsupported executable lifecycle method %q", plan.Method)
 	}
+	log.EmitLine(fmt.Sprintf("RF_APP_CENTER_PHASE: lifecycle elapsed_ms=%d ok=%t", time.Since(planStarted).Milliseconds(), err == nil))
 	if err != nil {
 		result.Output = truncateCatalogInstallOutput(log.String(), 16000)
 		return result, &catalogInstallFailure{Status: 500, Message: action + " failed", Detail: truncateCatalogInstallOutput(err.Error(), 4000)}
 	}
 
+	refreshStarted := time.Now()
 	invalidateEntwareCatalog()
 	refreshCatalog()
+	log.EmitLine(fmt.Sprintf("RF_APP_CENTER_PHASE: catalog_refresh elapsed_ms=%d", time.Since(refreshStarted).Milliseconds()))
 	updated, found := catalogItemByID(id)
 	result.Installed = found && updated.Installed
 	result.Output = truncateCatalogInstallOutput(log.String(), 16000)
@@ -339,7 +343,9 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 	)
 	var downloadErrors []string
 	for _, candidateURL := range routerForgeReleaseDownloadURLs(release) {
+		started := time.Now()
 		local, actual, err = downloadVerifiedAsset(ctx, candidateURL, release.Asset, release.SHA256)
+		log.EmitLine(fmt.Sprintf("RF_APP_CENTER_PHASE: download_verify elapsed_ms=%d ok=%t", time.Since(started).Milliseconds(), err == nil))
 		if err == nil {
 			sourceURL = candidateURL
 			break
@@ -355,7 +361,9 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 	result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+sourceURL+"#sha256="+actual)
 
 	args := routerForgeIPKOpkgArgs(action, release.Package, local)
+	opkgStarted := time.Now()
 	output, runErr := runCommandStreaming(ctx, opkg, args, log.EmitLine)
+	log.EmitLine(fmt.Sprintf("RF_APP_CENTER_PHASE: opkg elapsed_ms=%d ok=%t", time.Since(opkgStarted).Milliseconds(), runErr == nil))
 	if runErr != nil {
 		return fmt.Errorf("opkg %s: %s", action, strings.TrimSpace(string(output)))
 	}

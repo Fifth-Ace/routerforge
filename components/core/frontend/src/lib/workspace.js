@@ -76,6 +76,9 @@ export function normalizeLayout(value){
    const t={id:tile.id,size:tile.size};if(external)t.url=safeExternal(tile.url);
    if(tile.title!==undefined){if(!validLabel(tile.title))throw Error('INVALID_TITLE');if(tile.title.trim())t.title=tile.title.trim();}
    if(tile.accent!==undefined){if(!ACCENTS.includes(tile.accent))throw Error('INVALID_ACCENT');if(tile.accent!=='auto')t.accent=tile.accent;}
+   if(tile.expandedWidth!==undefined){if(!canExpand(widget)||![1,2,4].includes(tile.expandedWidth))throw Error('INVALID_EXPANDED_WIDTH');t.expandedWidth=tile.expandedWidth;}
+   if(tile.locked!==undefined){if(typeof tile.locked!=='boolean')throw Error('INVALID_LOCK');if(tile.locked)t.locked=true;}
+   if(tile.anchors!==undefined){if(!tile.anchors||typeof tile.anchors!=='object'||Array.isArray(tile.anchors))throw Error('INVALID_ANCHORS');t.anchors={};for(const [key,a] of Object.entries(tile.anchors)){const c=Number(key);if(!['1','2','4','6','8'].includes(key)||!a||!Number.isInteger(a.x)||!Number.isInteger(a.y)||a.x<0||a.x>=c||a.y<0||a.y>1023)throw Error('INVALID_ANCHOR');t.anchors[key]={x:a.x,y:a.y};}}
    if(tile.expanded!==undefined){if(!canExpand(widget)||typeof tile.expanded!=='boolean')throw Error('INVALID_EXPANSION');if(tile.expanded)t.expanded=true;}
    if(tile.showDetail!==undefined){if(typeof tile.showDetail!=='boolean')throw Error('INVALID_DETAIL');if(!tile.showDetail)t.showDetail=false;}
    if(tile.x!==undefined||tile.y!==undefined){t.x=tile.x;t.y=tile.y;if(!validPosition(t))throw Error('INVALID_POSITION');}
@@ -83,7 +86,8 @@ export function normalizeLayout(value){
   }
   const placed=tiles.filter(t=>t.x!==undefined);for(let i=0;i<placed.length;i++)if(placed.slice(0,i).some(t=>overlaps(t,placed[i])))throw Error('OVERLAPPING_TILES');
   const result=tiles.map(t=>{if(t.x!==undefined)return t;const p=firstFree(t,placed);placed.push(p);return p;});
-  return {id:s.id,name:s.name.trim(),profile:['default','network','admin'].includes(s.profile)?s.profile:'default',tiles:result};
+  if(s.autoAlign!==undefined&&typeof s.autoAlign!=='boolean')throw Error('INVALID_ALIGNMENT');if(s.density!==undefined&&!['compact','normal','large'].includes(s.density))throw Error('INVALID_DENSITY');
+  return {...(s.autoAlign===false?{autoAlign:false}:{}),...(s.density&&s.density!=='normal'?{density:s.density}:{}),id:s.id,name:s.name.trim(),profile:['default','network','admin'].includes(s.profile)?s.profile:'default',tiles:result};
  });
  if(!seen.has(value.active))throw Error('INVALID_ACTIVE');const result={schemaVersion:1,active:value.active,spaces};if(JSON.stringify(result).length>60000)throw Error('INVALID_LAYOUT_SIZE');return result;
 }
@@ -113,14 +117,14 @@ export function chartSegments(samples,id,sharedMax){
 export function columnsForWidth(width){return width>=1800?8:width>=1250?6:width>=720?4:width>=360?2:1;}
 export function compactTiles(tiles){return spatialOrder(packTiles(tiles.map(t=>({...t}))));}
 export function compactReorder(tiles,id,target){return spatialOrder(reorder(tiles,id,target));}
-export function compactLayout(value){const d=normalizeLayout(value);return normalizeLayout({...d,spaces:d.spaces.map(s=>({...s,tiles:compactTiles(spatialOrder(s.tiles))}))});}
+export function compactLayout(value){const d=normalizeLayout(value);return normalizeLayout({...d,spaces:d.spaces.map(s=>({...s,tiles:s.autoAlign===false?s.tiles:compactTiles(spatialOrder(s.tiles))}))});}
 export function canExpand(widget){return !!widget&&(widget.type==='panel'||['cpu','ram','thermal','storage','traffic','dns','updates','interfaces','services','route','core'].includes(widget.id));}
 export function projectTiles(tiles,cols,panelRows=null){
  if(![1,2,4,6,8].includes(cols))throw Error('INVALID_COLUMNS');
  const out=[],used=new Set();
  for(const t of spatialOrder(tiles)){
-  const [width,height]=dimensions(t.size),w=Math.min(width,cols),kind=widgetFor(t).type;
-  const h=panelRows===null?(cols===1?Math.min(height,2):height):kind==='panel'?Math.max(1,Math.min(96,panelRows[t.id]||2)):kind==='shortcut'||kind==='external'?1:2*(cols===1?Math.min(height,2):height)+(t.expanded?Math.max(0,Math.min(96,panelRows[t.id]||0)):0);
+  const [width,height]=dimensions(t.size),w=Math.min(t.expanded&&t.expandedWidth?t.expandedWidth:width,cols),kind=widgetFor(t).type;
+  const h=panelRows===null?(cols===1?Math.min(height,2):height):kind==='panel'?Math.max(1,Math.min(96,panelRows[t.id]||2)):kind==='shortcut'||kind==='external'?1:t.expanded?Math.max(2,Math.min(96,panelRows[t.id]||4)):2*(cols===1?Math.min(height,2):height);
   let found=null;
   for(let y=0;y<1024&&!found;y++)for(let x=0;x<=cols-w;x++){
    let free=true;for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)if(used.has((y+dy)*cols+x+dx))free=false;
@@ -162,3 +166,23 @@ export function chartGeometry(samples,domain){
  for(const s of samples||[]){if(!Number.isFinite(s?.time)||!Number.isFinite(s?.value)){flush();continue;}const x=Math.max(0,Math.min(240,(s.time-domain.start)/(domain.end-domain.start)*240)),y=Math.max(2,Math.min(58,58-(s.value-domain.lo)/(domain.hi-domain.lo)*56));points.push({x,y,time:s.time,value:s.value});}flush();return parts;
 }
 export function nearestChartPoint(parts,x){let best=null;for(const part of parts)for(const p of part.points)if(!best||Math.abs(p.x-x)<Math.abs(best.x-x))best=p;return best;}
+
+// Free anchors are visual positions per breakpoint; canonical v1 coordinates remain intact.
+export function freeProject(tiles,cols,rows={}){
+ const collapsed=projectTiles(tiles.map(t=>({...t,expanded:false})),cols,{}),live=projectTiles(tiles,cols,rows);
+ const wanted=live.map(t=>{const base=collapsed.find(x=>x.id===t.id),a=t.anchors?.[cols]||base;return {...t,x:Math.min(a.x,cols-t.w),y:a.y};});
+ const out=[];const intersects=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+ for(const t of spatialOrder(wanted)){let y=t.y;while(out.some(o=>intersects({...t,y},o)))y=Math.max(y+1,...out.filter(o=>intersects({...t,y},o)).map(o=>o.y+o.h));out.push({...t,y});}
+ return spatialOrder(out);
+}
+export function visualLayout(tiles,cols,rows={},auto=true){return auto===false?freeProject(tiles,cols,rows):projectTiles(tiles,cols,rows);}
+export function seedAnchors(tiles,cols,keep=false){const view=projectTiles(tiles.map(t=>({...t,expanded:false})),cols,{});return tiles.map(t=>{const p=view.find(x=>x.id===t.id);return keep&&t.anchors?.[cols]?t:{...t,anchors:{...t.anchors,[cols]:{x:p.x,y:p.y}}};});}
+export function moveFree(tiles,cols,id,x,y){
+ const target=tiles.find(t=>t.id===id);if(!target||target.locked)return tiles.slice();
+ const base=freeProject(tiles.map(t=>({...t,expanded:false})),cols,{}),old=base.find(t=>t.id===id);
+ const moved={...old,x:Math.max(0,Math.min(cols-old.w,x)),y:Math.max(0,Math.min(1023,y))};
+ const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+ const locked=base.filter(t=>t.id!==id&&t.locked);if(locked.some(t=>hit(t,moved)))return tiles.slice();
+ const placed=[...locked,moved];for(const t of base.filter(t=>t.id!==id&&!t.locked)){let y=t.y;while(placed.some(o=>hit({...t,y},o)))y=Math.max(y+1,...placed.filter(o=>hit({...t,y},o)).map(o=>o.y+o.h));if(y>1023)return tiles.slice();placed.push({...t,y});}
+ return tiles.map(t=>{const a=placed.find(p=>p.id===t.id);return {...t,anchors:{...t.anchors,[cols]:{x:a.x,y:a.y}}};});
+}

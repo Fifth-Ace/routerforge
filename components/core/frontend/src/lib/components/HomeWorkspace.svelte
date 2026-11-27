@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, dimensions, nearestSize, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, projectTiles, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint } from '$lib/workspace.js';
+  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, dimensions, nearestSize, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, projectTiles, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint, visualLayout, seedAnchors, moveFree, fitSize } from '$lib/workspace.js';
   export let locale='ru';
   export let metrics={};
   export let sampleKeys={};
@@ -12,12 +12,13 @@
   export let modules;
   let layout=compactLayout(defaultLayout()), editing=false, adding=false, transfer=false, transferText='', error='', persisted=true, loaded=false, dragId='', profile='default', name='';
   let grid, gridWidth=0, gesture=null, preview=null, selected='', tileTitle='', tileAccent='auto', tileDetail=true, linkTitle='', linkURL='', history={}, historyKeys={};
-  let manageOpen=false, search='', category='all', past=[], future=[], previewTiles=null, fullPanel='', panelRows={}, chartHover=null;
+  let manageOpen=false, search='', category='all', past=[], future=[], previewTiles=null, fullPanel='', panelRows={}, panelPixels={}, chartHover=null;
   export let alerts=[];
   export let installed=[];
   export let catalogKnown=false;
   $: columns=columnsForWidth(gridWidth);
-  $: ordered=projectTiles(active.tiles,columns,panelRows);
+  $: panelRows=Object.fromEntries(Object.entries(panelPixels).map(([id,height])=>[id,panelTrackCount(height,active.density==='compact'?50:active.density==='large'?72:56)]));
+  $: ordered=visualLayout(active.tiles,columns,panelRows,active.autoAlign!==false);
   $: available=WIDGETS.filter(w=>!active.tiles.some(t=>t.id===w.id)&&(category==='all'||widgetCategory(w)===category)&&`${w.ru} ${w.en} ${w.id}`.toLowerCase().includes(search.trim().toLowerCase()));
   const categories=['all','system','network','dns','management','events','shortcuts'];
   const categoryName=(c,en)=>({all:tr('Все','All',en),system:tr('Система','System',en),network:tr('Сеть','Network',en),dns:'DNS',management:tr('Управление','Management',en),events:tr('События','Events',en),shortcuts:tr('Ярлыки','Shortcuts',en)})[c];
@@ -50,27 +51,31 @@
   function showCatalog(){adding=!adding;manageOpen=false;transfer=false;selected='';search='';category='all';}
   function showManage(){manageOpen=!manageOpen;adding=false;transfer=false;selected='';}
   function closeSettings(){selected='';}
-  function showFull(id,force=false){if(editing)return;const t=active.tiles.find(t=>t.id===id);if(t){fullPanel='';commit(updateSpace(layout,active.id,s=>({...s,tiles:s.tiles.map(x=>x.id===id?{...x,expanded:force||!x.expanded}:x)})),false);if(force)requestAnimationFrame(()=>grid?.querySelector('[data-widget="'+id+'"]')?.scrollIntoView({block:'nearest'}));}else{fullPanel=fullPanel===id?'':id;if(fullPanel)requestAnimationFrame(()=>document.getElementById('rf-workspace-details')?.scrollIntoView({block:'nearest'}));}}
-  function measurePanel(node,id){let current=id;const update=()=>{const rows=panelTrackCount(node.getBoundingClientRect().height);if(panelRows[current]!==rows)panelRows={...panelRows,[current]:rows};};const ro=typeof ResizeObserver==='undefined'?null:new ResizeObserver(update);ro?.observe(node);update();return {update(id){current=id;update();},destroy(){ro?.disconnect();const next={...panelRows};delete next[current];panelRows=next;}};}
-  function hover(e,id,parts){if(editing)return;const rect=e.currentTarget.getBoundingClientRect();const x=(e.clientX-rect.left)/Math.max(1,rect.width)*240;const values=parts.map(part=>nearestChartPoint(part,x));chartHover={id,values};}
+  function showFull(id,force=false){chartHover=null;const t=active.tiles.find(t=>t.id===id);if(t){fullPanel='';commit(updateSpace(layout,active.id,s=>({...s,tiles:s.tiles.map(x=>x.id===id?{...x,expanded:force||!x.expanded}:x)})),false);if(force)requestAnimationFrame(()=>grid?.querySelector('[data-widget="'+id+'"]')?.scrollIntoView({block:'nearest'}));}else{fullPanel=fullPanel===id?'':id;if(fullPanel)requestAnimationFrame(()=>document.getElementById('rf-workspace-details')?.scrollIntoView({block:'nearest'}));}}
+  function measurePanel(node,id){let current=id;const update=()=>{const height=node.getBoundingClientRect().height;if(panelPixels[current]!==height)panelPixels={...panelPixels,[current]:height};};const ro=typeof ResizeObserver==='undefined'?null:new ResizeObserver(update);ro?.observe(node);update();return {update(id){current=id;update();},destroy(){ro?.disconnect();const next={...panelPixels};delete next[current];panelPixels=next;}};}
+  function hover(e,id,parts){const rect=e.currentTarget.getBoundingClientRect();const x=(e.clientX-rect.left)/Math.max(1,rect.width)*240;const values=parts.map(part=>nearestChartPoint(part,x));chartHover={id,values};}
   function chartTime(ms){return new Date(ms).toLocaleTimeString(locale==='en'?'en-GB':'ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
   function sizeOptions(tile){return widgetFor(tile).type==='panel'?['2x2','4x2']:widgetFor(tile).sizes;}
   function sizeLabel(tile,size){return widgetFor(tile).type==='panel'?(size.startsWith('2')?tr('Узкая','Narrow',en):tr('Широкая','Wide',en)):size;}
   function sizeValue(tile){return widgetFor(tile).type==='panel'?(tile.size.startsWith('2')?'2x2':'4x2'):tile.size;}
 
 
+  function toggleAlignment(){change(s=>({...s,autoAlign:s.autoAlign===false,tiles:s.autoAlign===false?compactTiles(spatialOrder(s.tiles)):seedAnchors(s.tiles,columns,true)}));}
+  function alignOnce(){change(s=>({...s,tiles:seedAnchors(compactTiles(spatialOrder(s.tiles)),columns)}));}
+  function collapseAll(){chartHover=null;change(s=>({...s,tiles:s.tiles.map(t=>({...t,expanded:undefined}))}));}
+  function resizeTile(tiles,id,size){const t=tiles.find(x=>x.id===id);if(!t||t.locked)return tiles;if(t.expanded&&canExpand(widgetFor(t)))return tiles.map(x=>x.id===id?{...x,expandedWidth:dimensions(size)[0]}:x);return active.autoAlign===false?fitSize(tiles,id,size):compactResize(tiles,id,size);}
   function change(fn){try{commit(updateSpace(layout,active.id,fn));error='';}catch{error='invalid';}}
-  function selectSpace(id){fullPanel='';commit({...layout,active:id},false);name='';error='';selected='';cancelPointer();}
-  function addSpace(copy=false){if(layout.spaces.length>=8)return;const id='space-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);const label=name.trim().slice(0,64);try{commit({...layout,active:id,spaces:[...layout.spaces,{id,name:label,profile,tiles:copy?active.tiles.map(x=>({...x})):compactTiles(profileTiles(profile))}]});name='';selected='';error='';}catch{error='invalid';}}
+  function selectSpace(id){chartHover=null;fullPanel='';commit({...layout,active:id},false);name='';error='';selected='';cancelPointer();}
+  function addSpace(copy=false){if(layout.spaces.length>=8)return;const id='space-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);const label=name.trim().slice(0,64);try{commit({...layout,active:id,spaces:[...layout.spaces,{id,name:label,profile,autoAlign:copy?active.autoAlign:undefined,density:copy?active.density:undefined,tiles:copy?active.tiles.map(x=>({...x})):compactTiles(profileTiles(profile))}]});name='';selected='';error='';}catch{error='invalid';}}
   function deleteSpace(){if(layout.spaces.length<=1||!confirm(tr('Удалить рабочее пространство?','Delete workspace?',en)))return;selected='';const spaces=layout.spaces.filter(s=>s.id!==active.id);commit({...layout,spaces,active:spaces[0].id});}
   function rename(){try{change(s=>({...s,name:name.trim().slice(0,64)}));name='';error='';}catch{error='invalid';}}
-  function add(id){const w=getWidget(id);if(!w||active.tiles.some(t=>t.id===id))return;change(s=>({...s,tiles:compactTiles([...spatialOrder(s.tiles),{id,size:w.size}])}));}
-  function remove(id){change(s=>({...s,tiles:compactTiles(spatialOrder(s.tiles).filter(t=>t.id!==id))}));}
+  function add(id){const w=getWidget(id);if(!w||active.tiles.some(t=>t.id===id))return;change(s=>({...s,tiles:s.autoAlign===false?[...s.tiles,{id,size:w.size}]:compactTiles([...spatialOrder(s.tiles),{id,size:w.size}])}));}
+  function remove(id){change(s=>({...s,tiles:s.autoAlign===false?s.tiles.filter(t=>t.id!==id):compactTiles(spatialOrder(s.tiles).filter(t=>t.id!==id))}));}
   function selectTile(tile){adding=false;manageOpen=false;transfer=false;selected=tile.id;tileTitle=tile.title||'';tileAccent=tile.accent||'auto';tileDetail=tile.showDetail!==false;}
   function saveTile(){if(!selectedTile)return;change(s=>({...s,tiles:s.tiles.map(t=>t.id===selected?{...t,title:tileTitle,accent:tileAccent,showDetail:tileDetail}:t)}));}
   function addLink(){try{const url=safeExternal(linkURL);if(active.tiles.filter(t=>widgetFor(t).type==='external').length>=12)throw Error('LINK_LIMIT');const id='link-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);commit(updateSpace(layout,active.id,s=>({...s,tiles:compactTiles([...spatialOrder(s.tiles),{id,size:'1x1',url,title:linkTitle.trim()||new URL(url).hostname.slice(0,64)}])})));linkTitle='';linkURL='';error='';}catch{error='invalid';}}
   function positionStyle(tile){return `grid-column:${tile.x+1}/span ${tile.w};grid-row:${tile.y+1}/span ${tile.h};`;}
-  function nudge(e,tile){const delta={ArrowLeft:-1,ArrowRight:1,ArrowUp:-columns,ArrowDown:columns}[e.key];if(delta===undefined)return;e.preventDefault();const i=ordered.findIndex(t=>t.id===tile.id),target=ordered[Math.max(0,Math.min(ordered.length-1,i+delta))];if(target&&target.id!==tile.id)change(s=>({...s,tiles:compactReorder(s.tiles,tile.id,target.id)}));}
+  function nudge(e,tile){const delta={ArrowLeft:-1,ArrowRight:1,ArrowUp:-columns,ArrowDown:columns}[e.key];if(delta===undefined||tile.locked)return;e.preventDefault();if(active.autoAlign===false){const x=tile.x+({ArrowLeft:-1,ArrowRight:1}[e.key]||0),y=tile.y+({ArrowUp:-1,ArrowDown:1}[e.key]||0);change(s=>({...s,tiles:moveFree(s.tiles,columns,tile.id,x,y)}));return;}const i=ordered.findIndex(t=>t.id===tile.id),target=ordered[Math.max(0,Math.min(ordered.length-1,i+delta))];if(target&&target.id!==tile.id)change(s=>({...s,tiles:compactReorder(s.tiles,tile.id,target.id)}));}
   function beginPointer(e,tile,kind){
     if(!editing||e.button!==0||e.isPrimary===false||gesture)return;
     e.preventDefault();
@@ -92,16 +97,18 @@
     if(!Number.isFinite(pitchX)||!Number.isFinite(pitchY)||pitchX<=0||pitchY<=0){cancelPointer();return;}
     const dx=Math.round((e.clientX-g.x)/pitchX),dy=Math.round((e.clientY-g.y)/pitchY);
     if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>6)g.moved=true;
+    if(t.locked){previewTiles=null;return;}
     if(!dx&&!dy){preview={...t};previewTiles=null;return;}
     if(g.kind==='resize'){
-      const [w,h]=dimensions(t.size),size=nearestSize(widgetFor(t),Math.max(1,w+dx),Math.max(1,h+Math.round(dy/2)));
-      previewTiles=compactResize(g.original,g.id,size);
+      const [w,h]=dimensions(t.size),size=nearestSize(widgetFor(t),Math.max(1,(t.expanded?t.w:w)+dx),Math.max(1,h+(t.expanded?0:Math.round(dy/2))));
+      previewTiles=resizeTile(g.original,g.id,size);
+    }else if(active.autoAlign===false){previewTiles=moveFree(g.original,columns,g.id,t.x+dx,t.y+dy);
     }else{
       const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-widget]')?.getAttribute('data-widget');
       if(target&&target!==g.id)previewTiles=compactReorder(g.original,g.id,target);
       else previewTiles=moveToCell(g.original,g.visual,g.id,Math.max(0,Math.min(columns-1,t.x+dx)),Math.max(0,t.y+dy));
     }
-    preview=projectTiles(previewTiles,columns,panelRows).find(x=>x.id===g.id)||{...t};
+    preview=visualLayout(previewTiles,columns,panelRows,active.autoAlign!==false).find(x=>x.id===g.id)||{...t};
   }
   function cancelPointer(){
     const g=gesture;gesture=null;preview=null;previewTiles=null;dragId='';
@@ -160,6 +167,7 @@
       {#each layout.spaces as space (space.id)}<option value={space.id}>{space.name||profileLabel(space.profile,en)}</option>{/each}
     </select>
     <button type="button" class="button" onclick={editMode}>{editing?tr('Готово','Done',en):tr('Настроить','Customize',en)}</button>
+    {#if active.tiles.some(t=>t.expanded)}<button type="button" class="button rf-ws-collapse-all" onclick={collapseAll}>{tr('Свернуть все','Collapse all',en)}</button>{/if}
     {#if !editing}<button type="button" class="button rf-ws-module-nav" onclick={()=>showFull('modules',true)}>{tr('Модули и интеграции','Modules and integrations',en)}</button>{/if}
   </div>
   {#if !ready || !online}<div class="rf-ws-message" role="status">{!ready?tr('Получение данных Core…','Loading Core data…',en):tr('Core недоступен; значения могут быть устаревшими.','Core unavailable; values may be stale.',en)}</div>{/if}
@@ -171,10 +179,13 @@
       <button type="button" class="button" aria-label={tr('Отменить','Undo',en)} title={tr('Отменить','Undo',en)} disabled={!past.length} onclick={undo}>↶</button>
       <button type="button" class="button" aria-label={tr('Повторить','Redo',en)} title={tr('Повторить','Redo',en)} disabled={!future.length} onclick={redo}>↷</button>
       <button type="button" class="button" onclick={showManage}>{tr('Пространства и шаблоны','Spaces and templates',en)}</button>
+      <button type="button" class="button rf-ws-align" aria-pressed={active.autoAlign!==false} onclick={toggleAlignment}>{active.autoAlign===false?tr('Свободная сетка','Free layout',en):tr('Автовыравнивание','Auto alignment',en)}</button>
+      {#if active.autoAlign===false}<button type="button" class="button" onclick={alignOnce}>{tr('Уплотнить сетку','Compact grid',en)}</button>{/if}
+      <select aria-label={tr('Плотность','Density',en)} value={active.density||'normal'} onchange={e=>change(s=>({...s,density:e.currentTarget.value}))}><option value="compact">{tr('Компактная','Compact',en)}</option><option value="normal">{tr('Стандартная','Standard',en)}</option><option value="large">{tr('Увеличенная','Large',en)}</option></select>
       <small>{tr('Нажми плитку для настройки или перетащи её. Размер — за угол.','Select or drag a tile. Resize using its corner.',en)}</small>
     </div>
     {#if manageOpen||adding||selectedTile}
-    <div class="rf-ws-editor panel">
+    <div class="rf-ws-editor panel" class:tile-editor={!!selectedTile}>
       {#if manageOpen}
         <div class="rf-ws-actions">
           <select aria-label={tr('Шаблон','Template',en)} bind:value={profile}><option value="default">{profileLabel('default',en)}</option><option value="network">{profileLabel('network',en)}</option><option value="admin">{profileLabel('admin',en)}</option></select>
@@ -194,7 +205,8 @@
         <div class="rf-ws-catalog">{#each available as w (w.id)}<button type="button" class="rf-ws-catalog-card" data-widget-choice={w.id} onclick={()=>add(w.id)}><span class="rf-ws-icon">{w.icon}</span><strong>＋ {title(w,en)}</strong><small>{categoryName(widgetCategory(w),en)} · {w.size}</small><span class="rf-ws-catalog-value">{w.type==='metric'?(online||w.id==='core'?valueFor(w.id,metrics).value:'—'):'↗'}</span></button>{:else}<small>{tr('Нет подходящих виджетов','No matching widgets',en)}</small>{/each}</div>
         {#if category==='all'||category==='shortcuts'}<div class="rf-ws-actions"><input aria-label={tr('Название ярлыка','Shortcut title',en)} placeholder={tr('Название ярлыка','Shortcut title',en)} maxlength="64" bind:value={linkTitle}/><input aria-label={tr('Адрес HTTP(S)','HTTP(S) address',en)} placeholder="https://example.net/" maxlength="512" bind:value={linkURL}/><button class="button" type="button" onclick={addLink}>{tr('Добавить внешний ярлык','Add external shortcut',en)}</button><small>{tr('Без логинов, токенов и секретных путей.','No credentials, tokens or secret paths.',en)}</small></div>{/if}
       {:else if selectedTile}
-        <div class="rf-ws-actions rf-ws-tile-settings"><strong>{title(widgetFor(selectedTile),en)}</strong><input aria-label={tr('Заголовок плитки','Tile title',en)} maxlength="64" placeholder={tr('Заголовок плитки','Tile title',en)} bind:value={tileTitle}/><select aria-label={tr('Акцент плитки','Tile accent',en)} bind:value={tileAccent}>{#each ACCENTS as color}<option value={color}>{({auto:tr('Тема','Theme',en),green:tr('Зелёный','Green',en),blue:tr('Синий','Blue',en),violet:tr('Фиолетовый','Violet',en),amber:tr('Янтарный','Amber',en)})[color]}</option>{/each}</select><select aria-label={tr('Размер плитки','Tile size',en)} value={sizeValue(selectedTile)} onchange={e=>change(s=>({...s,tiles:compactResize(s.tiles,selectedTile.id,e.currentTarget.value)}))}>{#each sizeOptions(selectedTile) as size}<option value={size}>{sizeLabel(selectedTile,size)}</option>{/each}</select><label><input type="checkbox" bind:checked={tileDetail}/> {tr('Подробности','Details',en)}</label><button class="button primary" type="button" onclick={saveTile}>{tr('Сохранить плитку','Save tile',en)}</button><button class="button" type="button" onclick={()=>{const id=selected;selected='';remove(id);}}>{tr('Удалить плитку','Remove tile',en)}</button><button class="button" type="button" onclick={closeSettings}>{tr('Закрыть','Close',en)}</button></div>
+        <div class="rf-ws-actions rf-ws-tile-settings"><strong>{title(widgetFor(selectedTile),en)}</strong><input aria-label={tr('Заголовок плитки','Tile title',en)} maxlength="64" placeholder={tr('Заголовок плитки','Tile title',en)} bind:value={tileTitle}/><select aria-label={tr('Акцент плитки','Tile accent',en)} bind:value={tileAccent}>{#each ACCENTS as color}<option value={color}>{({auto:tr('Тема','Theme',en),green:tr('Зелёный','Green',en),blue:tr('Синий','Blue',en),violet:tr('Фиолетовый','Violet',en),amber:tr('Янтарный','Amber',en)})[color]}</option>{/each}</select><select aria-label={tr('Размер плитки','Tile size',en)} disabled={!!selectedTile.locked} value={sizeValue(selectedTile)} onchange={e=>change(s=>({...s,tiles:active.autoAlign===false?fitSize(s.tiles,selectedTile.id,e.currentTarget.value):compactResize(s.tiles,selectedTile.id,e.currentTarget.value)}))}>{#each sizeOptions(selectedTile) as size}<option value={size}>{sizeLabel(selectedTile,size)}</option>{/each}</select>{#if canExpand(widgetFor(selectedTile))}<label>{tr('Ширина раскрытой','Expanded width',en)}<select aria-label={tr('Ширина раскрытой','Expanded width',en)} disabled={!!selectedTile.locked} value={selectedTile.expandedWidth||dimensions(selectedTile.size)[0]} onchange={e=>change(s=>({...s,tiles:s.tiles.map(t=>t.id===selectedTile.id?{...t,expandedWidth:Number(e.currentTarget.value)}:t)}))}>{#each [1,2,4] as width}<option value={width}>{width}</option>{/each}</select></label>{/if}
+        <label><input type="checkbox" checked={!!selectedTile.locked} onchange={e=>change(s=>({...s,tiles:s.tiles.map(t=>t.id===selectedTile.id?{...t,locked:e.currentTarget.checked}:t)}))}/> {tr('Закрепить от ручного перемещения','Lock manual movement',en)}</label><label><input type="checkbox" bind:checked={tileDetail} data-detail-toggle/> {tr('Подробности','Details',en)}</label><button class="button primary" type="button" onclick={saveTile}>{tr('Сохранить плитку','Save tile',en)}</button><button class="button" type="button" onclick={()=>{const id=selected;selected='';remove(id);}}>{tr('Удалить плитку','Remove tile',en)}</button><button class="button" type="button" onclick={closeSettings}>{tr('Закрыть','Close',en)}</button></div>
       {/if}
     </div>
     {/if}
@@ -205,20 +217,20 @@
       {#if fullPanel==='attention'}{@render attention()}{:else}{@render modules()}{/if}
     </section>
   {/if}
-  <div class="rf-ws-grid" class:editing bind:this={grid} style={`--ws-cols:${columns}`} class:compact={columns<4}>
+  <div class="rf-ws-grid" class:editing bind:this={grid} style={`--ws-cols:${columns}`} class:compact={columns<4} data-density={active.density||"normal"}>
     {#each ordered as tile,i (tile.id)}
       {@const w=widgetFor(tile)}
       {@const data=valueFor(tile.id,metrics)}
       {@const label=tile.title||title(w,en)}
-      <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} class:info-tile={w.type==='panel'} class:expandable={canExpand(w)&&w.type==='metric'} data-widget={tile.id} data-accent={tile.accent||'auto'} class:selected={selected===tile.id&&editing} data-size={tile.size} style={positionStyle(tile)}>
+      <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} class:info-tile={w.type==='panel'} class:expanded-tile={!!tile.expanded} class:expandable={canExpand(w)&&w.type==='metric'} data-widget={tile.id} data-accent={tile.accent||'auto'} class:selected={selected===tile.id&&editing} data-size={tile.size} style={positionStyle(tile)}>
         {#if editing}
-          <button type="button" class="rf-ws-handle rf-ws-controls" aria-label={tr('Настройки плитки','Tile settings',en)+' '+label} title={tr('Нажми для настройки, перетащи для перемещения','Click to configure, drag to move',en)} onpointerdown={e=>beginPointer(e,tile,'move')} onkeydown={e=>nudge(e,tile)} onclick={e=>{if(e.detail===0)selectTile(tile);}}><span aria-hidden="true">⠿</span></button>
+          <button type="button" class="rf-ws-handle rf-ws-controls" aria-label={tr('Настройки плитки','Tile settings',en)+' '+label} title={tr('Нажми для настройки, перетащи для перемещения','Click to configure, drag to move',en)} onpointerdown={e=>beginPointer(e,tile,'move')} onkeydown={e=>nudge(e,tile)} onclick={e=>{if(e.detail===0)selectTile(tile);}}><span aria-hidden="true">{tile.locked?'◆':'⠿'}</span></button>
         {/if}
         {#if w.type==='panel'}
           <div class="rf-ws-panel-content" use:measurePanel={tile.id}>
-            <button type="button" class="rf-ws-panel-head rf-ws-more" aria-label={label} aria-expanded={!!tile.expanded&&!editing} onclick={()=>showFull(tile.id)} disabled={editing}><strong>{label}</strong><span>{w.id==='attention'?issueCount:catalogKnown?installed.length:'—'}</span><span class="rf-ws-chevron" aria-hidden="true">{tile.expanded&&!editing?'⌃':'⌄'}</span></button>
-            {#if tile.expanded&&!editing}
-              <div class="rf-ws-inline-details" data-expanded={tile.id}>{#if tile.id==='attention'}{@render attention()}{:else}{@render modules()}{/if}</div>
+            <button type="button" class="rf-ws-panel-head rf-ws-more" aria-label={label} aria-expanded={!!tile.expanded} onclick={()=>showFull(tile.id)}><strong>{label}</strong><span>{w.id==='attention'?issueCount:catalogKnown?installed.length:'—'}</span><span class="rf-ws-chevron" aria-hidden="true">{tile.expanded?'⌃':'⌄'}</span></button>
+            {#if tile.expanded}
+              <div class="rf-ws-inline-details" inert={editing} data-expanded={tile.id}>{#if tile.id==='attention'}{@render attention()}{:else}{@render modules()}{/if}</div>
             {:else if w.id==='attention'}
               {#if alerts.length}<div class="rf-ws-summary-list">{#each alerts.slice(0,2) as item}<a href={item.href||'/apps'} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-dot" data-state={item.severity}></span><span>{item.title}</span><span aria-hidden="true">›</span></a>{/each}</div>{#if alerts.length>2}<small>+{alerts.length-2} {tr('событий','events',en)}</small>{/if}
               {:else}<small>{ready&&online&&catalogKnown?tr('Нет активных предупреждений','No active warnings',en):tr('Ожидание данных','Waiting for data',en)}</small>{/if}
@@ -232,41 +244,52 @@
         {:else if w.type==='shortcut'}
           <a class="rf-ws-link" tabindex={editing?-1:0} href={w.route} onclick={e=>{if(editing)e.preventDefault();}}><span class="rf-ws-shortcut-icon" aria-hidden="true">{@render shortcutIcon(w.id)}</span><strong>{label}</strong><span class="rf-ws-arrow">↗</span></a>
         {:else}
+          <div class="rf-ws-metric-shell" use:measurePanel={tile.id}>
           <a class="rf-ws-link" tabindex={editing?-1:0} href={w.route} onclick={e=>{if(editing)e.preventDefault();}} data-state={data.state||'unknown'}>
             <span class="rf-ws-label"><span class="rf-ws-icon">{w.icon}</span>{label}</span>
             <div class="rf-ws-metric-body">
             {#if tile.id==='traffic'&&online&&Number.isFinite(data.rx)&&Number.isFinite(data.tx)}
               <div class="rf-ws-traffic-values"><strong class="rf-ws-value">↓ {data.rx.toFixed(2)}</strong><strong class="rf-ws-tx">↑ {data.tx.toFixed(2)}</strong><small>{tr('Мбит/с','Mbps',en)}</small></div>
             {:else}<strong class="rf-ws-value">{online||tile.id==='core'?data.value:'—'}</strong>{/if}
-            {#if online && tile.showDetail!==false && data.detail && (tile.size!=='1x1'||['ram','storage','core','dns','updates','route'].includes(tile.id))}<small class="rf-ws-metric-detail">{tile.id==='traffic'?(data.interfaceName||data.detail):data.detail}</small>{/if}
-            {#if online && tile.showDetail!==false && boundedPercent(data.percent)!==null && (tile.size!=='1x1'||!['cpu','ram'].includes(tile.id)||!(history[tile.id]||[]).some(x=>Number.isFinite(x.value)))}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
-            {#if online && tile.showDetail!==false && tile.id==='traffic' && tile.size!=='1x1'}{@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],tile.h>=4)}{/if}
-            {#if online && tile.showDetail!==false && ['cpu','ram','thermal'].includes(tile.id)}{@render plot(tile.id,[history[tile.id]||[]],tile.h>=4)}{/if}
-            {#if online && tile.showDetail!==false && tile.h>=4 && ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}{@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}
-            {#if online && tile.showDetail!==false && tile.h>=4 && tile.id!=='traffic' && Array.isArray(data.rows)}<div class="rf-ws-rows">{#each data.rows.slice(0,3) as row}<span>{row}</span>{/each}</div>{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && data.detail && (tile.size!=='1x1'||['ram','storage','core','dns','updates','route'].includes(tile.id))}<small class="rf-ws-metric-detail">{tile.id==='traffic'?(data.interfaceName||data.detail):data.detail}</small>{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && boundedPercent(data.percent)!==null && (tile.size!=='1x1'||!['cpu','ram'].includes(tile.id)||!(history[tile.id]||[]).some(x=>Number.isFinite(x.value)))}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && tile.id==='traffic' && tile.size!=='1x1'}{@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],tile.h>=4)}{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && ['cpu','ram','thermal'].includes(tile.id)}{@render plot(tile.id,[history[tile.id]||[]],tile.h>=4)}{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && tile.h>=4 && ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}{@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && tile.h>=4 && tile.id!=='traffic' && Array.isArray(data.rows)}<div class="rf-ws-rows">{#each data.rows.slice(0,3) as row}<span>{row}</span>{/each}</div>{/if}
             {#if !online}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
             </div>
           </a>
-        {/if}
-        {#if w.type==='metric'&&canExpand(w)&&!editing}
+        {#if canExpand(w)}
           <button type="button" class="rf-ws-metric-expand" aria-label={tr('Подробности','Details',en)+' '+label} title={tr('Подробности','Details',en)} aria-expanded={!!tile.expanded} onclick={()=>showFull(tile.id)}>{tile.expanded?'⌃':'⌄'}</button>
           {#if tile.expanded}
-            <div class="rf-ws-expanded-metric" use:measurePanel={tile.id}>
+            <div class="rf-ws-expanded-metric">
               {#if online&&data.value!=='—'}
-                {#if data.detail}<small>{data.detail}</small>{/if}
-                {#if Array.isArray(data.rows)&&data.rows.length}<div class="rf-ws-expanded-rows">{#each data.rows as row}<span>{row}</span>{/each}</div>{/if}
+                {#if data.detail&&!(tile.id==='updates'&&data.rows?.length)}<small>{tile.id==='traffic'?(data.interfaceName||data.detail.split(' · ').at(-1)):data.detail}</small>{/if}
+                {#if boundedPercent(data.percent)!==null}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
+                {#if Array.isArray(data.rows)&&data.rows.length}<div class="rf-ws-expanded-rows">{#each data.rows as row}
+                  {@const parts=String(row).split(' · ')}
+                  {@const tail=parts.at(-1)}
+                  {#if tile.id==='cpu'&&/^\d+(?:\.\d+)?%$/.test(tail||'')&&boundedPercent(Number(tail.slice(0,-1)))!==null}
+                    <div class="rf-ws-detail-row"><span>{parts.slice(0,-1).join(' · ')}</span><div class="rf-ws-meter" aria-hidden="true"><span style:width={tail}></span></div><b>{tail}</b></div>
+                  {:else if tile.id==='dns'&&['UP','OK','HEALTHY','DOWN','DEGRADED'].includes(tail||'')}
+                    <div class="rf-ws-detail-row"><span>{parts.slice(0,-1).join(' · ')}</span><b class="rf-ws-status-dot" data-state={tail}>{tail}</b></div>
+                  {:else}<span>{row}</span>{/if}
+                {/each}</div>{/if}
                 {#if tile.id==='traffic'}
-                  {#if tile.size==='1x1'}{@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],true)}{/if}
+                  {@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],true)}
                   {#if metricStats(history['traffic-rx'])&&metricStats(history['traffic-tx'])}<small>RX {tr('пик','peak',en)}: {metricStats(history['traffic-rx']).peak.toFixed(2)} · TX {tr('пик','peak',en)}: {metricStats(history['traffic-tx']).peak.toFixed(2)} {tr('Мбит/с','Mbps',en)}</small>{/if}
                 {:else if ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}
-                  {@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>
+                  {@const stats=metricStats(history[tile.id])}{@render plot(tile.id,[history[tile.id]||[]],true)}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>
                 {/if}
               {:else}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
-              <a class="rf-ws-more" href={w.route}>{tr('Открыть модуль','Open module',en)} ↗</a>
+              <a class="rf-ws-more" href={w.route} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}>{tr('Открыть модуль','Open module',en)} ↗</a>
             </div>
           {/if}
         {/if}
-        {#if editing && columns>=2 && w.type!=='panel'}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')}>◢</button>{/if}
+          </div>
+        {/if}
+        {#if editing && columns>=2 && w.type!=='panel' && !tile.locked}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')}>◢</button>{/if}
       </article>
     {:else}<div class="rf-ws-message">{tr('Добавьте первую плитку в режиме настройки.','Add your first tile in customize mode.',en)}</div>{/each}
     {#if preview}<div class="rf-ws-preview" style={positionStyle(preview)} aria-hidden="true"></div>{/if}
@@ -277,7 +300,7 @@
   .rf-ws-toolbar,.rf-ws-editbar,.rf-ws-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px;min-width:0}
   .rf-ws-heading{display:grid;gap:2px;flex:1;min-width:140px}.rf-ws-heading strong{font-size:17px}
   small,.rf-ws-message{color:var(--muted);font-size:12px}.rf-ws-editbar small{flex:1;min-width:160px}
-  .rf-ws-toolbar select,.rf-ws-editor select,.rf-ws-editor input,.rf-ws-editor textarea{max-width:100%;min-width:0;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font:inherit}
+  .rf-ws-toolbar select,.rf-ws-editbar select,.rf-ws-editor select,.rf-ws-editor input,.rf-ws-editor textarea{max-width:100%;min-width:0;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font:inherit}
   .rf-ws-editor{padding:10px;display:grid;gap:9px;min-width:0;margin:0}.rf-ws-editor button:disabled,.rf-ws-editbar button:disabled{opacity:.4;cursor:not-allowed}
   .rf-ws-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:7px}.rf-ws-catalog-card{text-align:left;display:grid;gap:5px;min-width:0;padding:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:6px;cursor:pointer}.rf-ws-catalog-card:hover{border-color:var(--accent)}.rf-ws-catalog-value{color:var(--accent);font-weight:700;overflow-wrap:anywhere}
   .rf-ws-transfer label{display:grid;gap:5px}.rf-ws-transfer textarea{width:100%;resize:vertical}.rf-ws-message{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--warn);border:1px solid var(--border);border-radius:6px;padding:8px 10px}.rf-ws-message.critical{color:var(--bad)}
@@ -311,4 +334,13 @@
   .rf-ws-tile.expandable .rf-ws-label{padding-right:22px}.rf-ws-metric-expand{position:absolute;top:5px;right:5px;z-index:1;border:0;border-radius:4px;background:transparent;color:var(--muted);font-size:17px;line-height:1;width:24px;height:24px;cursor:pointer}.rf-ws-metric-expand:hover,.rf-ws-metric-expand:focus-visible{background:var(--surface-2);color:var(--accent)}
   .rf-ws-expanded-metric{padding:8px 10px;display:grid;flex:none;gap:6px;border-top:1px solid var(--border);min-width:0;overflow-wrap:anywhere}.rf-ws-expanded-rows{display:grid;gap:3px;font-size:11px;color:var(--text)}.rf-ws-expanded-rows span{padding:4px 6px;border-radius:4px;background:var(--surface-2);overflow-wrap:anywhere}.rf-ws-expanded-metric .rf-ws-plot.large{height:110px}
   .rf-ws-plot.large{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(42px,1fr) auto;gap:3px 7px}.rf-ws-plot.large .rf-ws-plot-axis{grid-column:1;grid-row:1;flex-direction:column;justify-content:space-between;align-items:flex-end}.rf-ws-plot.large .rf-ws-chart{grid-column:2;grid-row:1;height:100%;min-height:42px}.rf-ws-plot.large .rf-ws-plot-time{grid-column:2;grid-row:2}.rf-ws-plot.large .rf-ws-plot-tooltip{max-width:85%}
+  .rf-ws-grid[data-density='compact']{grid-auto-rows:50px}.rf-ws-grid[data-density='large']{grid-auto-rows:72px}
+  .rf-ws-metric-shell{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0}
+  .rf-ws-tile.expanded-tile{height:auto;align-self:start;overflow:visible}.expanded-tile .rf-ws-metric-shell{flex:none}.expanded-tile .rf-ws-link{flex:none;min-height:0;padding:10px 12px;gap:8px;justify-content:flex-start;overflow:visible}.expanded-tile .rf-ws-metric-body{display:flex!important;flex:none;min-height:0;gap:4px;justify-content:flex-start}.expanded-tile .rf-ws-expanded-metric{gap:8px;padding:10px 12px}.expanded-tile .rf-ws-expanded-rows{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}.expanded-tile .rf-ws-expanded-rows span{background:transparent;border-bottom:1px solid var(--border);padding:4px 0}.expanded-tile .rf-ws-expanded-metric .rf-ws-plot.large{height:132px;min-height:132px;flex:none;display:flex;grid-column:auto;grid-row:auto;align-self:stretch}.rf-ws-grid.editing .rf-ws-metric-expand{right:32px;z-index:4}.rf-ws-grid.editing .rf-ws-panel-head{padding-right:30px;position:relative;z-index:3}.rf-ws-grid.editing .rf-ws-tile.expandable .rf-ws-label{padding-right:50px}.rf-ws-grid.editing .expanded-tile .rf-ws-controls.rf-ws-handle{inset:4px 4px auto auto;width:26px;height:26px;padding:0}.rf-ws-grid.editing .expanded-tile .rf-ws-resize{z-index:4}.rf-ws-tile[data-widget='thermal'][data-accent='auto']{--tile-accent:#e8b663}
+  .rf-ws-grid.editing .rf-ws-tile.info-tile .rf-ws-panel-head{width:calc(100% - 28px);padding-right:0}.rf-ws-grid.editing .rf-ws-tile.info-tile .rf-ws-controls.rf-ws-handle{inset:4px 4px auto auto;width:26px;height:26px;padding:0}
+  .rf-ws-grid[data-density='compact'] .rf-ws-link{padding:6px 8px;gap:3px}.rf-ws-grid[data-density='compact'] .rf-ws-value{font-size:clamp(15px,8cqi,24px)}.rf-ws-grid[data-density='compact'] .rf-ws-metric-body{gap:3px}
+  .rf-ws-grid.editing .rf-ws-tile.expandable .rf-ws-metric-expand{right:33px}.rf-ws-tile .rf-ws-plot.large .rf-ws-plot-axis{line-height:1.2}.rf-ws-tile.expanded-tile .rf-ws-plot .rf-ws-chart{min-height:60px}
+  .rf-ws-editor.tile-editor{position:sticky;top:8px;z-index:6;box-shadow:0 4px 14px #0003}
+  .rf-ws-grid.editing .rf-ws-tile.expanded-tile .rf-ws-metric-expand{right:32px}
+  .rf-ws-detail-row{display:flex;align-items:center;gap:7px;min-width:0;border-bottom:1px solid var(--border);padding:3px 0;font-size:11px}.rf-ws-detail-row>span{flex:1;min-width:0;border:0!important}.rf-ws-detail-row .rf-ws-meter{flex:1;min-width:20px}.rf-ws-detail-row b{font-size:10px;white-space:nowrap}.rf-ws-status-dot{color:var(--good)}.rf-ws-status-dot[data-state='DOWN']{color:var(--bad)}.rf-ws-status-dot[data-state='DEGRADED']{color:var(--warn)}
 </style>

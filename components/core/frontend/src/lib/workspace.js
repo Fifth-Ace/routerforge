@@ -200,3 +200,8 @@ export function resizeChoice(tile,dx,dy,cols){
  const score=s=>{const [w,r]=dimensions(s);return Math.abs(w-targetW)*100+Math.abs(r-targetH);};
  return choices.reduce((best,s)=>score(s)<score(best)?s:best,choices[0]);
 }
+
+// A real time series needs at least two distinct finite observation times.
+export function chartReady(series){return Array.isArray(series)&&series.some(samples=>new Set((samples||[]).filter(s=>Number.isFinite(s?.time)&&Number.isFinite(s?.value)).map(s=>s.time)).size>=2);}
+// The overview has two core rows; the module retains the full list.
+export function corePreview(rows){const all=(Array.isArray(rows)?rows:[]).map(row=>{const parts=String(row).split(' · '),tail=parts.pop();const percent=typeof tail==='string'&&/^\d+(?:\.\d+)?%$/.test(tail)?boundedPercent(Number(tail.slice(0,-1))):null;return percent===null?null:{label:parts.join(' · '),percent};}).filter(Boolean);return {rows:all.slice(0,2),more:Math.max(0,all.length-2)};}

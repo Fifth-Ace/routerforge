@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint, visualLayout, seedAnchors, moveFree, fitSize, resizeChoice } from '$lib/workspace.js';
+  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint, visualLayout, seedAnchors, moveFree, fitSize, resizeChoice, chartReady, corePreview } from '$lib/workspace.js';
   export let locale='ru';
   export let metrics={};
   export let sampleKeys={};
@@ -151,7 +151,7 @@
   {@const domain=chartDomain(series,id)}
   {@const parts=series.map(samples=>chartGeometry(samples,domain))}
   {@const unit=id==='traffic'?tr('Мбит/с','Mbps',en):id==='thermal'?'°C':'%'}
-  {#if parts.some(p=>p.some(x=>x.points.length))}
+  {#if chartReady(series)}
     <div class="rf-ws-plot" class:large>
       {#if large}<div class="rf-ws-plot-axis"><span>{domain.hi.toLocaleString(en?'en':'ru',{maximumFractionDigits:4})} {unit}</span><span>{((domain.hi+domain.lo)/2).toLocaleString(en?'en':'ru',{maximumFractionDigits:4})}</span><span>{domain.lo}</span></div>{/if}
       <svg class="rf-ws-chart" viewBox="0 0 240 60" preserveAspectRatio="none" role="img" aria-label={tr('График за текущий сеанс','Current session chart',en)} onpointermove={e=>hover(e,id,parts)} onpointerleave={()=>chartHover=null}>
@@ -163,6 +163,8 @@
       {#if large}<div class="rf-ws-plot-time"><span>{chartTime(domain.start)}</span><span>{chartTime(domain.end)}</span></div>{/if}
       {#if chartHover?.id===id}<div class="rf-ws-plot-tooltip">{#each chartHover.values as value,i}{#if value}<span>{id==='traffic'?(i?'TX ':'RX '):''}{value.value.toFixed(id==='traffic'?2:1)} {unit} · {chartTime(value.time)}</span>{/if}{/each}</div>{/if}
     </div>
+  {:else}
+    <div class="rf-ws-chart-wait" class:large role="status">{tr('Накопление данных','Collecting data',en)}</div>
   {/if}
 {/snippet}
 <section class="rf-workspace" aria-label={tr('Рабочее пространство','Workspace',en)}>
@@ -230,7 +232,7 @@
       {@const w=widgetFor(tile)}
       {@const data=valueFor(tile.id,metrics)}
       {@const label=tile.title||title(w,en)}
-      <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} class:info-tile={w.type==='panel'} class:expanded-tile={!!tile.expanded} class:expandable={canExpand(w)&&w.type==='metric'} data-widget={tile.id} data-accent={tile.accent||'auto'} class:selected={selected===tile.id&&editing} data-size={tile.size} style={positionStyle(tile)}>
+      <article class="rf-ws-tile" class:dragging={dragId===tile.id} class:shortcut={w.type==='shortcut'||w.type==='external'} class:info-tile={w.type==='panel'} class:expanded-tile={!!tile.expanded} class:uniform-metric={!!tile.expanded&&['cpu','ram','thermal','traffic'].includes(tile.id)} class:expandable={canExpand(w)&&w.type==='metric'} data-widget={tile.id} data-accent={tile.accent||'auto'} class:selected={selected===tile.id&&editing} data-size={tile.size} style={positionStyle(tile)}>
         {#if editing}
           <button type="button" class="rf-ws-handle rf-ws-controls" aria-label={tr('Настройки плитки','Tile settings',en)+' '+label} title={tr('Нажми для настройки, перетащи для перемещения','Click to configure, drag to move',en)} onpointerdown={e=>beginPointer(e,tile,'move')} onkeydown={e=>nudge(e,tile)} onclick={e=>{if(e.detail===0)selectTile(tile);}}><span aria-hidden="true">{tile.locked?'◆':'⠿'}</span></button>
         {/if}
@@ -263,7 +265,7 @@
             {#if online && !tile.expanded && tile.showDetail!==false && boundedPercent(data.percent)!==null && (tile.size!=='1x1'||!['cpu','ram'].includes(tile.id)||!(history[tile.id]||[]).some(x=>Number.isFinite(x.value)))}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
             {#if online && !tile.expanded && tile.showDetail!==false && tile.id==='traffic' && tile.size!=='1x1'}{@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],tile.h>=4)}{/if}
             {#if online && !tile.expanded && tile.showDetail!==false && ['cpu','ram','thermal'].includes(tile.id)}{@render plot(tile.id,[history[tile.id]||[]],tile.h>=4)}{/if}
-            {#if online && !tile.expanded && tile.showDetail!==false && tile.h>=4 && ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}{@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}
+            {#if online && !tile.expanded && tile.showDetail!==false && tile.h>=4 && ['cpu','ram','thermal'].includes(tile.id)&&chartReady([history[tile.id]||[]])&&metricStats(history[tile.id])}{@const stats=metricStats(history[tile.id])}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}
             {#if online && !tile.expanded && tile.showDetail!==false && tile.h>=4 && tile.id!=='traffic' && Array.isArray(data.rows)}<div class="rf-ws-rows">{#each data.rows.slice(0,3) as row}<span>{row}</span>{/each}</div>{/if}
             {#if !online}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
             </div>
@@ -272,7 +274,42 @@
           <button type="button" class="rf-ws-metric-expand" aria-label={tr('Подробности','Details',en)+' '+label} title={tr('Подробности','Details',en)} aria-expanded={!!tile.expanded} onclick={()=>showFull(tile.id)}>{tile.expanded?'⌃':'⌄'}</button>
           {#if tile.expanded}
             <div class="rf-ws-expanded-metric">
-              {#if online&&data.value!=='—'}
+              {#if ['cpu','ram','thermal','traffic'].includes(tile.id)}
+                {@const valid=online&&data.value!=='—'}
+                {@const series=tile.id==='traffic'?[history['traffic-rx']||[],history['traffic-tx']||[]]:[history[tile.id]||[]]}
+                {@const cores=corePreview(data.rows)}
+                <div class="rf-ws-metric-facts" class:core-facts={tile.id==='cpu'}>
+                  {#if valid}
+                    {#if tile.id==='cpu'}
+                      <small title={data.detail}>{data.detail}</small>
+                      {#each cores.rows as row}
+                        <div class="rf-ws-core-row"><span title={row.label}>{row.label}</span><div class="rf-ws-meter" aria-hidden="true"><span style:width={`${row.percent}%`}></span></div><b>{row.percent}%</b></div>
+                      {/each}
+                      {#if cores.more}<small class="rf-ws-core-more">+{cores.more} {tr('ядер в модуле','cores in module',en)}</small>{/if}
+                    {:else if tile.id==='traffic'}
+                      <small>{data.interfaceName||data.detail?.split(' · ').at(-1)||'—'}</small>
+                      {#each (Array.isArray(data.rows)?data.rows:[]).slice(0,2) as row}<span class="rf-ws-fact-line" title={row}>{row}</span>{/each}
+                    {:else}
+                      <small title={data.detail}>{data.detail||'—'}</small>
+                      {#if tile.id==='ram'&&boundedPercent(data.percent)!==null}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
+                      {#each (Array.isArray(data.rows)?data.rows:[]).slice(0,2) as row}<span class="rf-ws-fact-line" title={row}>{row}</span>{/each}
+                    {/if}
+                  {:else}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
+                </div>
+                <div class="rf-ws-metric-chart-slot">
+                  {#if valid}{@render plot(tile.id,series,true)}{:else}<div class="rf-ws-chart-wait large" role="status">{tr('Нет актуальных данных','No current data',en)}</div>{/if}
+                </div>
+                <div class="rf-ws-metric-stat-slot">
+                  {#if valid&&chartReady(series)}
+                    {#if tile.id==='traffic'}
+                      {#each ['RX','TX'] as direction,i}{@const stats=metricStats(series[i])}<small>{direction} {tr('пик','peak',en)}: {stats?stats.peak.toFixed(2):'—'} {tr('Мбит/с','Mbps',en)}</small>{/each}
+                    {:else}
+                      {@const stats=metricStats(series[0])}
+                      {#if stats}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small><small>{tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>{/if}
+                    {/if}
+                  {:else}<small>{valid?tr('История за текущий сеанс','Current session history',en):tr('Нет статистики','No statistics',en)}</small>{/if}
+                </div>
+              {:else if online&&data.value!=='—'}
                 {#if data.detail&&!(tile.id==='updates'&&data.rows?.length)}<small>{tile.id==='traffic'?(data.interfaceName||data.detail.split(' · ').at(-1)):data.detail}</small>{/if}
                 {#if boundedPercent(data.percent)!==null}<div class="rf-ws-meter" aria-hidden="true"><span style:width={`${data.percent}%`}></span></div>{/if}
                 {#if Array.isArray(data.rows)&&data.rows.length}<div class="rf-ws-expanded-rows">{#each data.rows as row}
@@ -284,12 +321,6 @@
                     <div class="rf-ws-detail-row"><span>{parts.slice(0,-1).join(' · ')}</span><b class="rf-ws-status-dot" data-state={tail}>{tail}</b></div>
                   {:else}<span>{row}</span>{/if}
                 {/each}</div>{/if}
-                {#if tile.id==='traffic'}
-                  {@render plot('traffic',[history['traffic-rx']||[],history['traffic-tx']||[]],true)}
-                  {#if metricStats(history['traffic-rx'])&&metricStats(history['traffic-tx'])}<small>RX {tr('пик','peak',en)}: {metricStats(history['traffic-rx']).peak.toFixed(2)} · TX {tr('пик','peak',en)}: {metricStats(history['traffic-tx']).peak.toFixed(2)} {tr('Мбит/с','Mbps',en)}</small>{/if}
-                {:else if ['cpu','ram','thermal'].includes(tile.id)&&metricStats(history[tile.id])}
-                  {@const stats=metricStats(history[tile.id])}{@render plot(tile.id,[history[tile.id]||[]],true)}<small>{tr('Среднее','Mean',en)}: {stats.mean.toFixed(1)}{tile.id==='thermal'?'°C':'%'} · {tr('Пик','Peak',en)}: {stats.peak.toFixed(1)}{tile.id==='thermal'?'°C':'%'}</small>
-                {/if}
               {:else}<small>{tr('Нет актуальных данных','No current data',en)}</small>{/if}
               <a class="rf-ws-more" href={w.route} tabindex={editing?-1:0} onclick={e=>{if(editing)e.preventDefault();}}>{tr('Открыть модуль','Open module',en)} ↗</a>
             </div>
@@ -366,4 +397,29 @@
   .rf-ws-grid.editing .rf-ws-tile.shortcut .rf-ws-link{padding-right:33px}
   .rf-ws-tile .rf-ws-value{font-size:clamp(17px,8cqi,26px)}
   @media(max-width:480px){.rf-ws-editbar small{flex-basis:100%}.rf-ws-grid.editing .rf-ws-resize{width:32px;height:32px}}
+
+  /* Uniform metric shell: the four expanded charts share identical content tracks. */
+  .rf-ws-tile.uniform-metric .rf-ws-link{box-sizing:border-box;height:84px;padding:8px 12px;gap:5px;justify-content:flex-start}
+  .uniform-metric .rf-ws-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;padding-right:24px}
+  .uniform-metric .rf-ws-metric-body{flex:none;min-height:0;gap:3px}
+  .uniform-metric .rf-ws-traffic-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 5px}
+  .uniform-metric .rf-ws-traffic-values small{grid-column:1/-1}
+  .uniform-metric .rf-ws-traffic-values strong{font-size:clamp(13px,7cqi,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .uniform-metric .rf-ws-expanded-metric{display:grid;grid-template-rows:72px 132px 34px 18px;gap:6px;padding:8px 12px;box-sizing:border-box}
+  .rf-ws-metric-facts{display:grid;align-content:start;gap:4px;min-width:0;min-height:0;overflow:hidden;font-size:11px;line-height:16px}
+  .rf-ws-metric-facts small,.rf-ws-fact-line{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:16px}
+  .rf-ws-metric-facts.core-facts{gap:1px}
+  .rf-ws-core-more{color:var(--muted)}
+  .rf-ws-core-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(20px,1fr) auto;align-items:center;gap:6px;min-width:0;height:18px;font-size:11px}
+  .rf-ws-core-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rf-ws-core-row b{font-size:10px;white-space:nowrap}
+  .rf-ws-metric-chart-slot{min-width:0;min-height:0;height:132px}.rf-ws-metric-chart-slot .rf-ws-plot.large{height:100%;min-height:0}
+  .rf-ws-metric-stat-slot{display:grid;align-content:start;min-width:0;gap:2px;font-size:11px;line-height:15px}.rf-ws-metric-stat-slot small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:15px}
+  .uniform-metric .rf-ws-expanded-metric>.rf-ws-more{align-self:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rf-ws-chart-wait{display:grid;place-items:center;min-height:20px;flex:1;color:var(--muted);font-size:10px;text-align:center;line-height:1.2}
+  .rf-ws-chart-wait.large{height:100%;min-height:76px;border:1px dashed var(--border);border-radius:5px;box-sizing:border-box;font-size:11px}
+  .rf-ws-tile.uniform-metric .rf-ws-expanded-metric .rf-ws-plot.large{height:100%;min-height:0}
+  .rf-ws-grid[data-density='compact'] .rf-ws-tile.uniform-metric .rf-ws-link{height:78px;padding:8px 12px;gap:5px}
+  .rf-ws-grid[data-density='compact'] .uniform-metric .rf-ws-expanded-metric{grid-template-rows:72px 106px 32px 18px;gap:5px;padding-block:6px}
+  .rf-ws-grid[data-density='compact'] .rf-ws-metric-chart-slot{height:106px}
+  @container(max-width:220px){.uniform-metric .rf-ws-label{font-size:11px}.uniform-metric .rf-ws-link{padding-inline:8px}.uniform-metric .rf-ws-expanded-metric{padding-inline:8px}}
 </style>

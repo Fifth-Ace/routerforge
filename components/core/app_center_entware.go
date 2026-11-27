@@ -300,6 +300,12 @@ func handleEntwareRefresh(w http.ResponseWriter, r *http.Request) {
 
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
+	leaseRelease, leaseErr := acquireCorePackageMutation()
+	if leaseErr != nil {
+		writeCatalogJSON(w, coreMutationHTTPStatus(leaseErr), map[string]any{"error": "package mutation admission denied"})
+		return
+	}
+	defer leaseRelease()
 
 	opkg, err := opkgExecutable()
 	if err != nil {
@@ -384,6 +390,12 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
+	leaseRelease, leaseErr := acquireCorePackageMutation()
+	if leaseErr != nil {
+		writeCatalogJSON(w, coreMutationHTTPStatus(leaseErr), map[string]any{"error": "package mutation admission denied"})
+		return
+	}
+	defer leaseRelease()
 
 	preflight, err := buildEntwarePreflight(ctx, request.Package, request.Action)
 	if err != nil {

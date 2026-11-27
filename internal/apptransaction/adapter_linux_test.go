@@ -83,7 +83,11 @@ func TestRedirectPolicy(t *testing.T) {
 		ok bool
 	}{{"https://release-assets.githubusercontent.com/a?sig=x", true}, {"https://objects.githubusercontent.com/a", true}, {"http://objects.githubusercontent.com/a", false}, {"https://objects.githubusercontent.com.evil.test/a", false}, {"https://user@objects.githubusercontent.com/a", false}, {"https://objects.githubusercontent.com:443/a", false}, {"https://evil.github.io/a", false}} {
 		u, e := url.Parse(v.u)
-		if e != nil || allowedReleaseRedirect(u) != v.ok {
+		if e != nil {
+			t.Fatal(e)
+		}
+		initial, _ := http.NewRequest("GET", releaseBase+"index.json", nil)
+		if (releaseClient().CheckRedirect(&http.Request{URL: u}, []*http.Request{initial}) == nil) != v.ok {
 			t.Fatal(v, e)
 		}
 	}
@@ -110,7 +114,7 @@ func setBody(t *testing.T, a *Staging, p Package, body []byte, code int, request
 	t.Helper()
 	a.client.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
 		*requests++
-		if r.URL.String() != releaseBase+p.Asset || r.Method != "GET" {
+		if (r.URL.String() != releaseBase+p.Asset && r.URL.String() != "https://git.fifthace.ru/FifthAce/routerforge/releases/download/routerforge-dev/"+p.Asset) || r.Method != "GET" {
 			t.Fatal(r.URL)
 		}
 		return &http.Response{StatusCode: code, Body: io.NopCloser(bytes.NewReader(body)), ContentLength: int64(len(body)), Header: make(http.Header)}, nil

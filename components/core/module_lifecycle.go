@@ -173,6 +173,11 @@ func moduleLifecycleWait(spec moduleLifecycleSpec, running bool, timeout time.Du
 }
 
 func runModuleLifecycleAction(ctx context.Context, id, action string) (map[string]any, error) {
+	leaseRelease, leaseErr := acquireCorePackageMutation()
+	if leaseErr != nil {
+		return nil, &moduleLifecycleFailure{Status: coreMutationHTTPStatus(leaseErr), Detail: "package mutation admission denied"}
+	}
+	defer leaseRelease()
 	id = strings.ToLower(strings.TrimSpace(id))
 	action = strings.ToLower(strings.TrimSpace(action))
 

@@ -256,6 +256,7 @@ func startWeb(listen string, version string) error {
 	registerModuleLifecycleHandlers(mux, auth)
 	registerAppSourceHandlers(mux)
 	registerAppActionHandlers(mux)
+	registerCoreAppTransactionHandlers(mux, auth)
 	registerPlatformHandlers(mux)
 	registerEventEngineHandlers(mux, version)
 	registerFoundationHandlers(mux, func(r *http.Request) bool {

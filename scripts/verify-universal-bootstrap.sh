@@ -14,6 +14,13 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 mkdir -p "$BIN"
+# Render the dispatcher with actual pinned child fixtures, not a digest-less
+# executable script. All existing architecture detection cases stay intact.
+for channel in beta stable; do
+    for target in aarch64-3.10 mips-3.4 mipsel-3.4; do
+        printf '%s\n' '#!/bin/sh' 'exit 0' > "$TMP/routerforge-$channel-bootstrap-$target.sh"
+    done
+done
 
 python3 "$ROOT/scripts/render_universal_bootstrap.py" \
     --channel beta \

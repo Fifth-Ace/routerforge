@@ -68,7 +68,7 @@ func TestParseRouterForgeReleaseIndexAcceptsRenamedRepository(t *testing.T) {
 	if len(urls) != 2 {
 		t.Fatalf("unexpected download URL candidates: %#v", urls)
 	}
-	if urls[0] != doc.Components[0].CanonicalURL || urls[1] != doc.Components[0].URL {
+	if urls[0] != doc.Components[0].CanonicalURL || urls[1] != "https://git.fifthace.ru/FifthAce/routerforge/releases/download/routerforge-beta/"+doc.Components[0].Asset {
 		t.Fatalf("canonical repository is not preferred: %#v", urls)
 	}
 }

@@ -530,6 +530,11 @@ func runAppActionJob(ctx context.Context, job *appActionJob, request appActionSt
 func runEntwareJob(ctx context.Context, request appActionStartRequest, emit func(string)) (entwareActionResult, error) {
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
+	leaseRelease, leaseErr := acquireCorePackageMutation()
+	if leaseErr != nil {
+		return entwareActionResult{}, leaseErr
+	}
+	defer leaseRelease()
 
 	action := normalizeEntwareAction(request.Action)
 	preflight, err := buildEntwarePreflight(ctx, request.Target, action)

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
+import re
 from pathlib import Path
 
 TARGETS = ("aarch64-3.10", "mips-3.4", "mipsel-3.4")
@@ -26,6 +28,19 @@ def main():
         if target not in available:
             available.append(target)
 
+    if not re.fullmatch(r"routerforge-[A-Za-z0-9._+-]+", release_tag) or ".." in release_tag:
+        raise SystemExit("unsafe release tag")
+    # The dispatcher is generated after every target child; pin their exact
+    # bytes before allowing execution from either release origin.
+    child_digests = {}
+    for target in available:
+        child = Path(args.output).parent / f"routerforge-{args.channel}-bootstrap-{target}.sh"
+        if not child.is_file() or child.is_symlink():
+            raise SystemExit(f"missing target bootstrap: {child}")
+        raw = child.read_bytes()
+        if not raw or len(raw) > 1024 * 1024:
+            raise SystemExit(f"invalid target bootstrap size: {child}")
+        child_digests[target] = hashlib.sha256(raw).hexdigest()
     lines = [
         "#!/bin/sh",
         "set -eu",
@@ -142,22 +157,36 @@ def main():
         "trap 'rm -rf \"$TMP\"' EXIT HUP INT TERM",
         "",
         "fetch() {",
-        '    if [ -x /opt/bin/curl ]; then /opt/bin/curl -q -fL --connect-timeout 10 --max-time 120 -o "$2" "$1"',
-        '    elif command -v curl >/dev/null 2>&1; then curl -q -fL --connect-timeout 10 --max-time 120 -o "$2" "$1"',
-        '    elif [ -x /opt/bin/wget ]; then /opt/bin/wget -q -O "$2" "$1"',
-        '    elif command -v wget >/dev/null 2>&1; then wget -q -O "$2" "$1"',
+        '    if [ -x /opt/bin/curl ]; then /opt/bin/curl -q -fL --proto "=https" --proto-redir "=https" --connect-timeout 8 --max-time 65 -o "$2" "$1"',
+        '    elif command -v curl >/dev/null 2>&1; then curl -q -fL --proto "=https" --proto-redir "=https" --connect-timeout 8 --max-time 65 -o "$2" "$1"',
+        '    elif [ -x /opt/bin/wget ]; then /opt/bin/wget -q -T 15 -O "$2" "$1"',
+        '    elif command -v wget >/dev/null 2>&1; then wget -q -T 15 -O "$2" "$1"',
         '    else fail "curl/wget was not found."; fi',
         "}",
         "",
         'ASSET="routerforge-${CHANNEL}-bootstrap-${TARGET}.sh"',
         'PRIMARY="https://github.com/Fifth-Ace/routerforge/releases/download/${RELEASE_TAG}/${ASSET}"',
-        'FALLBACK="https://github.com/Fifth-Ace/dns-monitor/releases/download/${RELEASE_TAG}/${ASSET}"',
+        'FALLBACK="https://git.fifthace.ru/FifthAce/routerforge/releases/download/${RELEASE_TAG}/${ASSET}"',
         'CHILD="$TMP/$ASSET"',
         "",
-        'if ! fetch "$PRIMARY" "$CHILD"; then',
-        '    say "Primary repository URL unavailable; trying compatibility URL..."',
-        '    fetch "$FALLBACK" "$CHILD" || fail "Could not download target bootstrap $ASSET."',
-        "fi",
+        'command -v sha256sum >/dev/null 2>&1 || fail "sha256sum was not found."',
+        'case "$TARGET" in',
+        *[f"    {target}) EXPECTED_CHILD={shell_single(digest)} ;;" for target, digest in child_digests.items()],
+        '    *) fail "No pinned child bootstrap for $TARGET." ;;',
+        'esac',
+        'fetch_child() {',
+        '    rm -f "$CHILD"',
+        '    fetch "$1" "$CHILD" || return 1',
+        '    actual="$(sha256sum "$CHILD" | awk \'{print $1}\')"',
+        '    [ "$actual" = "$EXPECTED_CHILD" ]',
+        '}',
+        'if fetch_child "$PRIMARY"; then',
+        '    say "Download source: GitHub"',
+        'else',
+        '    say "GitHub unavailable or child integrity check failed; trying Forgejo mirror..."',
+        '    fetch_child "$FALLBACK" || fail "No verified target bootstrap $ASSET."',
+        '    say "Download source: Forgejo"',
+        'fi',
         'chmod 0755 "$CHILD"',
         "",
         'CHILD_OPKG="$OPKG"',

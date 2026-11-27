@@ -148,6 +148,16 @@ func ReadWorkerRequest(dir string) (Plan, error) {
 // command; setsid isolates the worker from the launching session. This is not
 // a guarantee against supervisor/cgroup-wide termination or a reboot.
 func StartDetached(dir, lockDir, executable string, args []string, p Plan) (int, error) {
+	lease, err := AcquireMutationLease(lockDir)
+	if err != nil {
+		return 0, err
+	}
+	defer lease.Close()
+	return startDetachedWithLease(dir, lockDir, executable, args, p, lease)
+}
+
+// The caller owns the lease until the child has inherited it.
+func startDetachedWithLease(dir, lockDir, executable string, args []string, p Plan, lease *os.File) (int, error) {
 	p.Packages = append([]Package(nil), p.Packages...)
 	h, err := p.Hash()
 	if err != nil {
@@ -163,11 +173,6 @@ func StartDetached(dir, lockDir, executable string, args []string, p Plan) (int,
 	if !filepath.IsAbs(executable) || filepath.Clean(executable) != executable {
 		return 0, errors.New("worker executable must be absolute")
 	}
-	lease, err := AcquireMutationLease(lockDir)
-	if err != nil {
-		return 0, err
-	}
-	defer lease.Close()
 	local, err := s.lock()
 	if err != nil {
 		return 0, err

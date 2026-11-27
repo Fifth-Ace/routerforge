@@ -25,7 +25,7 @@ def shell_single(value):
 def valid_release_url(url, release_tag, asset):
     for repository in ALLOWED_REPOSITORIES:
         prefix = f"https://github.com/{repository}/releases/download/{release_tag}/"
-        if url.startswith(prefix) and url.endswith("/" + asset):
+        if url == prefix + asset:
             return True
     return False
 
@@ -153,7 +153,14 @@ def main():
             raise SystemExit(f"unexpected legacy release URL for {package}")
         if not valid_release_url(canonical_url, release_tag, asset):
             raise SystemExit(f"unexpected canonical release URL for {package}")
-        fallback_url = legacy_url if legacy_url != canonical_url else ""
+        # Derive both transport URLs from the validated immutable asset identity.
+        if not SAFE_ASSET.fullmatch(release_tag) or ".." in release_tag or ".." in asset:
+            raise SystemExit("unsafe release tag or asset")
+        canonical_url = f"https://github.com/Fifth-Ace/routerforge/releases/download/{release_tag}/{asset}"
+        fallback_url = f"https://git.fifthace.ru/FifthAce/routerforge/releases/download/{release_tag}/{asset}"
+        size = item.get("size_bytes", 0)
+        if type(size) is not int or size < 0 or size > 512 * 1024 * 1024:
+            raise SystemExit("invalid release asset size")
         entries.append((
             package,
             asset,
@@ -161,6 +168,7 @@ def main():
             canonical_url,
             fallback_url,
             str(item.get("version", "")),
+            str(size),
         ))
 
     lines = [
@@ -303,20 +311,21 @@ def main():
         'command -v sha256sum >/dev/null 2>&1 || fail "sha256sum was not found."',
         "",
         "fetch() {",
-        '    if [ -x /opt/bin/curl ]; then /opt/bin/curl -q -fL --connect-timeout 10 --max-time 120 -o "$2" "$1"',
-        '    elif command -v curl >/dev/null 2>&1; then curl -q -fL --connect-timeout 10 --max-time 120 -o "$2" "$1"',
-        '    elif [ -x /opt/bin/wget ]; then /opt/bin/wget -q -O "$2" "$1"',
-        '    elif command -v wget >/dev/null 2>&1; then wget -q -O "$2" "$1"',
+        '    if [ -x /opt/bin/curl ]; then /opt/bin/curl -q -fL --proto "=https" --proto-redir "=https" --connect-timeout 8 --max-time 65 -o "$2" "$1"',
+        '    elif command -v curl >/dev/null 2>&1; then curl -q -fL --proto "=https" --proto-redir "=https" --connect-timeout 8 --max-time 65 -o "$2" "$1"',
+        '    elif [ -x /opt/bin/wget ]; then /opt/bin/wget -q -T 15 -O "$2" "$1"',
+        '    elif command -v wget >/dev/null 2>&1; then wget -q -T 15 -O "$2" "$1"',
         '    else fail "curl/wget was not found."; fi',
         "}",
         "",
         'fetch_compatible() {',
         '    primary="$1"; fallback="$2"; output="$3"',
-        '    if fetch "$primary" "$output"; then return 0; fi',
+        '    if fetch "$primary" "$output"; then say "Download source: GitHub"; return 0; fi',
         '    if [ -n "$fallback" ] && [ "$fallback" != "$primary" ]; then',
-        '        say "Primary repository URL unavailable; trying compatibility URL..."',
-        '        fetch "$fallback" "$output"',
-        '        return $?',
+        '        say "GitHub unavailable; trying Forgejo mirror..."',
+        '        rm -f "$output"',
+        '        if fetch "$fallback" "$output"; then say "Download source: Forgejo"; return 0; fi',
+        '        return 1',
         '    fi',
         '    return 1',
         '}',
@@ -325,10 +334,11 @@ def main():
         "trap 'rm -rf \"$TMP\"' EXIT HUP INT TERM",
         "",
         'install_verified() {',
-        '    package="$1"; asset="$2"; expected="$3"; primary="$4"; fallback="$5"',
+        '    package="$1"; asset="$2"; expected="$3"; primary="$4"; fallback="$5"; expected_size="$6"',
         '    fetch_compatible "$primary" "$fallback" "$TMP/$asset" || fail "Download failed for $asset."',
         '    actual="$(sha256sum "$TMP/$asset" | awk \'{print $1}\')"',
         '    [ "$actual" = "$expected" ] || fail "SHA256 mismatch for $asset."',
+        '    [ "$expected_size" = "0" ] || [ "$(wc -c < "$TMP/$asset" | tr -d "[:space:]")" = "$expected_size" ] || fail "Size mismatch for $asset."',
         '    say "Installing $package..."',
         '    "$OPKG" install "$TMP/$asset"',
         "}",
@@ -359,11 +369,11 @@ def main():
         'say "RouterForge $CHANNEL bootstrap"',
     ]
 
-    for package, asset, sha, primary, fallback, version in entries:
+    for package, asset, sha, primary, fallback, version, size in entries:
         lines += [
             f"say {shell_single(package + ' ' + version)}",
             "install_verified "
-            + " ".join(shell_single(v) for v in (package, asset, sha, primary, fallback)),
+            + " ".join(shell_single(v) for v in (package, asset, sha, primary, fallback, size)),
         ]
 
     lines += [

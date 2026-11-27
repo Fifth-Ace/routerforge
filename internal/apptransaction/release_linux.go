@@ -11,16 +11,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/releasetransport"
 )
 
-const releaseBase = "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev/"
-const legacyReleaseBase = "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/"
+const releaseBase = releasetransport.GitHubBase + "routerforge-dev/"
+const legacyReleaseBase = releasetransport.LegacyBase + "routerforge-dev/"
 const indexLimit = 512 << 10
 
 type releaseEntry struct {
@@ -106,28 +107,9 @@ func orderPackages(p []Package) {
 		return p[i].Name < p[j].Name
 	})
 }
-func allowedReleaseRedirect(u *url.URL) bool {
-	if u.Scheme != "https" || u.User != nil || u.Port() != "" || u.Fragment != "" {
-		return false
-	}
-	// GitHub's release asset CDN uses signed query strings. Only these exact
-	// hosts may receive redirects; never accept arbitrary github.io or suffixes.
-	switch u.Host {
-	case "release-assets.githubusercontent.com", "objects.githubusercontent.com":
-		return true
-	}
-	return false
-}
-func releaseClient() *http.Client {
-	return &http.Client{Timeout: 120 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 || !allowedReleaseRedirect(req.URL) {
-			return errors.New("untrusted release redirect")
-		}
-		return nil
-	}}
-}
-func fetchRelease(ctx context.Context, c *http.Client, asset string, limit int64, w io.Writer) (int64, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, releaseBase+asset, nil)
+func releaseClient() *http.Client { return releasetransport.Client(65 * time.Second) }
+func fetchRelease(ctx context.Context, c *http.Client, source string, limit int64, w io.Writer) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, source, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -152,13 +134,38 @@ func fetchRelease(ctx context.Context, c *http.Client, asset string, limit int64
 }
 
 // FetchDevPlan never accepts a user-supplied URL, and validates the entire
-// official index before returning a selected immutable plan.
-func FetchDevPlan(ctx context.Context, id, expectedCommit string, selected []string) (Plan, error) {
-	var b boundedBytes
-	if _, err := fetchRelease(ctx, releaseClient(), "routerforge-dev-index.json", indexLimit, &b); err != nil {
-		return Plan{}, err
+// official index before returning a selected immutable plan. Mirror fallback
+// additionally requires the exact index bytes previously trusted by the caller.
+func FetchDevPlan(ctx context.Context, id, expectedCommit string, selected []string, trustedIndex ...[]byte) (Plan, error) {
+	if len(trustedIndex) > 1 {
+		return Plan{}, errors.New("ambiguous trusted index")
 	}
-	return FreezeDevPlan(b, id, expectedCommit, selected)
+	var trusted []byte
+	if len(trustedIndex) == 1 {
+		trusted = trustedIndex[0]
+	}
+	return fetchDevPlan(ctx, releasetransport.Client(15*time.Second), id, expectedCommit, selected, trusted)
+}
+
+func fetchDevPlan(ctx context.Context, client *http.Client, id, expectedCommit string, selected []string, trustedIndex []byte) (Plan, error) {
+	var last error
+	for _, source := range releasetransport.Candidates("routerforge-dev", "routerforge-dev-index.json") {
+		if err := ctx.Err(); err != nil {
+			return Plan{}, err
+		}
+		var b boundedBytes
+		if _, err := fetchRelease(ctx, client, source, indexLimit, &b); err != nil {
+			last = err
+			continue
+		}
+		if releasetransport.IsMirror(source) && !releasetransport.MirrorIndexMatches(b, trustedIndex) {
+			return Plan{}, errors.New("Forgejo index does not match trusted snapshot")
+		}
+		// expectedCommit is supplied by the trusted caller, never by the mirror.
+		// A successful HTTP response with mismatched provenance is not a fallback trigger.
+		return FreezeDevPlan(b, id, expectedCommit, selected)
+	}
+	return Plan{}, fmt.Errorf("release index unavailable: %w", last)
 }
 
 type boundedBytes []byte
@@ -254,13 +261,33 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 	}
 	defer f.Close()
 	defer os.Remove(f.Name())
-	h := sha256.New()
-	n, err := fetchRelease(ctx, a.client, p.Asset, p.Size, io.MultiWriter(f, h))
-	if err != nil {
-		return err
+	var source string
+	var last error
+	for _, candidate := range releasetransport.Candidates("routerforge-dev", p.Asset) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := f.Truncate(0); err != nil {
+			return err
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+		h := sha256.New()
+		n, err := fetchRelease(ctx, a.client, candidate, p.Size, io.MultiWriter(f, h))
+		if err != nil {
+			last = err
+			continue
+		}
+		if n != p.Size || hex.EncodeToString(h.Sum(nil)) != p.SHA256 {
+			last = fmt.Errorf("asset integrity mismatch: %s", p.Name)
+			continue
+		}
+		source = candidate
+		break
 	}
-	if n != p.Size || hex.EncodeToString(h.Sum(nil)) != p.SHA256 {
-		return fmt.Errorf("asset integrity mismatch: %s", p.Name)
+	if source == "" {
+		return fmt.Errorf("verified asset unavailable: %s: %w", p.Name, last)
 	}
 	if err = f.Sync(); err != nil {
 		return err
@@ -283,5 +310,9 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 	if err = d.Sync(); err != nil {
 		return err
 	}
-	return a.Check(ctx, p)
+	if err := a.Check(ctx, p); err != nil {
+		return err
+	}
+	fmt.Printf("RF_APP_TRANSACTION_DOWNLOAD: package=%s source=%s\n", p.Name, source)
+	return nil
 }

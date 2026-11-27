@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	platformevents "github.com/Fifth-Ace/routerforge/internal/platform/events"
@@ -517,13 +516,12 @@ func readDeviceStorageSamples() []deviceStorageSample {
 			continue
 		}
 
-		var stat syscall.Statfs_t
-		if err := syscall.Statfs(mount, &stat); err != nil || stat.Blocks == 0 {
+		stat := readPlatformStorage(mount)
+		total := stat.TotalBytes
+		free := stat.AvailableBytes
+		if total == 0 || free > total {
 			continue
 		}
-		blockSize := uint64(stat.Bsize)
-		total := stat.Blocks * blockSize
-		free := stat.Bavail * blockSize
 		used := total - free
 		usedPct := float64(used) * 100 / float64(total)
 

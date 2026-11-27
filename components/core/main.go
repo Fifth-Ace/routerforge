@@ -23,6 +23,7 @@ func main() {
 		log.Fatal("routerforge must run as root (package lifecycle and local module sockets require it)")
 	}
 
+	initCoreAppTransactions()
 	coreLogEvent(*logPath, "START", fmt.Sprintf("routerforge v%s listen=%s module-abi=v1", version, *listen))
 	startOptionalProfiling()
 	startRouterForgeReleasePolling()

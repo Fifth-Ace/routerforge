@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/releasetransport"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -206,23 +207,7 @@ func routerForgeReleaseIndexAssetName() string {
 }
 
 func routerForgeReleaseIndexURLs() []string {
-	channel := normalizedReleaseChannel()
-	asset := routerForgeReleaseIndexAssetName()
-	if asset == "" {
-		return nil
-	}
-	repositories := []string{
-		routerForgeCanonicalRepository,
-		routerForgeLegacyRepository,
-	}
-	urls := make([]string, 0, len(repositories))
-	for _, repository := range repositories {
-		urls = append(urls, fmt.Sprintf(
-			"https://github.com/%s/releases/download/routerforge-%s/%s",
-			repository, channel, asset,
-		))
-	}
-	return urls
+	return releasetransport.Candidates("routerforge-"+normalizedReleaseChannel(), routerForgeReleaseIndexAssetName())
 }
 
 func routerForgeReleaseIndexURL() string {
@@ -234,32 +219,18 @@ func routerForgeReleaseIndexURL() string {
 }
 
 func validRouterForgeReleaseURL(value string) bool {
-	for _, repository := range []string{routerForgeCanonicalRepository, routerForgeLegacyRepository} {
-		if strings.HasPrefix(value, "https://github.com/"+repository+"/releases/download/") {
-			return true
-		}
-	}
-	return false
+	_, _, ok := releasetransport.GitHubAsset(value)
+	return ok
 }
 
 func routerForgeReleaseDownloadURLs(release catalogRelease) []string {
-	urls := make([]string, 0, 2)
 	for _, candidate := range []string{release.CanonicalURL, release.URL} {
-		if candidate == "" || !validRouterForgeReleaseURL(candidate) {
-			continue
-		}
-		duplicate := false
-		for _, existing := range urls {
-			if existing == candidate {
-				duplicate = true
-				break
-			}
-		}
-		if !duplicate {
-			urls = append(urls, candidate)
+		tag, asset, ok := releasetransport.GitHubAsset(candidate)
+		if ok && asset == release.Asset {
+			return releasetransport.Candidates(tag, asset)
 		}
 	}
-	return urls
+	return nil
 }
 
 func routerForgeReleaseCachePath() string {
@@ -420,15 +391,26 @@ func startRouterForgeReleasePolling() {
 }
 
 func refreshRouterForgeReleaseIndex() {
-	client := &http.Client{Timeout: 8 * time.Second}
+	client := releasetransport.Client(8 * time.Second)
 	var (
 		data []byte
 		url  string
 		err  error
 	)
+	// Only a byte-identical last-known GitHub snapshot may be served by the
+	// rolling mirror. A newer or older uncorroborated index fails closed.
+	cachePath := routerForgeReleaseCachePath()
+	trusted, _ := os.ReadFile(cachePath)
+	var doc routerForgeReleaseIndex
 	var attempts []string
 	for _, candidate := range routerForgeReleaseIndexURLs() {
 		data, err = fetchRouterForgeReleaseIndexURL(client, candidate)
+		if err == nil {
+			doc, err = parseRouterForgeReleaseIndex(data)
+		}
+		if err == nil && releasetransport.IsMirror(candidate) && !releasetransport.MirrorIndexMatches(data, trusted) {
+			err = fmt.Errorf("Forgejo rolling index has no matching trusted snapshot")
+		}
 		if err == nil {
 			url = candidate
 			break
@@ -438,13 +420,11 @@ func refreshRouterForgeReleaseIndex() {
 	if url == "" {
 		err = fmt.Errorf("release index unavailable: %s", strings.Join(attempts, "; "))
 	}
-
-	var doc routerForgeReleaseIndex
-	if err == nil {
-		doc, err = parseRouterForgeReleaseIndex(data)
+	if cachePath != routerForgeReleaseCachePath() {
+		err = fmt.Errorf("release selection changed during refresh")
 	}
-	if err == nil {
-		cache := routerForgeReleaseCachePath()
+	if err == nil && !releasetransport.IsMirror(url) {
+		cache := cachePath
 		if mkErr := os.MkdirAll(filepath.Dir(cache), 0755); mkErr == nil {
 			_ = safety.WriteFileAtomic(cache, data, 0644)
 		}

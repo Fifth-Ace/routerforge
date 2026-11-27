@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/releasetransport"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -162,6 +163,11 @@ func runCatalogModuleAction(ctx context.Context, id, action, confirmation string
 func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmation string, emit func(string)) (catalogActionResult, error) {
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
+	leaseRelease, leaseErr := acquireCorePackageMutation()
+	if leaseErr != nil {
+		return catalogActionResult{}, &catalogInstallFailure{Status: coreMutationHTTPStatus(leaseErr), Message: "package mutation admission denied", Detail: leaseErr.Error()}
+	}
+	defer leaseRelease()
 
 	action = strings.TrimSpace(strings.ToLower(action))
 	if action != "install" && action != "update" && action != "remove" {
@@ -344,7 +350,8 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 	var downloadErrors []string
 	for _, candidateURL := range routerForgeReleaseDownloadURLs(release) {
 		started := time.Now()
-		local, actual, err = downloadVerifiedAsset(ctx, candidateURL, release.Asset, release.SHA256)
+		log.EmitLine("RF_APP_CENTER_DOWNLOAD: source=" + candidateURL)
+		local, actual, err = downloadVerifiedAsset(ctx, candidateURL, release.Asset, release.SHA256, release.SizeBytes)
 		log.EmitLine(fmt.Sprintf("RF_APP_CENTER_PHASE: download_verify elapsed_ms=%d ok=%t", time.Since(started).Milliseconds(), err == nil))
 		if err == nil {
 			sourceURL = candidateURL
@@ -603,9 +610,9 @@ func fetchSmallHTTPS(ctx context.Context, url string, maxBytes int64) ([]byte, e
 	return data, nil
 }
 
-func downloadVerifiedAsset(ctx context.Context, url, asset, expected string) (string, string, error) {
-	if !validRouterForgeReleaseURL(url) {
-		return "", "", fmt.Errorf("RouterForge release asset must belong to the RouterForge GitHub repository")
+func downloadVerifiedAsset(ctx context.Context, url, asset, expected string, expectedSize uint64) (string, string, error) {
+	if (!validRouterForgeReleaseURL(url) && !releasetransport.IsMirror(url)) || !strings.HasSuffix(url, "/"+asset) {
+		return "", "", fmt.Errorf("unapproved RouterForge release asset URL")
 	}
 	if err := os.MkdirAll(marketplaceDownloadDir, 0755); err != nil {
 		return "", "", err
@@ -626,7 +633,7 @@ func downloadVerifiedAsset(ctx context.Context, url, asset, expected string) (st
 		return "", "", err
 	}
 	req.Header.Set("User-Agent", "RouterForge/"+version)
-	client := &http.Client{Timeout: 90 * time.Second}
+	client := releasetransport.Client(65 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", "", err
@@ -640,6 +647,9 @@ func downloadVerifiedAsset(ctx context.Context, url, asset, expected string) (st
 	written, err := io.Copy(io.MultiWriter(file, hash), io.LimitReader(resp.Body, marketplaceDownloadMaxBytes+1))
 	if err != nil {
 		return "", "", err
+	}
+	if expectedSize > 0 && uint64(written) != expectedSize {
+		return "", "", fmt.Errorf("download %s size mismatch", asset)
 	}
 	if written > marketplaceDownloadMaxBytes {
 		return "", "", fmt.Errorf("download %s exceeds size limit", asset)

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, dimensions, nearestSize, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, projectTiles, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint, visualLayout, seedAnchors, moveFree, fitSize } from '$lib/workspace.js';
+  import { WIDGETS, STORAGE_KEY, getWidget, defaultLayout, profileTiles, parseLayout, normalizeLayout, updateSpace, compactReorder, boundedPercent, widgetFor, ACCENTS, spatialOrder, safeExternal, recordHistory, columnsForWidth, compactTiles, compactLayout, compactResize, moveToCell, metricStats, widgetCategory, panelTrackCount, canExpand, chartDomain, chartGeometry, nearestChartPoint, visualLayout, seedAnchors, moveFree, fitSize, resizeChoice } from '$lib/workspace.js';
   export let locale='ru';
   export let metrics={};
   export let sampleKeys={};
@@ -55,15 +55,12 @@
   function measurePanel(node,id){let current=id;const update=()=>{const height=node.getBoundingClientRect().height;if(panelPixels[current]!==height)panelPixels={...panelPixels,[current]:height};};const ro=typeof ResizeObserver==='undefined'?null:new ResizeObserver(update);ro?.observe(node);update();return {update(id){current=id;update();},destroy(){ro?.disconnect();const next={...panelPixels};delete next[current];panelPixels=next;}};}
   function hover(e,id,parts){const rect=e.currentTarget.getBoundingClientRect();const x=(e.clientX-rect.left)/Math.max(1,rect.width)*240;const values=parts.map(part=>nearestChartPoint(part,x));chartHover={id,values};}
   function chartTime(ms){return new Date(ms).toLocaleTimeString(locale==='en'?'en-GB':'ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
-  function sizeOptions(tile){return widgetFor(tile).type==='panel'?['2x2','4x2']:widgetFor(tile).sizes;}
-  function sizeLabel(tile,size){return widgetFor(tile).type==='panel'?(size.startsWith('2')?tr('Узкая','Narrow',en):tr('Широкая','Wide',en)):size;}
-  function sizeValue(tile){return widgetFor(tile).type==='panel'?(tile.size.startsWith('2')?'2x2':'4x2'):tile.size;}
 
 
   function toggleAlignment(){change(s=>({...s,autoAlign:s.autoAlign===false,tiles:s.autoAlign===false?compactTiles(spatialOrder(s.tiles)):seedAnchors(s.tiles,columns,true)}));}
   function alignOnce(){change(s=>({...s,tiles:seedAnchors(compactTiles(spatialOrder(s.tiles)),columns)}));}
   function collapseAll(){chartHover=null;change(s=>({...s,tiles:s.tiles.map(t=>({...t,expanded:undefined}))}));}
-  function resizeTile(tiles,id,size){const t=tiles.find(x=>x.id===id);if(!t||t.locked)return tiles;if(t.expanded&&canExpand(widgetFor(t)))return tiles.map(x=>x.id===id?{...x,expandedWidth:dimensions(size)[0]}:x);return active.autoAlign===false?fitSize(tiles,id,size):compactResize(tiles,id,size);}
+  function resizeTile(tiles,id,size){const t=tiles.find(x=>x.id===id);if(!t||t.locked)return tiles;if(t.expanded&&canExpand(widgetFor(t)))return tiles.map(x=>x.id===id?{...x,expandedWidth:size}:x);return active.autoAlign===false?fitSize(tiles,id,size):compactResize(tiles,id,size);}
   function change(fn){try{commit(updateSpace(layout,active.id,fn));error='';}catch{error='invalid';}}
   function selectSpace(id){chartHover=null;fullPanel='';commit({...layout,active:id},false);name='';error='';selected='';cancelPointer();}
   function addSpace(copy=false){if(layout.spaces.length>=8)return;const id='space-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);const label=name.trim().slice(0,64);try{commit({...layout,active:id,spaces:[...layout.spaces,{id,name:label,profile,autoAlign:copy?active.autoAlign:undefined,density:copy?active.density:undefined,tiles:copy?active.tiles.map(x=>({...x})):compactTiles(profileTiles(profile))}]});name='';selected='';error='';}catch{error='invalid';}}
@@ -76,6 +73,13 @@
   function addLink(){try{const url=safeExternal(linkURL);if(active.tiles.filter(t=>widgetFor(t).type==='external').length>=12)throw Error('LINK_LIMIT');const id='link-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);commit(updateSpace(layout,active.id,s=>({...s,tiles:compactTiles([...spatialOrder(s.tiles),{id,size:'1x1',url,title:linkTitle.trim()||new URL(url).hostname.slice(0,64)}])})));linkTitle='';linkURL='';error='';}catch{error='invalid';}}
   function positionStyle(tile){return `grid-column:${tile.x+1}/span ${tile.w};grid-row:${tile.y+1}/span ${tile.h};`;}
   function nudge(e,tile){const delta={ArrowLeft:-1,ArrowRight:1,ArrowUp:-columns,ArrowDown:columns}[e.key];if(delta===undefined||tile.locked)return;e.preventDefault();if(active.autoAlign===false){const x=tile.x+({ArrowLeft:-1,ArrowRight:1}[e.key]||0),y=tile.y+({ArrowUp:-1,ArrowDown:1}[e.key]||0);change(s=>({...s,tiles:moveFree(s.tiles,columns,tile.id,x,y)}));return;}const i=ordered.findIndex(t=>t.id===tile.id),target=ordered[Math.max(0,Math.min(ordered.length-1,i+delta))];if(target&&target.id!==tile.id)change(s=>({...s,tiles:compactReorder(s.tiles,tile.id,target.id)}));}
+  function resizeKey(e,tile){
+    if(!editing||tile.locked)return;
+    const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-2],ArrowDown:[0,2]}[e.key];if(!delta)return;
+    e.preventDefault();let [dx,dy]=delta;if(!dx&&(tile.expanded||widgetFor(tile).type==='panel'))return;
+    if(dx&&tile.w>=2){if(dx>0)dx=2;else if(tile.w>=4)dx=-2;}
+    const size=resizeChoice(tile,dx,dy,columns);change(s=>({...s,tiles:resizeTile(s.tiles,tile.id,size)}));
+  }
   function beginPointer(e,tile,kind){
     if(!editing||e.button!==0||e.isPrimary===false||gesture)return;
     e.preventDefault();
@@ -100,7 +104,8 @@
     if(t.locked){previewTiles=null;return;}
     if(!dx&&!dy){preview={...t};previewTiles=null;return;}
     if(g.kind==='resize'){
-      const [w,h]=dimensions(t.size),size=nearestSize(widgetFor(t),Math.max(1,(t.expanded?t.w:w)+dx),Math.max(1,h+(t.expanded?0:Math.round(dy/2))));
+      if(!dx&&(t.expanded||widgetFor(t).type==='panel')){preview={...t};previewTiles=null;return;}
+      const size=resizeChoice(t,dx,dy,columns);
       previewTiles=resizeTile(g.original,g.id,size);
     }else if(active.autoAlign===false){previewTiles=moveFree(g.original,columns,g.id,t.x+dx,t.y+dy);
     }else{
@@ -178,15 +183,18 @@
       <button type="button" class="button primary" onclick={showCatalog}>{tr('＋ Виджет','＋ Widget',en)}</button>
       <button type="button" class="button" aria-label={tr('Отменить','Undo',en)} title={tr('Отменить','Undo',en)} disabled={!past.length} onclick={undo}>↶</button>
       <button type="button" class="button" aria-label={tr('Повторить','Redo',en)} title={tr('Повторить','Redo',en)} disabled={!future.length} onclick={redo}>↷</button>
-      <button type="button" class="button" onclick={showManage}>{tr('Пространства и шаблоны','Spaces and templates',en)}</button>
-      <button type="button" class="button rf-ws-align" aria-pressed={active.autoAlign!==false} onclick={toggleAlignment}>{active.autoAlign===false?tr('Свободная сетка','Free layout',en):tr('Автовыравнивание','Auto alignment',en)}</button>
-      {#if active.autoAlign===false}<button type="button" class="button" onclick={alignOnce}>{tr('Уплотнить сетку','Compact grid',en)}</button>{/if}
-      <select aria-label={tr('Плотность','Density',en)} value={active.density||'normal'} onchange={e=>change(s=>({...s,density:e.currentTarget.value}))}><option value="compact">{tr('Компактная','Compact',en)}</option><option value="normal">{tr('Стандартная','Standard',en)}</option><option value="large">{tr('Увеличенная','Large',en)}</option></select>
-      <small>{tr('Нажми плитку для настройки или перетащи её. Размер — за угол.','Select or drag a tile. Resize using its corner.',en)}</small>
+      <button type="button" class="button rf-ws-settings-menu" aria-expanded={manageOpen} onclick={showManage}>{tr('Настройки','Settings',en)}</button>
+      <small>{tr('Перетащи плитку или потяни за угол.','Drag a tile or resize by its corner.',en)}</small>
     </div>
     {#if manageOpen||adding||selectedTile}
     <div class="rf-ws-editor panel" class:tile-editor={!!selectedTile}>
       {#if manageOpen}
+        <div class="rf-ws-settings-heading"><strong>{tr('Рабочее пространство','Workspace',en)}</strong><button type="button" class="button" onclick={()=>{manageOpen=false;transfer=false;}}>{tr('Закрыть','Close',en)}</button></div>
+        <div class="rf-ws-actions rf-ws-layout-settings">
+      <button type="button" class="button rf-ws-align" aria-pressed={active.autoAlign!==false} onclick={toggleAlignment}>{active.autoAlign===false?tr('Свободная сетка','Free layout',en):tr('Автовыравнивание','Auto alignment',en)}</button>
+      {#if active.autoAlign===false}<button type="button" class="button" onclick={alignOnce}>{tr('Уплотнить сетку','Compact grid',en)}</button>{/if}
+      <select aria-label={tr('Плотность','Density',en)} value={active.density||'normal'} onchange={e=>change(s=>({...s,density:e.currentTarget.value}))}><option value="compact">{tr('Компактная','Compact',en)}</option><option value="normal">{tr('Стандартная','Standard',en)}</option><option value="large">{tr('Увеличенная','Large',en)}</option></select>
+        </div>
         <div class="rf-ws-actions">
           <select aria-label={tr('Шаблон','Template',en)} bind:value={profile}><option value="default">{profileLabel('default',en)}</option><option value="network">{profileLabel('network',en)}</option><option value="admin">{profileLabel('admin',en)}</option></select>
           <button type="button" class="button" onclick={reset}>{tr('Применить шаблон','Apply template',en)}</button>
@@ -205,7 +213,7 @@
         <div class="rf-ws-catalog">{#each available as w (w.id)}<button type="button" class="rf-ws-catalog-card" data-widget-choice={w.id} onclick={()=>add(w.id)}><span class="rf-ws-icon">{w.icon}</span><strong>＋ {title(w,en)}</strong><small>{categoryName(widgetCategory(w),en)} · {w.size}</small><span class="rf-ws-catalog-value">{w.type==='metric'?(online||w.id==='core'?valueFor(w.id,metrics).value:'—'):'↗'}</span></button>{:else}<small>{tr('Нет подходящих виджетов','No matching widgets',en)}</small>{/each}</div>
         {#if category==='all'||category==='shortcuts'}<div class="rf-ws-actions"><input aria-label={tr('Название ярлыка','Shortcut title',en)} placeholder={tr('Название ярлыка','Shortcut title',en)} maxlength="64" bind:value={linkTitle}/><input aria-label={tr('Адрес HTTP(S)','HTTP(S) address',en)} placeholder="https://example.net/" maxlength="512" bind:value={linkURL}/><button class="button" type="button" onclick={addLink}>{tr('Добавить внешний ярлык','Add external shortcut',en)}</button><small>{tr('Без логинов, токенов и секретных путей.','No credentials, tokens or secret paths.',en)}</small></div>{/if}
       {:else if selectedTile}
-        <div class="rf-ws-actions rf-ws-tile-settings"><strong>{title(widgetFor(selectedTile),en)}</strong><input aria-label={tr('Заголовок плитки','Tile title',en)} maxlength="64" placeholder={tr('Заголовок плитки','Tile title',en)} bind:value={tileTitle}/><select aria-label={tr('Акцент плитки','Tile accent',en)} bind:value={tileAccent}>{#each ACCENTS as color}<option value={color}>{({auto:tr('Тема','Theme',en),green:tr('Зелёный','Green',en),blue:tr('Синий','Blue',en),violet:tr('Фиолетовый','Violet',en),amber:tr('Янтарный','Amber',en)})[color]}</option>{/each}</select><select aria-label={tr('Размер плитки','Tile size',en)} disabled={!!selectedTile.locked} value={sizeValue(selectedTile)} onchange={e=>change(s=>({...s,tiles:active.autoAlign===false?fitSize(s.tiles,selectedTile.id,e.currentTarget.value):compactResize(s.tiles,selectedTile.id,e.currentTarget.value)}))}>{#each sizeOptions(selectedTile) as size}<option value={size}>{sizeLabel(selectedTile,size)}</option>{/each}</select>{#if canExpand(widgetFor(selectedTile))}<label>{tr('Ширина раскрытой','Expanded width',en)}<select aria-label={tr('Ширина раскрытой','Expanded width',en)} disabled={!!selectedTile.locked} value={selectedTile.expandedWidth||dimensions(selectedTile.size)[0]} onchange={e=>change(s=>({...s,tiles:s.tiles.map(t=>t.id===selectedTile.id?{...t,expandedWidth:Number(e.currentTarget.value)}:t)}))}>{#each [1,2,4] as width}<option value={width}>{width}</option>{/each}</select></label>{/if}
+        <div class="rf-ws-actions rf-ws-tile-settings"><strong>{title(widgetFor(selectedTile),en)}</strong><input aria-label={tr('Заголовок плитки','Tile title',en)} maxlength="64" placeholder={tr('Заголовок плитки','Tile title',en)} bind:value={tileTitle}/><select aria-label={tr('Акцент плитки','Tile accent',en)} bind:value={tileAccent}>{#each ACCENTS as color}<option value={color}>{({auto:tr('Тема','Theme',en),green:tr('Зелёный','Green',en),blue:tr('Синий','Blue',en),violet:tr('Фиолетовый','Violet',en),amber:tr('Янтарный','Amber',en)})[color]}</option>{/each}</select><small class="rf-ws-size-hint">{tr('Размер — за угол карточки','Resize by the card corner',en)}</small>
         <label><input type="checkbox" checked={!!selectedTile.locked} onchange={e=>change(s=>({...s,tiles:s.tiles.map(t=>t.id===selectedTile.id?{...t,locked:e.currentTarget.checked}:t)}))}/> {tr('Закрепить от ручного перемещения','Lock manual movement',en)}</label><label><input type="checkbox" bind:checked={tileDetail} data-detail-toggle/> {tr('Подробности','Details',en)}</label><button class="button primary" type="button" onclick={saveTile}>{tr('Сохранить плитку','Save tile',en)}</button><button class="button" type="button" onclick={()=>{const id=selected;selected='';remove(id);}}>{tr('Удалить плитку','Remove tile',en)}</button><button class="button" type="button" onclick={closeSettings}>{tr('Закрыть','Close',en)}</button></div>
       {/if}
     </div>
@@ -289,7 +297,7 @@
         {/if}
           </div>
         {/if}
-        {#if editing && columns>=2 && w.type!=='panel' && !tile.locked}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} onpointerdown={e=>beginPointer(e,tile,'resize')}>◢</button>{/if}
+        {#if editing && !tile.locked && (columns>=2||w.type==='metric'&&!tile.expanded)}<button type="button" class="rf-ws-resize" aria-label={tr('Изменить размер за угол','Resize by corner',en)+' '+label} title={tr('Потяни за угол; стрелки клавиатуры меняют размер','Drag the corner; arrow keys resize',en)} onpointerdown={e=>beginPointer(e,tile,'resize')} onkeydown={e=>resizeKey(e,tile)}>◢</button>{/if}
       </article>
     {:else}<div class="rf-ws-message">{tr('Добавьте первую плитку в режиме настройки.','Add your first tile in customize mode.',en)}</div>{/each}
     {#if preview}<div class="rf-ws-preview" style={positionStyle(preview)} aria-hidden="true"></div>{/if}
@@ -318,7 +326,7 @@
   @container (max-width:220px){.rf-ws-tile[data-size='2x1'] .rf-ws-metric-body:has(.rf-ws-chart){display:flex}.rf-ws-tile[data-size='2x1'] .rf-ws-chart{height:0;flex:1 1 18px;align-self:stretch}.rf-ws-link{padding:8px;gap:4px}.rf-ws-label{font-size:11px}.rf-ws-traffic-values{gap:3px 6px}.rf-ws-panel-content{padding:7px}.rf-ws-module-list{grid-template-columns:1fr}}
   @media(max-width:420px){.rf-ws-toolbar select{width:100%}}
   .rf-ws-grid,.rf-ws-grid.compact{grid-auto-rows:56px;align-items:stretch}
-  .rf-ws-tile.info-tile{align-self:start;height:auto;min-height:0;overflow:visible}
+  .rf-ws-tile.info-tile{align-self:stretch;height:auto;min-height:0;overflow:visible}
   .rf-ws-panel-content{flex:none;overflow:visible;padding:9px;gap:5px}
   .rf-ws-panel-head.rf-ws-more{width:100%;display:flex;text-align:left;align-items:center;color:var(--text);font-size:13px;padding:2px 0;gap:9px}
   .rf-ws-panel-head strong{flex:1;min-width:0;overflow-wrap:anywhere}.rf-ws-chevron{font-size:18px;line-height:1;color:var(--muted)!important}
@@ -336,11 +344,26 @@
   .rf-ws-plot.large{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(42px,1fr) auto;gap:3px 7px}.rf-ws-plot.large .rf-ws-plot-axis{grid-column:1;grid-row:1;flex-direction:column;justify-content:space-between;align-items:flex-end}.rf-ws-plot.large .rf-ws-chart{grid-column:2;grid-row:1;height:100%;min-height:42px}.rf-ws-plot.large .rf-ws-plot-time{grid-column:2;grid-row:2}.rf-ws-plot.large .rf-ws-plot-tooltip{max-width:85%}
   .rf-ws-grid[data-density='compact']{grid-auto-rows:50px}.rf-ws-grid[data-density='large']{grid-auto-rows:72px}
   .rf-ws-metric-shell{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0}
-  .rf-ws-tile.expanded-tile{height:auto;align-self:start;overflow:visible}.expanded-tile .rf-ws-metric-shell{flex:none}.expanded-tile .rf-ws-link{flex:none;min-height:0;padding:10px 12px;gap:8px;justify-content:flex-start;overflow:visible}.expanded-tile .rf-ws-metric-body{display:flex!important;flex:none;min-height:0;gap:4px;justify-content:flex-start}.expanded-tile .rf-ws-expanded-metric{gap:8px;padding:10px 12px}.expanded-tile .rf-ws-expanded-rows{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}.expanded-tile .rf-ws-expanded-rows span{background:transparent;border-bottom:1px solid var(--border);padding:4px 0}.expanded-tile .rf-ws-expanded-metric .rf-ws-plot.large{height:132px;min-height:132px;flex:none;display:flex;grid-column:auto;grid-row:auto;align-self:stretch}.rf-ws-grid.editing .rf-ws-metric-expand{right:32px;z-index:4}.rf-ws-grid.editing .rf-ws-panel-head{padding-right:30px;position:relative;z-index:3}.rf-ws-grid.editing .rf-ws-tile.expandable .rf-ws-label{padding-right:50px}.rf-ws-grid.editing .expanded-tile .rf-ws-controls.rf-ws-handle{inset:4px 4px auto auto;width:26px;height:26px;padding:0}.rf-ws-grid.editing .expanded-tile .rf-ws-resize{z-index:4}.rf-ws-tile[data-widget='thermal'][data-accent='auto']{--tile-accent:#e8b663}
+  .rf-ws-tile.expanded-tile{height:auto;align-self:stretch;overflow:visible}.expanded-tile .rf-ws-metric-shell{flex:none}.expanded-tile .rf-ws-link{flex:none;min-height:0;padding:10px 12px;gap:8px;justify-content:flex-start;overflow:visible}.expanded-tile .rf-ws-metric-body{display:flex!important;flex:none;min-height:0;gap:4px;justify-content:flex-start}.expanded-tile .rf-ws-expanded-metric{gap:8px;padding:10px 12px}.expanded-tile .rf-ws-expanded-rows{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}.expanded-tile .rf-ws-expanded-rows span{background:transparent;border-bottom:1px solid var(--border);padding:4px 0}.expanded-tile .rf-ws-expanded-metric .rf-ws-plot.large{height:132px;min-height:132px;flex:none;display:grid;grid-column:auto;grid-row:auto;align-self:stretch}.rf-ws-grid.editing .rf-ws-metric-expand{right:32px;z-index:4}.rf-ws-grid.editing .rf-ws-panel-head{padding-right:30px;position:relative;z-index:3}.rf-ws-grid.editing .rf-ws-tile.expandable .rf-ws-label{padding-right:50px}.rf-ws-grid.editing .expanded-tile .rf-ws-controls.rf-ws-handle{inset:4px 4px auto auto;width:26px;height:26px;padding:0}.rf-ws-grid.editing .expanded-tile .rf-ws-resize{z-index:4}.rf-ws-tile[data-widget='thermal'][data-accent='auto']{--tile-accent:#e8b663}
   .rf-ws-grid.editing .rf-ws-tile.info-tile .rf-ws-panel-head{width:calc(100% - 28px);padding-right:0}.rf-ws-grid.editing .rf-ws-tile.info-tile .rf-ws-controls.rf-ws-handle{inset:4px 4px auto auto;width:26px;height:26px;padding:0}
   .rf-ws-grid[data-density='compact'] .rf-ws-link{padding:6px 8px;gap:3px}.rf-ws-grid[data-density='compact'] .rf-ws-value{font-size:clamp(15px,8cqi,24px)}.rf-ws-grid[data-density='compact'] .rf-ws-metric-body{gap:3px}
   .rf-ws-grid.editing .rf-ws-tile.expandable .rf-ws-metric-expand{right:33px}.rf-ws-tile .rf-ws-plot.large .rf-ws-plot-axis{line-height:1.2}.rf-ws-tile.expanded-tile .rf-ws-plot .rf-ws-chart{min-height:60px}
   .rf-ws-editor.tile-editor{position:sticky;top:8px;z-index:6;box-shadow:0 4px 14px #0003}
   .rf-ws-grid.editing .rf-ws-tile.expanded-tile .rf-ws-metric-expand{right:32px}
   .rf-ws-detail-row{display:flex;align-items:center;gap:7px;min-width:0;border-bottom:1px solid var(--border);padding:3px 0;font-size:11px}.rf-ws-detail-row>span{flex:1;min-width:0;border:0!important}.rf-ws-detail-row .rf-ws-meter{flex:1;min-width:20px}.rf-ws-detail-row b{font-size:10px;white-space:nowrap}.rf-ws-status-dot{color:var(--good)}.rf-ws-status-dot[data-state='DOWN']{color:var(--bad)}.rf-ws-status-dot[data-state='DEGRADED']{color:var(--warn)}
+  /* E15W.10: one grid rhythm, one resize gesture, one settings panel. */
+  .rf-ws-settings-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .rf-ws-layout-settings{padding-bottom:9px;border-bottom:1px solid var(--border)}
+  .rf-ws-editbar{align-items:center;gap:6px}.rf-ws-editbar small{font-size:11px;min-width:0}
+  .rf-ws-size-hint{color:var(--muted);font-size:11px}
+  .rf-ws-tile{box-sizing:border-box}.rf-ws-panel-content,.expanded-tile .rf-ws-metric-shell{flex:none;min-height:0}
+  .rf-ws-tile.expanded-tile .rf-ws-expanded-metric .rf-ws-plot.large{display:grid;grid-template-columns:minmax(22px,auto) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;height:132px;min-height:132px;gap:4px 7px}
+  .rf-ws-tile.expanded-tile .rf-ws-plot.large .rf-ws-chart{height:100%;min-height:0;width:100%;align-self:stretch}
+  .rf-ws-plot.large .rf-ws-plot-axis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;white-space:nowrap;font-size:10px}
+  .rf-ws-plot.large .rf-ws-plot-time{min-width:0;font-size:10px}
+  .rf-ws-plot-tooltip{top:5px;right:5px;max-width:70%;white-space:normal}
+  .rf-ws-grid.editing .rf-ws-resize{width:28px;height:28px;display:grid;place-items:center;right:0;bottom:0;cursor:nwse-resize;z-index:5}
+  .rf-ws-grid.editing .rf-ws-tile.shortcut .rf-ws-link{padding-right:33px}
+  .rf-ws-tile .rf-ws-value{font-size:clamp(17px,8cqi,26px)}
+  @media(max-width:480px){.rf-ws-editbar small{flex-basis:100%}.rf-ws-grid.editing .rf-ws-resize{width:32px;height:32px}}
 </style>

@@ -2,7 +2,7 @@
 export const STORAGE_KEY = 'routerforge:workspace:v1';
 const metric = ['1x1','2x1','2x2','4x2'];
 const shortcut = ['1x1','2x1'];
-const panel = ['2x2','4x2','4x4'];
+const panel = ['1x1','2x2','4x2','4x4'];
 const w = (id, owner, ru, en, icon, sizes, size, type, route, source) => Object.freeze({id,owner,ru,en,icon,sizes:Object.freeze([...sizes]),size,type,route,source});
 export const WIDGETS = Object.freeze([
  w('cpu','monitoring','Процессор','Processor','CPU',metric,'1x1','metric','/monitoring?tab=system','overview.cpu'),
@@ -185,4 +185,18 @@ export function moveFree(tiles,cols,id,x,y){
  const locked=base.filter(t=>t.id!==id&&t.locked);if(locked.some(t=>hit(t,moved)))return tiles.slice();
  const placed=[...locked,moved];for(const t of base.filter(t=>t.id!==id&&!t.locked)){let y=t.y;while(placed.some(o=>hit({...t,y},o)))y=Math.max(y+1,...placed.filter(o=>hit({...t,y},o)).map(o=>o.y+o.h));if(y>1023)return tiles.slice();placed.push({...t,y});}
  return tiles.map(t=>{const a=placed.find(p=>p.id===t.id);return {...t,anchors:{...t.anchors,[cols]:{x:a.x,y:a.y}}};});
+}
+
+// Width choices are independent of the collapsed size/height. Never use nearestSize for an expanded card.
+export function resizeWidth(width,cols){
+ const choices=[1,2,4].filter(w=>w<=cols);return choices.reduce((best,w)=>Math.abs(w-width)<Math.abs(best-width)?w:best,choices[0]);
+}
+export function resizeChoice(tile,dx,dy,cols){
+ const widget=widgetFor(tile);if(tile.expanded&&canExpand(widget))return resizeWidth(tile.w+dx,cols);
+ if(widget.type==='panel'){const w=resizeWidth(tile.w+dx,cols);return w===1?'1x1':w===2?'2x2':'4x2';}
+ const [,h]=dimensions(tile.size),targetW=resizeWidth(tile.w+dx,cols),targetH=Math.max(1,h+Math.round(dy/2));
+ // First choose a supported width, then the nearest height within that width.
+ const sizes=widget.sizes.filter(s=>dimensions(s)[0]<=cols);const choices=sizes.length?sizes:widget.sizes;
+ const score=s=>{const [w,r]=dimensions(s);return Math.abs(w-targetW)*100+Math.abs(r-targetH);};
+ return choices.reduce((best,s)=>score(s)<score(best)?s:best,choices[0]);
 }

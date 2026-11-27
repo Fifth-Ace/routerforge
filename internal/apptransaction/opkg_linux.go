@@ -7,12 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 // VerifiedOPKG is an update-only adapter. It does not expose an HTTP endpoint
@@ -84,7 +85,10 @@ func (b *opkgOutput) Write(p []byte) (int, error) {
 func (a *VerifiedOPKG) status(ctx context.Context, p Package) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, a.executable, "status", p.Name)
+	cmd, err := safety.CommandContext(ctx, a.executable, "status", p.Name)
+	if err != nil {
+		return "", err
+	}
 	var out opkgOutput
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
@@ -217,7 +221,10 @@ func (a *VerifiedOPKG) Install(ctx context.Context, p Package) error {
 	// replacement. Root is trusted. Keep the cooperative lease in the child as
 	// well: if the worker dies, opkg retains it until its last inherited copy
 	// closes. Hardware acceptance must check lifecycle scripts for FD leaks.
-	cmd := exec.Command(a.executable, "install", path)
+	cmd, err := safety.CommandContext(context.Background(), a.executable, "install", path)
+	if err != nil {
+		return err
+	}
 	cmd.ExtraFiles = []*os.File{a.lease}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

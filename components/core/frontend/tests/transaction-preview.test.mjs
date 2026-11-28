@@ -95,3 +95,20 @@ test('archived history details preserve real log and refuse mismatched identity'
   assert.throws(()=>transactionHistoryDetail(job,{slot:{plan:{id:'b'}}}));
   assert.equal(transactionHistoryDetail(job,{...detail,log_available:false}).log_available,false);
 });
+
+test('full byte count is finalizing, not completed or still downloading',async()=>{
+  const {downloadStats,progressRows}=await import('../src/lib/transaction-preview.js');
+  const slot={state:'preparing',plan:{id:'q',packages:[{name:'routerforge-dns',size:100}]},journal:{downloaded:0,next:0}};
+  const entry={id:'q',name:'routerforge-dns',bytes:100,rate:500,source:'GitHub'};
+  for(const state of ['downloading','finalizing','checking','staging']){
+    const d=[{...entry,state}]; const stats=downloadStats(slot,d);
+    assert.equal(stats.percent,100);assert.equal(stats.finished,0);assert.equal(stats.rate,0);
+    assert.equal(progressRows(slot,d)[0].state,state==='downloading'?'finalizing':state);
+  }
+  const done=[{...entry,state:'downloaded'}];
+  assert.equal(downloadStats(slot,done).finished,1);
+  assert.equal(progressRows(slot,done)[0].state,'downloaded');
+  const partial=[{...entry,state:'downloading',bytes:50}];
+  assert.equal(downloadStats(slot,partial).rate,500);
+  assert.equal(progressRows(slot,partial)[0].state,'downloading');
+});

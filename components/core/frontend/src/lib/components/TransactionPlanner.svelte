@@ -7,8 +7,8 @@
   import { updateIndicatorState } from '$lib/app-center-ux.js';
   export let locale='ru';
   const words={
-    ru:{title:'Обновление RouterForge',history:'История обновлений',collapse:'Свернуть',logs:'Технический журнал',queued:'В очереди',preparing:'Загрузка',downloading:'Загрузка',downloaded:'Загружен',prepared:'Пакеты проверены',applying:'Установка',verifying:'Проверка',completed:'Готово',failed:'Ошибка',cancelled:'Остановлено',recovery_required:'Прервано',busy:'Занято',idle:'Нет операций',loading:'Подготовка обновления',stale:'Связь с Core потеряна. Ожидаем восстановления…',unconfirmed:'Запуск не подтверждён. Проверьте состояние; автоматически не повторяем.',installed:'Обновлено',download:'Загрузка',install:'Установка',verify:'Проверка',done:'Готово',noLog:'Журнал пока пуст',empty:'Нет записей',refresh:'Обновить статус'},
-    en:{title:'RouterForge update',history:'Update history',collapse:'Minimize',logs:'Technical log',queued:'Queued',preparing:'Downloading',downloading:'Downloading',downloaded:'Downloaded',prepared:'Packages verified',applying:'Installing',verifying:'Verifying',completed:'Completed',failed:'Failed',cancelled:'Stopped',recovery_required:'Interrupted',busy:'Busy',idle:'No updates',loading:'Preparing update',stale:'Core connection lost. Waiting for it to return…',unconfirmed:'Start not confirmed. Check status; no automatic retry.',installed:'Updated',download:'Download',install:'Install',verify:'Verify',done:'Done',noLog:'No log yet',empty:'No records',refresh:'Refresh status'}
+    ru:{title:'Обновление RouterForge',history:'История обновлений',collapse:'Свернуть',logs:'Технический журнал',queued:'В очереди',preparing:'Загрузка',downloading:'Загрузка',finalizing:'Завершение загрузки',checking:'Проверка файла',staging:'Подготовка файла',downloaded:'Загружен',prepared:'Пакеты проверены',applying:'Установка',verifying:'Проверка',completed:'Готово',failed:'Ошибка',cancelled:'Остановлено',recovery_required:'Прервано',busy:'Занято',idle:'Нет операций',loading:'Подготовка обновления',stale:'Связь с Core потеряна. Ожидаем восстановления…',unconfirmed:'Запуск не подтверждён. Проверьте состояние; автоматически не повторяем.',installed:'Обновлено',download:'Загрузка',install:'Установка',verify:'Проверка',done:'Готово',noLog:'Журнал пока пуст',empty:'Нет записей',refresh:'Обновить статус'},
+    en:{title:'RouterForge update',history:'Update history',collapse:'Minimize',logs:'Technical log',queued:'Queued',preparing:'Downloading',downloading:'Downloading',finalizing:'Finishing download',checking:'Checking file',staging:'Preparing file',downloaded:'Downloaded',prepared:'Packages verified',applying:'Installing',verifying:'Verifying',completed:'Completed',failed:'Failed',cancelled:'Stopped',recovery_required:'Interrupted',busy:'Busy',idle:'No updates',loading:'Preparing update',stale:'Core connection lost. Waiting for it to return…',unconfirmed:'Start not confirmed. Check status; no automatic retry.',installed:'Updated',download:'Download',install:'Install',verify:'Verify',done:'Done',noLog:'No log yet',empty:'No records',refresh:'Refresh status'}
   };
   $: w=words[locale] || words.en;
   $: slot=$appUpdates.snapshot?.slot;
@@ -78,8 +78,8 @@
       {#if progress.total}
         <div class="rf-progress-group">
           <div class="rf-progress-label"><strong>{w.download}</strong><strong>{downloads.percent}%</strong></div>
-          <div class="rf-track" role="progressbar" aria-label={w.download} aria-valuemin={0} aria-valuemax={100} aria-valuenow={downloads.percent}><i class:flow={downloading} style={`width:${downloads.percent}%`}></i></div>
-          <div class="rf-progress-caption"><span>{#if downloads.total>0}{sizeText(downloads.bytes)} / {sizeText(downloads.total)} · {downloads.finished}/{progress.total}{:else}{locale==='ru'?'Ожидание загрузки':'Waiting for download'}{/if}</span>{#if downloading}<span>{locale==='ru'?'Средняя: ':'Avg: '}{sizeText(downloads.rate)}/{locale==='ru'?'с':'s'}</span>{/if}</div>
+          <div class="rf-track" role="progressbar" aria-label={w.download} aria-valuemin={0} aria-valuemax={100} aria-valuenow={downloads.percent}><i class:flow={downloading && downloads.percent<100} style={`width:${downloads.percent}%`}></i></div>
+          <div class="rf-progress-caption"><span>{#if downloads.total>0}{sizeText(downloads.bytes)} / {sizeText(downloads.total)} · {downloads.finished}/{progress.total}{:else}{locale==='ru'?'Ожидание загрузки':'Waiting for download'}{/if}</span>{#if downloading && downloads.rate>0}<span>{locale==='ru'?'Средняя: ':'Avg: '}{sizeText(downloads.rate)}/{locale==='ru'?'с':'s'}</span>{:else if downloading && downloads.percent===100 && downloads.finished<progress.total}<span>{locale==='ru'?'Завершение обработки файлов':'Finalizing files'}</span>{/if}</div>
         </div>
         <div class="rf-progress-group">
           <div class="rf-progress-label"><strong>{w.install}</strong><strong>{progress.verified}/{progress.total} · {percent}%</strong></div>
@@ -89,10 +89,10 @@
       {/if}
       <div class="rf-package-list">
         {#each rows as row (row.name)}
-          <div class="rf-package-row" class:current={['downloading','applying','verifying'].includes(row.state)}>
-            <span class="rf-package-icon" class:done={['completed','downloaded'].includes(row.state)} class:error={row.state==='failed'}>{#if ['downloading','applying','verifying'].includes(row.state)}<span class="rf-spinner"></span>{:else}{['completed','downloaded'].includes(row.state)?'✓':row.state==='failed'?'×':'○'}{/if}</span>
+          <div class="rf-package-row" class:current={['downloading','finalizing','checking','staging','applying','verifying'].includes(row.state)}>
+            <span class="rf-package-icon" class:done={['completed','downloaded'].includes(row.state)} class:error={row.state==='failed'}>{#if ['downloading','finalizing','checking','staging','applying','verifying'].includes(row.state)}<span class="rf-spinner"></span>{:else}{['completed','downloaded'].includes(row.state)?'✓':row.state==='failed'?'×':'○'}{/if}</span>
             <div class="rf-package-copy"><div><strong>{title(row.name)}</strong> <small>{shortVersion(row.version)}</small></div>
-              {#if row.state==='downloading'}<div class="rf-track sub" role="progressbar" aria-label={title(row.name)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={rowPercent(row)}><i class="flow" style={`width:${rowPercent(row)}%`}></i></div>{/if}
+              {#if row.state==='downloading' && rowPercent(row)<100}<div class="rf-track sub" role="progressbar" aria-label={title(row.name)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={rowPercent(row)}><i class="flow" style={`width:${rowPercent(row)}%`}></i></div>{/if}
             </div>
             <span class="rf-package-state" class:done={['completed','downloaded'].includes(row.state)} class:error={row.state==='failed'}>{#if row.state==='downloading'}{rowPercent(row)}% <small>{row.source || ''}</small>{:else}{row.state==='completed'?w.installed:w[row.state] || row.state}{/if}</span>
           </div>

@@ -52,7 +52,10 @@ export function downloadStats(slot, downloads = []) {
     const size=Number(p.size)||0;
     const d=map.get(p.name);
     const done=allDownloaded || d?.state==='downloaded' || (!map.size && i<(slot?.journal?.downloaded||0));
-    return {...p,bytes:done?size:Math.max(0,Math.min(size,Number(d?.bytes)||0)),downloadState:done?'downloaded':d?.state||'queued',source:d?.source||'',rate:!done && d?.state==='downloading'?Math.max(0,Number(d.rate)||0):0};
+    const received=done?size:Math.max(0,Math.min(size,Number(d?.bytes)||0));
+    // Older workers report downloading at full size until their file is published.
+    const state=done?'downloaded':d?.state==='downloading' && size>0 && received===size?'finalizing':d?.state||'queued';
+    return {...p,bytes:received,downloadState:state,source:d?.source||'',rate:state==='downloading'?Math.max(0,Number(d?.rate)||0):0};
   });
   const bytes=rows.reduce((n,p)=>n+p.bytes,0), total=rows.reduce((n,p)=>n+(Number(p.size)||0),0);
   return {rows,bytes,total,rate:rows.reduce((n,p)=>n+p.rate,0),percent:total?Math.floor(100*bytes/total):0,finished:rows.filter(p=>p.downloadState==='downloaded').length};

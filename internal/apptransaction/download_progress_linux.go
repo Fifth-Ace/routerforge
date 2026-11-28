@@ -25,17 +25,17 @@ type DownloadProgress struct {
 }
 
 type downloadWriter struct {
-	w             io.Writer
-	p             Package
-	report        func(Package, DownloadProgress)
-	source        string
-	started, last time.Time
-	n             int64
+	w                       io.Writer
+	p                       Package
+	report                  func(Package, DownloadProgress)
+	source                  string
+	started, last, lastByte time.Time
+	n                       int64
 }
 
 func (w *downloadWriter) emit(state string) {
 	rate := int64(0)
-	if elapsed := time.Since(w.started).Seconds(); elapsed > 0.1 {
+	if elapsed := time.Since(w.started).Seconds(); state == "downloading" && elapsed > 0.1 {
 		rate = int64(float64(w.n) / elapsed)
 	}
 	w.report(w.p, DownloadProgress{State: state, Bytes: w.n, Source: w.source, Rate: rate})
@@ -44,7 +44,10 @@ func (w *downloadWriter) emit(state string) {
 func (w *downloadWriter) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
 	w.n += int64(n)
-	if time.Since(w.last) >= 250*time.Millisecond || w.n >= w.p.Size {
+	if err == nil && w.n == w.p.Size {
+		w.lastByte = time.Now()
+		w.emit("finalizing")
+	} else if time.Since(w.last) >= 250*time.Millisecond {
 		w.emit("downloading")
 	}
 	return n, err

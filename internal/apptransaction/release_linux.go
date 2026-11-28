@@ -264,6 +264,8 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 	defer os.Remove(f.Name())
 	var source string
 	var last error
+	var progress *downloadWriter
+	var httpMS, eofMS, checkMS int64
 	for _, candidate := range releasetransport.Candidates("routerforge-dev", p.Asset) {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -274,6 +276,8 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
+		httpStarted := time.Now()
+		progress = nil
 		h := sha256.New()
 		writer := io.MultiWriter(f, h)
 		if a.report != nil {
@@ -281,16 +285,27 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 			if releasetransport.IsMirror(candidate) {
 				sourceName = "Forgejo"
 			}
-			pw := &downloadWriter{w: writer, p: p, report: a.report, source: sourceName, started: time.Now()}
-			pw.emit("downloading")
-			writer = pw
+			progress = &downloadWriter{w: writer, p: p, report: a.report, source: sourceName, started: httpStarted}
+			progress.emit("downloading")
+			writer = progress
 		}
 		n, err := fetchRelease(ctx, a.client, candidate, p.Size, writer)
+		httpMS = time.Since(httpStarted).Milliseconds()
+		eofMS = 0
+		if progress != nil && !progress.lastByte.IsZero() {
+			eofMS = time.Since(progress.lastByte).Milliseconds()
+		}
 		if err != nil {
 			last = err
 			continue
 		}
-		if n != p.Size || hex.EncodeToString(h.Sum(nil)) != p.SHA256 {
+		checkStarted := time.Now()
+		if progress != nil {
+			progress.emit("checking")
+		}
+		valid := n == p.Size && hex.EncodeToString(h.Sum(nil)) == p.SHA256
+		checkMS = time.Since(checkStarted).Milliseconds()
+		if !valid {
 			last = fmt.Errorf("asset integrity mismatch: %s", p.Name)
 			continue
 		}
@@ -300,8 +315,19 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 	if source == "" {
 		return fmt.Errorf("verified asset unavailable: %s: %w", p.Name, last)
 	}
-	if err = f.Sync(); err != nil {
-		return err
+	stageStarted := time.Now()
+	if progress != nil {
+		progress.emit("staging")
+	}
+	// The normal App Center uses disposable, verified download staging.
+	// A crash never resumes an install from this cache; OPKG still receives
+	// a freshly checked descriptor. Keep durable journals and the older
+	// non-reporting staging contract intact, but avoid forcing flash writes
+	// twice per temporary IPK on the normal path.
+	if a.report == nil {
+		if err = f.Sync(); err != nil {
+			return err
+		}
 	}
 	if err = f.Close(); err != nil {
 		return err
@@ -313,19 +339,20 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 	if err = os.Remove(f.Name()); err != nil {
 		return err
 	}
-	d, err := os.Open(a.store.dir)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	if err = d.Sync(); err != nil {
-		return err
-	}
 	if a.report == nil {
+		d, err := os.Open(a.store.dir)
+		if err != nil {
+			return err
+		}
+		defer d.Close()
+		if err = d.Sync(); err != nil {
+			return err
+		}
 		if err := a.Check(ctx, p); err != nil {
 			return err
 		}
 	}
+	fmt.Printf("DOWNLOAD_TIMING %s http_ms=%d eof_ms=%d check_ms=%d staging_ms=%d\n", p.Name, httpMS, eofMS, checkMS, time.Since(stageStarted).Milliseconds())
 	fmt.Printf("RF_APP_TRANSACTION_DOWNLOAD: package=%s source=%s\n", p.Name, source)
 	return nil
 }

@@ -69,23 +69,39 @@ func startOptionalProfiling() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	_ = startProfilingListener(&profilingState, server)
+}
+
+// Bind synchronously: a goroutine that has not acquired its listener is not a
+// running profiling service. Keep failure observable without stopping Core.
+func startProfilingListener(state *profilingRuntime, server *http.Server) error {
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		state.mu.Lock()
+		state.Running = false
+		state.StartedAt = time.Time{}
+		state.Error = err.Error()
+		state.mu.Unlock()
+		log.Printf("profiling listener failed: %v", err)
+		return err
+	}
+	state.mu.Lock()
+	state.Running = true
+	state.StartedAt = time.Now()
+	state.Error = ""
+	state.mu.Unlock()
+	log.Printf("profiling listener enabled on %s", listener.Addr())
 	go func() {
-		profilingState.mu.Lock()
-		profilingState.Running = true
-		profilingState.StartedAt = time.Now()
-		profilingState.mu.Unlock()
-
-		log.Printf("profiling listener enabled on %s", listen)
-		err := server.ListenAndServe()
-
-		profilingState.mu.Lock()
-		profilingState.Running = false
+		err := server.Serve(listener)
+		state.mu.Lock()
+		state.Running = false
 		if err != nil && err != http.ErrServerClosed {
-			profilingState.Error = err.Error()
+			state.Error = err.Error()
 			log.Printf("profiling listener failed: %v", err)
 		}
-		profilingState.mu.Unlock()
+		state.mu.Unlock()
 	}()
+	return nil
 }
 
 func readProfilingConfig() (string, int) {

@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/apptransaction"
 	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
@@ -381,6 +382,30 @@ func protectedProcessMutation(pid int, info processInfo) bool {
 	return strings.Contains(corpus, "routerforge") || strings.Contains(corpus, "dns-monitor")
 }
 
+// Gate only these existing explicit process/service mutation handlers, after
+// input validation and before target observation. Read-only routes and shell
+// administration keep their existing contract. The shared lease applies only
+// to Dev ARM64, as in the Admin watchdog path.
+func adminPackageMutationAdmission(w http.ResponseWriter, acquire func() (func(), error)) (func(), bool) {
+	release, err := acquire()
+	if err != nil || release == nil {
+		status := http.StatusServiceUnavailable
+		if errors.Is(err, apptransaction.ErrBusy) || errors.Is(err, apptransaction.ErrRecovery) {
+			status = http.StatusConflict
+		}
+		writeJSON(w, status, map[string]any{"error": "package mutation admission denied"})
+		return nil, false
+	}
+	return release, true
+}
+func acquireAdminPackageMutation() (func(), error) {
+	lease, err := apptransaction.AcquireDevicePackageLease(version)
+	if err != nil {
+		return nil, err
+	}
+	return lease.Close, nil
+}
+
 func handleProcessSignal(w http.ResponseWriter, r *http.Request) {
 	pid, ok := parseProcessSignalPath(r.URL.Path)
 	if !ok {
@@ -401,6 +426,11 @@ func handleProcessSignal(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unsupported signal; allowed: TERM, HUP, INT, KILL"})
 		return
 	}
+	release, admitted := adminPackageMutationAdmission(w, acquireAdminPackageMutation)
+	if !admitted {
+		return
+	}
+	defer release()
 	before, exists := readProcessByPID(pid)
 	if !exists {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "process not found"})
@@ -516,6 +546,11 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unsupported service action; allowed: start, stop, restart"})
 		return
 	}
+	release, admitted := adminPackageMutationAdmission(w, acquireAdminPackageMutation)
+	if !admitted {
+		return
+	}
+	defer release()
 	before, exists := readServiceByID(id)
 	if !exists {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "service not found"})

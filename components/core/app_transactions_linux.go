@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"runtime"
 	"strings"
@@ -38,6 +39,31 @@ func initCoreAppTransactions() {
 		log.Printf("RF_APP_TRANSACTION: admission unavailable: %v", coreTransactionIntegration.err)
 	}
 }
+
+// The existing TCP listener must bind successfully before exposing a local
+// lifecycle candidate. The evidence socket is not a public route or worker API.
+func serveCoreHTTPWithEvidence(server *http.Server, build string) error {
+	if !coreTransactionIntegration.enabled || coreTransactionIntegration.coordinator == nil {
+		return server.ListenAndServe()
+	}
+	addr := server.Addr
+	if addr == "" {
+		addr = ":http"
+	}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	evidence, err := apptransaction.StartCoreLifecycleEvidence(build, profilingStatusSnapshot)
+	if err != nil {
+		log.Printf("RF_APP_TRANSACTION: native core evidence unavailable: %v", err)
+	} else {
+		defer evidence.Close()
+	}
+	return server.Serve(listener)
+}
+
 func acquireCorePackageMutation() (func(), error) {
 	return coreTransactionIntegration.acquire()
 }

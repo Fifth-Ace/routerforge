@@ -94,7 +94,7 @@ func probeNativeEndpoint(ctx context.Context, socket, binary string, uid uint32,
 		return out, errors.New("missing native endpoint identity")
 	}
 	switch endpoint {
-	case "/v1/health", "/v1/startup", "/v1/service/status":
+	case "/v1/health", "/v1/startup", "/v1/service/status", coreEvidencePath:
 	default:
 		return out, errors.New("unsupported native read-only endpoint")
 	}

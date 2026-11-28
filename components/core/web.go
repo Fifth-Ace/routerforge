@@ -453,5 +453,5 @@ func startWeb(listen string, version string) error {
 		listen,
 		profiledHTTPHandler(auth.middleware(mux)),
 	)
-	return server.ListenAndServe()
+	return serveCoreHTTPWithEvidence(server, version)
 }

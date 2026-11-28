@@ -20,6 +20,7 @@ type LifecycleObservation struct {
 	Enabled        bool   `json:"enabled"`
 	Ready          bool   `json:"ready"`
 	RuntimeVersion string `json:"runtime_version,omitempty"`
+	IntentSHA256   string `json:"intent_sha256,omitempty"`
 }
 
 type LifecycleProbe func(context.Context, Package) (LifecycleObservation, error)
@@ -77,6 +78,18 @@ func (l *lifecycleProof) observe(ctx context.Context, p Package) (lifecycleEvide
 	if err != nil {
 		return lifecycleEvidence{}, err
 	}
+	// Profiling runs inside Core, not a separate executable. Its package version
+	// and the independently installed Core runtime version are distinct evidence.
+	runtimeExpected := v
+	if p.Name == "routerforge-profiling" {
+		if _, err = devRevision(v); err != nil {
+			return lifecycleEvidence{}, err
+		}
+		runtimeExpected, err = l.status(ctx, Package{Name: "routerforge-core"})
+		if err != nil {
+			return lifecycleEvidence{}, err
+		}
+	}
 	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	o, err := l.probe(probeCtx, p)
@@ -86,8 +99,23 @@ func (l *lifecycleProof) observe(ctx context.Context, p Package) (lifecycleEvide
 	if err = probeCtx.Err(); err != nil {
 		return lifecycleEvidence{}, err
 	}
-	if err = validateLifecycleObservation(o, v); err != nil {
+	if err = validateLifecycleObservation(o, runtimeExpected); err != nil {
 		return lifecycleEvidence{}, err
+	}
+	if o.IntentSHA256 != "" && !digest.MatchString(o.IntentSHA256) {
+		return lifecycleEvidence{}, errors.New("invalid lifecycle intent digest")
+	}
+	if specialLifecyclePackage(p.Name) && (o.Mode != "running" || !digest.MatchString(o.IntentSHA256)) {
+		return lifecycleEvidence{}, errors.New("special lifecycle intent not proven")
+	}
+	if p.Name == "routerforge-core" && !o.Enabled {
+		return lifecycleEvidence{}, errors.New("Core running intent not proven")
+	}
+	if p.Name == "routerforge-profiling" {
+		again, err := l.status(ctx, Package{Name: "routerforge-core"})
+		if err != nil || again != runtimeExpected {
+			return lifecycleEvidence{}, errors.New("Core package version drift during Profiling probe")
+		}
 	}
 	// Detect package metadata drift while probing the runtime.
 	again, err := l.status(ctx, p)
@@ -150,7 +178,7 @@ func (l *lifecycleProof) verify(ctx context.Context, p Package) error {
 	if err != nil {
 		return err
 	}
-	if e.InstalledVersion != p.Version || e.Observation.Mode != old.Observation.Mode || e.Observation.Enabled != old.Observation.Enabled {
+	if e.InstalledVersion != p.Version || e.Observation.Mode != old.Observation.Mode || e.Observation.Enabled != old.Observation.Enabled || e.Observation.IntentSHA256 != old.Observation.IntentSHA256 || (p.Name == "routerforge-profiling" && e.Observation.RuntimeVersion != old.Observation.RuntimeVersion) {
 		return fmt.Errorf("installed version or lifecycle intent not preserved: %s", p.Name)
 	}
 	return l.save("after", e)

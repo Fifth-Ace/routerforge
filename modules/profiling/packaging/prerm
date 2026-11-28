@@ -1,4 +1,11 @@
 #!/bin/sh
+# During a verified update the incoming postinst restores the saved marker
+# and restarts Core once. The old package's prerm must not restart it first.
+if [ "${RF_APP_TRANSACTION_LEASE_FD:-}" = 3 ]; then
+    case "${RF_APP_TRANSACTION_PROFILING_INTENT:-}" in
+        on|off) exit 0 ;;
+    esac
+fi
 rm -f /opt/etc/routerforge/profiling.enabled
 if [ -x /opt/etc/init.d/S90routerforge ]; then
     /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true

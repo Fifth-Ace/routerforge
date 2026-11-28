@@ -40,3 +40,13 @@ test('manual new plan after failure does not require management health',()=>{
  assert.deepEqual(updateRows({...slot,state:'verifying',journal:{next:1}}).map(p=>p.state),['completed','verifying']);
  assert.equal(updateRunning({...slot,state:'recovery_required'}),false);
 });
+
+test('parallel download progress counts real bytes not queue positions',async()=>{
+ const {downloadStats,progressRows}=await import('../src/lib/transaction-preview.js');
+ const slot={state:'preparing',plan:{id:'job',packages:[{name:'a',size:100},{name:'b',size:200},{name:'c',size:100}]},journal:{next:0,downloaded:0}};
+ const reports=[{id:'job',name:'b',bytes:200,state:'downloaded'},{id:'job',name:'c',bytes:50,state:'downloading',rate:20},{id:'old',name:'a',bytes:100,state:'downloaded'}];
+ const s=downloadStats(slot,reports);
+ assert.equal(s.bytes,250);assert.equal(s.percent,62);assert.equal(s.rate,20);
+ assert.deepEqual(progressRows(slot,reports).map(x=>x.state),['queued','downloaded','downloading']);
+ assert.equal(downloadStats({...slot,state:'applying'},reports).percent,100);
+});

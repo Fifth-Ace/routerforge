@@ -41,3 +41,30 @@ export function updateRows(slot) {
   return packages.map((p,i)=>({ ...p, state:i<done?'completed':failed?(downloadFailure?(i<downloaded?'downloaded':i===downloaded?'failed':'queued'):(i===done?'failed':'queued')):slot.state==='preparing'?(i<downloaded?'downloaded':i===downloaded?'downloading':'queued'):i===done&&slot.state==='applying'?'applying':i===done&&slot.state==='verifying'?'verifying':'queued' }));
 }
 export function updateRunning(slot){return !!slot && ['queued','preparing','prepared','applying','verifying'].includes(slot.state);}
+
+// Server-reported bytes, never synthetic package percentages. Old journal rows
+// remain readable during the rolling upgrade of Core and Worker.
+export function downloadStats(slot, downloads = []) {
+  const packages=slot?.plan?.packages || [];
+  const map=new Map((downloads || []).filter(r=>r.id===slot?.plan?.id).map(r=>[r.name,r]));
+  const allDownloaded=['prepared','applying','verifying','completed'].includes(slot?.state) || (slot?.journal?.downloaded===packages.length && packages.length>0);
+  const rows=packages.map((p,i)=>{
+    const size=Number(p.size)||0;
+    const d=map.get(p.name);
+    const done=allDownloaded || d?.state==='downloaded' || (!map.size && i<(slot?.journal?.downloaded||0));
+    return {...p,bytes:done?size:Math.max(0,Math.min(size,Number(d?.bytes)||0)),downloadState:done?'downloaded':d?.state||'queued',source:d?.source||'',rate:!done && d?.state==='downloading'?Math.max(0,Number(d.rate)||0):0};
+  });
+  const bytes=rows.reduce((n,p)=>n+p.bytes,0), total=rows.reduce((n,p)=>n+(Number(p.size)||0),0);
+  return {rows,bytes,total,rate:rows.reduce((n,p)=>n+p.rate,0),percent:total?Math.floor(100*bytes/total):0,finished:rows.filter(p=>p.downloadState==='downloaded').length};
+}
+export function progressRows(slot,downloads) {
+  const stats=downloadStats(slot,downloads);
+  const base=updateRows(slot);
+  if (!downloads?.length) return base;
+  return base.map((p,i)=>{
+    const d=stats.rows[i];
+    let state=p.state;
+    if(slot?.state==='preparing' || slot?.journal?.error_code==='prepare_failed') state=d.downloadState;
+    return {...p,...d,state};
+  });
+}

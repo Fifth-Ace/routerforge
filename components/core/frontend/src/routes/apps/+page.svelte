@@ -226,8 +226,14 @@
     return currentLocale === 'ru' ? 'версия —' : 'version —';
   }
 
+  function cardTitle(item) {
+    const names={'routerforge-core':'Core','routerforge-admin':'Control','routerforge-monitoring':'Monitoring','routerforge-dns':'DNS','routerforge-dns-router':'DNS Router','routerforge-network-tools':'Network Tools','routerforge-nfqws-manager':'NFQWS Manager','routerforge-antiscan-manager':'Antiscan Manager','routerforge-crowdsec-manager':'CrowdSec Manager','routerforge-port-access-manager':'Port Access Manager','routerforge-profiling':'Profiling'};
+    if (item.id==='routerforge-core') return 'Core';
+    return names[item.release?.package] || item.name;
+  }
   function acronym(item) {
-    return acronyms[item.id] || String(item.name || 'APP').replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase() || 'APP';
+    const icons={'routerforge-nfqws-manager':'NFQ','routerforge-antiscan-manager':'ANT','routerforge-port-access-manager':'PAM','routerforge-crowdsec-manager':'CRW','routerforge-dns-router':'DR','routerforge-network-tools':'NET'};
+    return icons[item.release?.package] || acronyms[item.id] || String(item.name || 'APP').replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase() || 'APP';
   }
 
   function packageText(item) {
@@ -1421,20 +1427,20 @@
           {@const st = stateInfo(item,locale)}
           {@const ownURL = item.kind === 'module' && item.installed ? moduleURL(item) : ''}
           {@const warning = catalogWarning(item)}
-          <article class="catalog-card catalog-card-compact rf-compact-card" class:update-available={item.update_available}>
+          <article class="catalog-card catalog-card-compact rf-compact-card" class:rf-selected={selectedUpdates.includes(item.id)} class:update-available={item.update_available}>
             <div class="catalog-card-main">
               <div class="catalog-card-head">
                 <div class="catalog-identity">
                   <div class="catalog-icon mono">{acronym(item)}</div>
                   <div>
-                    <h3>{item.name}</h3>
+                    <h3 title={item.name}>{cardTitle(item)}</h3>
                     <span class="mono">{item.publisher?.name || item.source || 'community'} · {catalogCategory(item)}</span>
                   </div>
                 </div>
                 <div class="catalog-state-stack">
                   {#if item.update_available}<span class="state-chip warn">{a(locale,'updateBadge')}</span>{/if}
                   {#if workerMode && tab==='routerforge' && isOfficialRouterForgeUpdate(item)}<input type="checkbox" aria-label={(locale==='ru'?'Выбрать ':'Select ')+item.name} checked={selectedUpdates.includes(item.id)} disabled={updateBusy} onchange={()=>toggleSelected(item.id)} />{/if}
-                  <span class="state-chip {st.cls}">{st.label}</span>
+                  {#if !(item.installed && item.service_running && !item.disabled && hasServiceContract(item))}<span class="state-chip {st.cls}">{st.label}</span>{/if}
                 </div>
               </div>
 
@@ -1443,7 +1449,7 @@
               <div class="catalog-card-meta">
 
                 <span class="catalog-meta-chip mono" class:good={item.update_available}>{catalogVersionText(item, locale).replace(/v1~dev\.(r\d+)\.[a-f0-9]{12}/g,"$1")}</span>
-                {#if hasServiceContract(item)}
+                {#if item.installed && hasServiceContract(item)}
                   <span
                     class="catalog-meta-chip"
                     class:good={item.id === 'routerforge-core' || item.service_running}
@@ -1453,9 +1459,7 @@
                 {/if}
               </div>
 
-              {#if warning}
-                <div class="catalog-action-reason">{warning}</div>
-              {/if}
+
             </div>
 
             <div class="catalog-card-foot compact-foot">
@@ -1490,9 +1494,10 @@
                 {/if}
 
                 <details class="rf-card-more">
-                  <summary aria-label={locale==='ru'?'Дополнительно':'More'}>⋯</summary>
+                  <summary title={warning || (locale==='ru'?'Дополнительно':'More')} aria-label={locale==='ru'?'Дополнительно':'More'}>{#if warning}<span class="rf-warning-mark">!</span>{/if}⋯</summary>
                   <div class="rf-more-actions">
                     <span class="state-chip {trustClass(item)}">{trustLabel(item)}</span>
+                    {#if warning}<div class="catalog-action-reason rf-detail-warning">{warning}</div>{/if}
                 {#if item.installed || item.install?.method || item.project_url}
                   <button class="button" onclick={() => plannerItem = item}>{a(locale,'details')}</button>
                 {/if}
@@ -1531,7 +1536,7 @@
           {/if}
         {/each}
         {#if tab === 'routerforge' && routerForgeServerPreviewMatches(search)}
-          <article class="catalog-card catalog-card-compact rf-server-preview-card" aria-label="RouterForge Server">
+          <article class="catalog-card catalog-card-compact rf-compact-card rf-server-preview-card" aria-label="RouterForge Server">
             <div class="catalog-card-main">
               <div class="catalog-card-head">
                 <div class="catalog-identity">
@@ -1548,14 +1553,14 @@
               <div class="catalog-card-meta">
                 <span class="catalog-meta-chip">Linux / VPS</span>
                 <span class="catalog-meta-chip mono">CLI v1.0.0</span>
-                <span class="catalog-meta-chip">{locale === 'ru' ? 'Подключение: скоро' : 'Pairing: coming soon'}</span>
+
               </div>
             </div>
             <div class="catalog-card-foot compact-foot">
               <div class="catalog-actions">
                 <a class="button" href="/server-hub">{locale === 'ru' ? 'Подробнее' : 'Learn more'}</a>
                 <a class="button compact" target="_blank" rel="noopener noreferrer" href={routerForgeServerPreview.repository}>{locale === 'ru' ? 'Проект' : 'Project'}</a>
-                <button class="button" disabled title={locale === 'ru' ? 'Интеграция ещё не выпущена' : 'Integration is not released'}>{locale === 'ru' ? 'Установка скоро' : 'Install coming soon'}</button>
+
               </div>
             </div>
           </article>
@@ -2475,4 +2480,15 @@
   @media(max-width:1110px){.app-center-page .catalog-grid-v2.rf-compact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:640px){.app-center-page .catalog-grid-v2.rf-compact-grid{grid-template-columns:minmax(0,1fr)}.app-center-page .rf-list-view .rf-compact-card{grid-template-columns:minmax(0,1fr)}}
 
+  .app-center-page .rf-compact-grid .rf-compact-card{min-height:116px;display:flex;flex-direction:column;justify-content:space-between}
+  .app-center-page .catalog-grid-v2.rf-compact-grid{align-items:stretch}
+  .app-center-page .rf-compact-card .catalog-identity h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-center-page .rf-compact-card .catalog-identity{flex:1}
+  .app-center-page .rf-compact-card .catalog-state-stack input{accent-color:var(--rf-good,#52d273);width:16px;height:16px;cursor:pointer}
+  .app-center-page .rf-compact-card.rf-selected{border-color:var(--rf-good,#52d273);background:color-mix(in srgb,var(--rf-panel,var(--panel)) 94%,var(--rf-good,#52d273))}
+  .app-center-page .rf-view-controls .button:disabled{opacity:.55;cursor:not-allowed}
+  .app-center-page .rf-view-controls .button.primary:disabled{background:var(--rf-hover,var(--hover));color:var(--rf-muted,var(--muted))}
+  .app-center-page .rf-warning-mark{color:var(--rf-warn,#f7b955);font-weight:700;margin-right:.2rem}
+  .app-center-page .rf-detail-warning{width:100%;font-size:.72rem;margin:0}
+  .app-center-page .rf-list-view .rf-compact-card{display:grid;min-height:0}
 </style>

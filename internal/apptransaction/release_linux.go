@@ -179,6 +179,7 @@ type Staging struct {
 	store    *Store
 	packages map[string]Package
 	client   *http.Client
+	report   func(Package, DownloadProgress)
 }
 
 func NewStaging(dir string, p Plan) (*Staging, error) {
@@ -274,7 +275,17 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 			return err
 		}
 		h := sha256.New()
-		n, err := fetchRelease(ctx, a.client, candidate, p.Size, io.MultiWriter(f, h))
+		writer := io.MultiWriter(f, h)
+		if a.report != nil {
+			sourceName := "GitHub"
+			if releasetransport.IsMirror(candidate) {
+				sourceName = "Forgejo"
+			}
+			pw := &downloadWriter{w: writer, p: p, report: a.report, source: sourceName, started: time.Now()}
+			pw.emit("downloading")
+			writer = pw
+		}
+		n, err := fetchRelease(ctx, a.client, candidate, p.Size, writer)
 		if err != nil {
 			last = err
 			continue
@@ -310,8 +321,10 @@ func (a *Staging) Prepare(ctx context.Context, p Package) error {
 	if err = d.Sync(); err != nil {
 		return err
 	}
-	if err := a.Check(ctx, p); err != nil {
-		return err
+	if a.report == nil {
+		if err := a.Check(ctx, p); err != nil {
+			return err
+		}
 	}
 	fmt.Printf("RF_APP_TRANSACTION_DOWNLOAD: package=%s source=%s\n", p.Name, source)
 	return nil

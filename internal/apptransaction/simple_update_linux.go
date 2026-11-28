@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 // Use a RouterForge-owned parent if Entware's var belongs to another user.
@@ -148,6 +149,7 @@ func (c *Coordinator) RunSimpleDeviceWorker(ctx context.Context, version string)
 		if err != nil {
 			return nil, err
 		}
+		staging.report = func(pkg Package, progress DownloadProgress) { writeDownloadProgress(dir, p.ID, pkg, progress) }
 		return &simpleUpdateHooks{VerifiedOPKG: adapter, dir: dir, plan: p}, nil
 	})
 }
@@ -160,11 +162,32 @@ type simpleUpdateHooks struct {
 
 func (h *simpleUpdateHooks) Prepare(ctx context.Context, p Package) error {
 	fmt.Println("DOWNLOAD", p.Name)
-	return h.VerifiedOPKG.Prepare(ctx, p)
+	// The OPKG status command itself takes a lock; do not run it in parallel.
+	// Install performs the version admission and exact asset check just before mutation.
+	started := time.Now()
+	err := h.Staging.Prepare(ctx, p)
+	state := "downloaded"
+	n := p.Size
+	if err != nil {
+		state = "failed"
+		n = 0
+	}
+	writeDownloadProgress(h.dir, h.plan.ID, p, DownloadProgress{State: state, Bytes: n})
+	fmt.Printf("DOWNLOAD_DONE %s elapsed_ms=%d error=%v\n", p.Name, time.Since(started).Milliseconds(), err)
+	return err
 }
+func (h *simpleUpdateHooks) PrepareBatch(ctx context.Context, packages []Package) (int, error) {
+	return prepareParallel(ctx, packages, h.Prepare)
+}
+
+// Install already checks the exact staged SHA256 before calling OPKG.
+func (h *simpleUpdateHooks) Check(ctx context.Context, p Package) error { return ctx.Err() }
 func (h *simpleUpdateHooks) Install(ctx context.Context, p Package) error {
 	fmt.Println("INSTALL", p.Name)
-	return h.VerifiedOPKG.Install(ctx, p)
+	started := time.Now()
+	err := h.VerifiedOPKG.Install(ctx, p)
+	fmt.Printf("INSTALL_DONE %s elapsed_ms=%d error=%v\n", p.Name, time.Since(started).Milliseconds(), err)
+	return err
 }
 func (h *simpleUpdateHooks) Verify(ctx context.Context, p Package) error {
 	fmt.Println("VERIFY", p.Name)

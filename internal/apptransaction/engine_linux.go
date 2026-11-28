@@ -277,16 +277,25 @@ func (s *Store) Execute(ctx context.Context, p Plan, h Hooks) (Journal, error) {
 		}
 		return j, err
 	}
-	for _, v := range p.Packages {
-		if e = ctx.Err(); e != nil {
-			return stop(Cancelled, "cancelled_before_mutation", e)
-		}
-		if e = h.Prepare(ctx, v); e != nil {
+	if batch, ok := h.(interface {
+		PrepareBatch(context.Context, []Package) (int, error)
+	}); ok {
+		j.Downloaded, e = batch.PrepareBatch(ctx, p.Packages)
+		if e != nil {
 			return stop(Failed, "prepare_failed", e)
 		}
-		j.Downloaded++
-		if e = s.save(j); e != nil {
-			return j, e
+	} else {
+		for _, v := range p.Packages {
+			if e = ctx.Err(); e != nil {
+				return stop(Cancelled, "cancelled_before_mutation", e)
+			}
+			if e = h.Prepare(ctx, v); e != nil {
+				return stop(Failed, "prepare_failed", e)
+			}
+			j.Downloaded++
+			if e = s.save(j); e != nil {
+				return j, e
+			}
 		}
 	}
 	j.Phase = Prepared

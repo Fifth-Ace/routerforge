@@ -3,9 +3,11 @@
 package apptransaction
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -89,20 +91,34 @@ func (a *VerifiedOPKG) status(ctx context.Context, p Package) (string, error) {
 func readInstalledDevVersion(ctx context.Context, executable, name string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	cmd, err := safety.CommandContext(ctx, executable, "status", name)
-	if err != nil {
-		return "", err
+	for attempt := 0; ; attempt++ {
+		cmd, err := safety.CommandContext(ctx, executable, "status", name)
+		if err != nil {
+			return "", err
+		}
+		var out opkgOutput
+		var diagnostic opkgOutput
+		cmd.Stdout = &out
+		cmd.Stderr = io.MultiWriter(os.Stderr, &diagnostic)
+		err = cmd.Run()
+		if err == nil {
+			if out.overflow {
+				return "", errors.New("opkg status output exceeds limit")
+			}
+			return installedDevVersion(string(out.data), name)
+		}
+		// A freshly restarted Core may query OPKG at the same time. Only retry
+		// the read-only status command, never install or a malformed result.
+		busy := bytes.Contains(diagnostic.data, []byte("Could not lock")) && bytes.Contains(diagnostic.data, []byte("Resource temporarily unavailable"))
+		if !busy || attempt >= 7 {
+			return "", fmt.Errorf("opkg status %s: %w", name, err)
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(time.Duration(attempt+1) * 200 * time.Millisecond):
+		}
 	}
-	var out opkgOutput
-	cmd.Stdout = &out
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("opkg status %s: %w", name, err)
-	}
-	if out.overflow {
-		return "", errors.New("opkg status output exceeds limit")
-	}
-	return installedDevVersion(string(out.data), name)
 }
 
 func installedDevVersion(raw, name string) (string, error) {

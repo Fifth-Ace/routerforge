@@ -384,7 +384,7 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 		}
 		if r.URL.Query().Get("progress") == "1" {
 			history, historyErr := coreTransactionIntegration.coordinator.UpdateHistory(20)
-			writeCatalogJSON(w, http.StatusOK, map[string]any{"slot": status, "history": history, "history_available": historyErr == nil, "log": coreTransactionIntegration.coordinator.UpdateLog()})
+			writeCatalogJSON(w, http.StatusOK, map[string]any{"slot": status, "history": history, "history_available": historyErr == nil, "log": coreTransactionIntegration.coordinator.UpdateLog(), "downloads": coreTransactionIntegration.coordinator.UpdateDownloads(status.Plan)})
 			return
 		}
 		doc, releaseStatus := routerForgeReleaseSnapshot()

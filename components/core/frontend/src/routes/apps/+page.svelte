@@ -7,7 +7,7 @@
     catalogAction, setCatalogChannel, getEntwarePackages,
     refreshEntwarePackages,
     getEntwarePackageDetail, preflightAppAction, startAppAction,
-    getAppActions, getAppAction, cancelAppAction, appActionEventsURL, probeCatalogWeb
+    getAppActions, getAppAction, getAppTransactionHistoryDetail, cancelAppAction, appActionEventsURL, probeCatalogWeb
   } from '$lib/api.js';
   import { stateInfo, catalogWebURL, catalogWebPort, catalogWebSecurityDecision, catalogWebResolvedURL, catalogWebProbeStatusAllowed, bytes } from '$lib/utils.js';
   import { appText as a } from '$lib/app-center-i18n.js';
@@ -15,6 +15,7 @@
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
   import CatalogIcon from '$lib/components/CatalogIcon.svelte';
   import { displayVersion, integrationDescription } from '$lib/app-center-ux.js';
+  import { mergeOperationHistory, transactionHistoryDetail } from '$lib/unified-history.js';
   import { appUpdates, startOfficialUpdates, openUpdateProgress } from '$lib/stores/app-updates.js';
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
@@ -88,6 +89,7 @@
   let actionHistory = [];
   let actionHistoryExpanded = false;
   let historyStateFilter = 'all';
+  let historyOperationFilter = 'all';
   let historyTargetFilter = 'all';
   let historyVisibleLimit = 20;
   let selectedHistoryJob = null;
@@ -127,10 +129,12 @@
   $: integrationUpdates = integrations.filter(hasCatalogUpdate);
   $: installedCatalog = [...modules, ...integrations].filter((item) => item.installed);
   $: updateCatalog = [...routerForgeUpdates, ...integrationUpdates];
-  $: historyTargets = [...new Set(actionHistory.map((job) => String(job?.target || '').trim()).filter(Boolean))].sort();
-  $: filteredActionHistory = actionHistory.filter((job) =>
+  $: unifiedHistory = mergeOperationHistory(actionHistory,$appUpdates.snapshot,locale);
+  $: historyTargets = [...new Set(unifiedHistory.map((job) => String(job?.target || '').trim()).filter(Boolean))].sort();
+  $: filteredActionHistory = unifiedHistory.filter((job) =>
     (historyStateFilter === 'all' || String(job?.state || '') === historyStateFilter)
     && (historyTargetFilter === 'all' || String(job?.target || '') === historyTargetFilter)
+    && (historyOperationFilter === 'all' || (historyOperationFilter === 'other' ? !['update','install','remove'].includes(job.action) : job.action === historyOperationFilter))
   );
   $: actionHistoryGroups = buildActionHistoryGroups(filteredActionHistory);
   $: visibleActionHistoryGroups = actionHistoryGroups.slice(0, historyVisibleLimit);
@@ -339,6 +343,7 @@
   }
 
   function historyDuration(job) {
+    if (job?.transaction_id && (!job.started_at || !job.completed_at)) return '—';
     const direct = Number(job?.duration_ms || 0);
     let ms = direct;
     if (!(ms > 0)) {
@@ -373,7 +378,8 @@
     const version = historyVersion(job);
     const channel = historyChannel(job);
     const parts = [actionVerb(job)];
-    if (version) parts.push(`v${version}`);
+    if (version) parts.push(displayVersion(version));
+    if (job?.transaction_id) parts.push(`${job.package_count} ${locale==='ru'?'компонентов':'components'}`);
     if (channel) parts.push(channel.toUpperCase());
     return parts.join(' · ');
   }
@@ -414,12 +420,14 @@
   }
 
   async function openHistoryJob(job) {
-    selectedHistoryJob = { ...job };
+    const pending = { ...job, history_loading: true };
+    selectedHistoryJob = pending;
     historyCopyDone = false;
     try {
-      selectedHistoryJob = await getAppAction(job.id);
+      const detail = job.transaction_id ? transactionHistoryDetail(job,await getAppTransactionHistoryDetail(job.transaction_id)) : await getAppAction(job.id);
+      if (selectedHistoryJob === pending) selectedHistoryJob = detail;
     } catch {
-      selectedHistoryJob = { ...job };
+      if (selectedHistoryJob === pending) selectedHistoryJob = { ...job, history_unavailable: true };
     }
   }
 
@@ -580,7 +588,7 @@
   }
 
   function actionHistoryTimestamp(job) {
-    const value = Date.parse(job?.started_at || '');
+    const value = Date.parse(job?.started_at || job?.recorded_at || '');
     return Number.isFinite(value) ? value : 0;
   }
 
@@ -1279,8 +1287,8 @@
     <span>{a(locale,'registry')} <strong>{data.registry?.revision ? data.registry.revision.slice(0,12) : '—'}</strong></span>
   </div>
 
-  {#if workerMode}
-    <div class="rf-update-link"><button class="button" onclick={openUpdateProgress}>{locale==='ru'?'Ход обновления и история':'Update progress and history'}</button></div>
+  {#if workerMode && ($appUpdates.running || $appUpdates.launching)}
+    <div class="rf-update-link"><button class="button" onclick={openUpdateProgress}>{locale==='ru'?'Ход обновления':'Update progress'}</button></div>
   {/if}
 
   {#if actionNotice}
@@ -1309,7 +1317,6 @@
     </section>
   {/if}
 
-  {#if actionHistory.length}
     <section class="app-action-history">
       <button
         class="app-action-history-toggle"
@@ -1319,16 +1326,23 @@
         onclick={() => actionHistoryExpanded = !actionHistoryExpanded}
       >
         <span class="app-action-history-title">
-          <strong>{a(locale,'uiHistoryTitle')}</strong>
-          <small>{a(locale,'uiHistorySubtitle')}</small>
+          <strong>{locale==='ru'?'История операций':'Operation history'}</strong>
+          <small>{locale==='ru'?'Обновления RouterForge, установки и действия с интеграциями':'RouterForge updates, installations and integration actions'}</small>
         </span>
         <span class="app-action-history-meta">
-          <span class="state-chip neutral">{actionHistory.length} {a(locale,'uiHistoryCountUnit')}</span>
+          <span class="state-chip neutral">{unifiedHistory.length} {a(locale,'uiHistoryCountUnit')}</span>
           <span class:expanded={actionHistoryExpanded} class="app-action-history-chevron" aria-hidden="true">v</span>
         </span>
       </button>
       {#if actionHistoryExpanded}
         <div class="app-action-history-controls">
+          <select bind:value={historyOperationFilter} onchange={() => historyVisibleLimit = 20} aria-label={locale==='ru'?'Тип операции':'Operation type'}>
+            <option value="all">{locale==='ru'?'Все операции':'All operations'}</option>
+            <option value="update">{locale==='ru'?'Обновления':'Updates'}</option>
+            <option value="install">{locale==='ru'?'Установки':'Installations'}</option>
+            <option value="remove">{locale==='ru'?'Удаления':'Removals'}</option>
+            <option value="other">{locale==='ru'?'Другие действия':'Other actions'}</option>
+          </select>
           <select bind:value={historyStateFilter} onchange={() => historyVisibleLimit = 20} aria-label={a(locale,'uiResultFilterAria')}>
             <option value="all">{a(locale,'uiAllResults')}</option>
             <option value="succeeded">{a(locale,'uiSucceeded')}</option>
@@ -1342,9 +1356,10 @@
               <option value={target}>{target}</option>
             {/each}
           </select>
-          <span class="mono muted">{filteredActionHistory.length} / {actionHistory.length}</span>
+          <span class="mono muted">{filteredActionHistory.length} / {unifiedHistory.length}</span>
         </div>
         <div class="app-action-history-list" id="app-action-history-list">
+          {#if $appUpdates.snapshot?.history_available===false}<p class="muted" role="status">{locale==='ru'?'История Worker временно недоступна. Старые операции сохранены.':'Worker history is temporarily unavailable. Legacy operations are preserved.'}</p>{/if}
           {#each visibleActionHistoryGroups as group (group.id)}
             {#if group.batch && group.jobs.length > 1}
               <div class="app-action-history-batch">
@@ -1360,7 +1375,7 @@
                     <span class="app-action-history-copy">
                       <strong>{job.target}</strong>
                       <small>{historySummary(job)}</small>
-                      <small class="mono">{formatActionHistoryTime(job.started_at)} · {historyDuration(job)}</small>
+                      <small class="mono">{formatActionHistoryTime(job.started_at || job.recorded_at)}{#if !job.started_at && job.recorded_at} ({locale==='ru'?'архив':'archived'}){/if} · {historyDuration(job)}</small>
                     </span>
                     <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
                   </button>
@@ -1372,7 +1387,7 @@
                 <span class="app-action-history-copy">
                   <strong>{job.target}</strong>
                   <small>{historySummary(job)}</small>
-                  <small class="mono">{formatActionHistoryTime(job.started_at)} · {historyDuration(job)}</small>
+                  <small class="mono">{formatActionHistoryTime(job.started_at || job.recorded_at)}{#if !job.started_at && job.recorded_at} ({locale==='ru'?'архив':'archived'}){/if} · {historyDuration(job)}</small>
                 </span>
                 <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
               </button>
@@ -1391,7 +1406,6 @@
         {/if}
       {/if}
     </section>
-  {/if}
 
   <section class="catalog-market-section">
     <div class="catalog-section-head">
@@ -1678,6 +1692,7 @@
         <div><span>{a(locale,'uiLogStarted')}</span><strong>{formatActionHistoryTime(selectedHistoryJob.started_at)}</strong></div>
         <div><span>{a(locale,'uiLogCompleted')}</span><strong>{selectedHistoryJob.completed_at ? formatActionHistoryTime(selectedHistoryJob.completed_at) : '—'}</strong></div>
         <div><span>{a(locale,'uiLogDuration')}</span><strong>{historyDuration(selectedHistoryJob)}</strong></div>
+        {#if selectedHistoryJob.transaction_id}<div><span>{locale==='ru'?'Компонентов подтверждено':'Verified components'}</span><strong>{selectedHistoryJob.verified_count ?? '—'} / {selectedHistoryJob.package_count}</strong></div>{/if}
         {#if selectedHistoryJob.batch_id}<div><span>Batch ID</span><strong>{selectedHistoryJob.batch_id}</strong></div>{/if}
       </aside>
 
@@ -1686,6 +1701,8 @@
           <strong>{a(locale,'uiTechnicalLog')}</strong>
           <span>{a(locale,'uiTechnicalOutput')}</span>
         </div>
+        {#if selectedHistoryJob.history_loading}<p class="muted">{locale==='ru'?'Загрузка журнала…':'Loading log…'}</p>{:else if selectedHistoryJob.history_unavailable || selectedHistoryJob.log_available===false}<p class="muted">{locale==='ru'?'Журнал недоступен. Сводка операции сохранена.':'Log unavailable. Operation summary retained.'}</p>{/if}
+        {#if selectedHistoryJob.log_truncated}<p class="muted">{locale==='ru'?'Показан последний 1 МиБ журнала.':'Showing the last 1 MiB of the log.'}</p>{/if}
         <pre class="app-history-sheet-log-body mono" class:error-log={Boolean(selectedHistoryJob.error)}>{historyLogText(selectedHistoryJob) || (a(locale,'uiNoLog'))}</pre>
       </div>
     </div>

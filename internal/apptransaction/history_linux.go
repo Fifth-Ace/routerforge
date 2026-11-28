@@ -14,10 +14,17 @@ import (
 
 // CompletedTransaction is a bounded summary, not an executable plan.
 type CompletedTransaction struct {
-	ID           string `json:"id"`
-	Commit       string `json:"commit"`
-	PackageCount int    `json:"package_count"`
-	State        string `json:"state,omitempty"`
+	ID            string   `json:"id"`
+	Commit        string   `json:"commit"`
+	PackageCount  int      `json:"package_count"`
+	State         string   `json:"state,omitempty"`
+	Version       string   `json:"version,omitempty"`
+	StartedAt     int64    `json:"started_at,omitempty"`
+	FinishedAt    int64    `json:"finished_at,omitempty"`
+	RecordedAt    int64    `json:"recorded_at,omitempty"`
+	VerifiedCount int      `json:"verified_count"`
+	ErrorCode     string   `json:"error_code,omitempty"`
+	Packages      []string `json:"packages,omitempty"`
 }
 
 // CompletedHistory reads only immutable completed archives. It never creates,
@@ -100,7 +107,29 @@ func (c *Coordinator) updateHistory(limit int, includeFailed bool) ([]CompletedT
 				state = "completed"
 			}
 		}
-		out = append(out, CompletedTransaction{ID: v.Plan.ID, Commit: v.Plan.Commit, PackageCount: len(v.Plan.Packages), State: state})
+		row := CompletedTransaction{ID: v.Plan.ID, Commit: v.Plan.Commit, PackageCount: len(v.Plan.Packages), State: state}
+		if includeFailed {
+			row.RecordedAt = archive.modified.Unix()
+			if len(v.Plan.Packages) > 0 {
+				row.Version = v.Plan.Packages[0].Version
+			}
+			for _, pkg := range v.Plan.Packages {
+				row.Packages = append(row.Packages, pkg.Name)
+			}
+			if v.Journal != nil {
+				row.StartedAt = v.Journal.StartedAt
+				row.FinishedAt = v.Journal.FinishedAt
+				row.VerifiedCount = v.Journal.Next
+				row.ErrorCode = v.Journal.ErrorCode
+				if v.Journal.Phase == Cancelled {
+					row.State = string(Cancelled)
+				}
+				if v.Journal.Phase == RecoveryRequired {
+					row.State = string(RecoveryRequired)
+				}
+			}
+		}
+		out = append(out, row)
 	}
 	return out, nil
 }

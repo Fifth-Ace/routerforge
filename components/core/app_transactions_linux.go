@@ -378,6 +378,15 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 			writeCatalogJSON(w, http.StatusServiceUnavailable, map[string]any{"execution_available": false, "error": "transaction admission unavailable"})
 			return
 		}
+		if id := r.URL.Query().Get("history_id"); id != "" {
+			detail, err := coreTransactionIntegration.coordinator.HistoryDetail(id)
+			if err != nil {
+				writeCatalogJSON(w, http.StatusNotFound, map[string]any{"error": "transaction history unavailable"})
+				return
+			}
+			writeCatalogJSON(w, http.StatusOK, detail)
+			return
+		}
 		status, err := coreTransactionIntegration.coordinator.Status()
 		if err != nil {
 			status.State = string(apptransaction.RecoveryRequired)

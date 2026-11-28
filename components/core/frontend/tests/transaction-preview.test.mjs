@@ -75,3 +75,23 @@ test('versions are formatted once and unknown descriptions are not invented', ()
   assert.equal(integrationDescription({...item,id:'constructor'},'ru'),item.description);
   assert.equal(integrationDescription({...item,description:'Собственное описание'},'ru'),'Собственное описание');
 });
+
+import { mergeOperationHistory, transactionHistoryDetail } from '../src/lib/unified-history.js';
+test('unified history preserves legacy entries and deduplicates the terminal active transaction',()=>{
+  const legacy=[{id:'legacy-1',target:'AWG',state:'succeeded',started_at:'2026-11-27T00:00:00Z'}];
+  const history=[{id:'a',state:'completed',package_count:2,started_at:100,finished_at:110},{id:'b',state:'failed',package_count:1,started_at:50}];
+  const slot={state:'completed',plan:{id:'a',commit:'c',packages:[{name:'routerforge-core',version:'r1477'}]},journal:{next:1,started_at:100,finished_at:115}};
+  const result=mergeOperationHistory(legacy,{history,slot});
+  assert.equal(result.length,3);assert.equal(result[0],legacy[0]);
+  const a=result.find(x=>x.transaction_id==='a');assert.equal(a.state,'succeeded');assert.equal(a.target_version,'r1477');assert.equal(a.verified_count,1);
+  assert.equal(result.find(x=>x.transaction_id==='b').state,'failed');
+  assert.equal(mergeOperationHistory([],{slot:{...slot,state:'applying',busy:true}}).length,0);
+  assert.equal(mergeOperationHistory([],{slot:{...slot,state:'cancelled'}})[0].state,'cancelled');
+});
+test('archived history details preserve real log and refuse mismatched identity',()=>{
+  const job={transaction_id:'a',state:'succeeded'};
+  const detail={slot:{plan:{id:'a',packages:[{name:'routerforge-core'}]}},log:'one\ntwo',log_available:true,log_truncated:true};
+  const result=transactionHistoryDetail(job,detail);assert.deepEqual(result.lines,['one','two']);assert.deepEqual(result.packages,['routerforge-core']);assert.ok(result.log_truncated);
+  assert.throws(()=>transactionHistoryDetail(job,{slot:{plan:{id:'b'}}}));
+  assert.equal(transactionHistoryDetail(job,{...detail,log_available:false}).log_available,false);
+});

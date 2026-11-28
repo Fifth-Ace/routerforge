@@ -127,7 +127,7 @@ export const routerforgeSyslogExportURL = (date, source) =>
 export const applyRouterforgeSyslog = (body) => postJSON('/api/modules/admin/syslog/apply', body);
 export const preflightAppAction = (body) => postJSON('/api/apps/preflight', body);
 export const startAppAction = (body) => postJSON('/api/apps/actions', body);
-export const getAppTransactionStatus = (signal) => request('/api/apps/transactions', READ_TIMEOUT_MS, signal);
+export const getAppTransactionStatus = (signal, progressOnly = false) => request('/api/apps/transactions' + (progressOnly ? '?progress=1' : ''), READ_TIMEOUT_MS, signal);
 export const previewAppTransaction = (commit, packages) => postJSON('/api/apps/transactions/preview', { expected_commit:commit, packages }, PACKAGE_WRITE_TIMEOUT_MS);
 export const startAppTransaction = (body) => postJSON('/api/apps/transactions/start', body, PACKAGE_WRITE_TIMEOUT_MS);
 export const getAppActions = () => request('/api/apps/actions');

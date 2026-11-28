@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 )
 
 const Schema = 1
@@ -104,6 +105,9 @@ type Journal struct {
 	PlanSHA256 string `json:"plan_sha256"`
 	Phase      Phase  `json:"phase"`
 	Next       int    `json:"next"`
+	Downloaded int    `json:"downloaded,omitempty"`
+	StartedAt  int64  `json:"started_at,omitempty"`
+	FinishedAt int64  `json:"finished_at,omitempty"`
 	ErrorCode  string `json:"error_code,omitempty"`
 }
 
@@ -188,7 +192,7 @@ func (s *Store) Load() (Journal, error) {
 		return j, errors.New("trailing journal data")
 	}
 	h, e := j.Plan.Hash()
-	if e != nil || j.Schema != Schema || h != j.PlanSHA256 || j.Next < 0 || j.Next > len(j.Plan.Packages) {
+	if e != nil || j.Schema != Schema || h != j.PlanSHA256 || j.Next < 0 || j.Next > len(j.Plan.Packages) || j.Downloaded < 0 || j.Downloaded > len(j.Plan.Packages) {
 		return j, errors.New("invalid journal integrity")
 	}
 	switch j.Phase {
@@ -260,13 +264,14 @@ func (s *Store) Execute(ctx context.Context, p Plan, h Hooks) (Journal, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return j, err
 	}
-	j = Journal{Schema: Schema, Plan: p, PlanSHA256: hash, Phase: Preparing}
+	j = Journal{Schema: Schema, Plan: p, PlanSHA256: hash, Phase: Preparing, StartedAt: time.Now().Unix()}
 	if e = s.save(j); e != nil {
 		return j, e
 	}
 	stop := func(phase Phase, code string, err error) (Journal, error) {
 		j.Phase = phase
 		j.ErrorCode = code
+		j.FinishedAt = time.Now().Unix()
 		if e := s.save(j); e != nil {
 			return j, fmt.Errorf("checkpoint failed: %w", e)
 		}
@@ -278,6 +283,10 @@ func (s *Store) Execute(ctx context.Context, p Plan, h Hooks) (Journal, error) {
 		}
 		if e = h.Prepare(ctx, v); e != nil {
 			return stop(Failed, "prepare_failed", e)
+		}
+		j.Downloaded++
+		if e = s.save(j); e != nil {
+			return j, e
 		}
 	}
 	j.Phase = Prepared
@@ -318,6 +327,7 @@ func (s *Store) Execute(ctx context.Context, p Plan, h Hooks) (Journal, error) {
 		}
 	}
 	j.Phase = Completed
+	j.FinishedAt = time.Now().Unix()
 	if e = s.save(j); e != nil {
 		return j, e
 	}

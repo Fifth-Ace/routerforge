@@ -32,14 +32,14 @@ func TestExecutionRequestStrictBinding(t *testing.T) {
 		}
 	}
 }
-func TestExecutionRouteRequiresAuthAndAcceptance(t *testing.T) {
+func TestExecutionRouteRequiresAuthAndWorker(t *testing.T) {
 	for _, v := range []struct {
 		method, origin string
 		auth           *authManager
 		want           int
 	}{
 		{http.MethodGet, "http://example.com", &authManager{}, http.StatusMethodNotAllowed},
-		{http.MethodPost, "http://example.com", &authManager{}, http.StatusForbidden},
+		{http.MethodPost, "http://example.com", &authManager{}, http.StatusConflict},
 		{http.MethodPost, "http://foreign.example", &authManager{config: securityConfig{AuthRequired: true}}, http.StatusForbidden},
 	} {
 		mux := http.NewServeMux()
@@ -74,7 +74,7 @@ func TestExecutionRebuildRejectsChangedHash(t *testing.T) {
 	}
 }
 
-func TestAuthenticatedRootStillLockedWithoutDeviceApproval(t *testing.T) {
+func TestAuthenticatedRootStillLockedWithoutWorker(t *testing.T) {
 	auth := &authManager{config: securityConfig{AuthRequired: true}, sessions: map[string]authSession{}}
 	cookieWriter := httptest.NewRecorder()
 	if err := auth.createSession(cookieWriter, "root"); err != nil {

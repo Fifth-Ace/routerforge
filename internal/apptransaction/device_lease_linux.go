@@ -11,7 +11,7 @@ func acquireDevicePackageLease() (*DevicePackageLease, error) {
 }
 
 func acquireCoordinatorPackageLease(c *Coordinator) (*DevicePackageLease, error) {
-	f, err := c.AcquireLegacy()
+	f, err := c.AcquirePackageMutation()
 	if err != nil {
 		return nil, err
 	}

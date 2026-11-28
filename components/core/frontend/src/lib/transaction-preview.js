@@ -29,8 +29,15 @@ export function transactionProgress(slot) {
 // Only an explicitly admitted preview may be submitted. The server rebuilds
 // the exact plan under its lease; the client cannot supply executable metadata.
 export function executionRequest(snapshot, preview, selected) {
-  if (snapshot?.execution_available !== true || preview?.execution_available !== true || !previewMatches(preview,snapshot.release_commit,selected) || !/^[a-f0-9]{32}$/.test(preview.plan.id || '') || !['idle','completed'].includes(snapshot?.slot?.state)) return null;
+  if (snapshot?.execution_available !== true || preview?.execution_available !== true || !previewMatches(preview,snapshot.release_commit,selected) || !/^[a-f0-9]{32}$/.test(preview.plan.id || '') || (snapshot?.slot?.busy || !['idle','completed','failed','cancelled','recovery_required'].includes(snapshot?.slot?.state))) return null;
   if (selected.some((name) => !previewSelection(snapshot).some((row) => row.package === name && row.target_version === preview.plan.packages.find((p) => p.name === name)?.version))) return null;
-  if (!Array.isArray(preview.management) || preview.management.length !== selected.length || selected.some((name) => !preview.management.some((row) => row.package === name && row.state === 'management_ready'))) return null;
   return { id:preview.plan.id, expected_commit:preview.plan.commit, packages:[...selected], plan_sha256:preview.plan_sha256, confirm:'EXECUTE:'+preview.plan_sha256 };
 }
+
+export function updateRows(slot) {
+  const packages=slot?.plan?.packages || []; const j=slot?.journal; const done=j?.next || 0; const downloaded=j?.downloaded || 0;
+  const failed=['recovery_required','failed','cancelled'].includes(slot?.state);
+  const downloadFailure=j?.error_code==='prepare_failed'||(failed&&j?.phase==='preparing');
+  return packages.map((p,i)=>({ ...p, state:i<done?'completed':failed?(downloadFailure?(i<downloaded?'downloaded':i===downloaded?'failed':'queued'):(i===done?'failed':'queued')):slot.state==='preparing'?(i<downloaded?'downloaded':i===downloaded?'downloading':'queued'):i===done&&slot.state==='applying'?'applying':i===done&&slot.state==='verifying'?'verifying':'queued' }));
+}
+export function updateRunning(slot){return !!slot && ['queued','preparing','prepared','applying','verifying'].includes(slot.state);}

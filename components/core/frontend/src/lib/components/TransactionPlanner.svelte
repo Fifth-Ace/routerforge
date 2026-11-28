@@ -1,180 +1,81 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
-  import { getAppTransactionStatus, previewAppTransaction, startAppTransaction } from '$lib/api.js';
-  import { previewSelection, selectionKey, previewMatches, transactionProgress, executionRequest } from '$lib/transaction-preview.js';
-  export let locale = 'ru';
-  export let executionPolicy = false;
-  const executionWords = {ru:{start:'Выполнить подтверждённый план',confirm:'Запустить обновление выбранных пакетов? Core может перезапуститься.',unknown:'Запрос завершился без подтверждения. Проверьте журнал. Не повторяйте запуск автоматически.',accepted:'План принят. Следите за журналом.',admitted:'Исполнение допускается для подтверждённого плана.'},en:{start:'Execute confirmed plan',confirm:'Update selected packages? Core may restart.',unknown:'Request was not confirmed. Inspect the journal. Do not retry automatically.',accepted:'Plan accepted. Follow the journal.',admitted:'Execution is admitted for the confirmed plan.'}};
-  const words = {
-    ru: { title:'Транзакционное обновление', open:'Открыть планировщик', close:'Свернуть', locked:'Исполнение закрыто до приёмки на оборудовании. Планирование не устанавливает пакеты.', refresh:'Обновить статус', select:'Выбрать все', clear:'Снять выбор', preview:'Проверить план', loading:'Проверяем…', unavailable:'Статус недоступен. Последний результат может быть устаревшим.', noUpdates:'Нет допустимых обновлений из подтверждённого снимка Dev.', invalid:'План отклонён или снимок изменился. Обновите статус.', source:'При исполнении: GitHub, проверенный Forgejo — резерв.', order:'Порядок установки', download:'Объём загрузки', verified:'Проверено пакетов', current:'Текущая транзакция', history:'Завершённые транзакции', empty:'Нет записей', recovery:'Требуется восстановление. Автоматический повтор запрещён.', advisory:'Локальная проверка управления — не доказательство полного lifecycle.', unknown:'Неизвестно', bytes:'байт', ready:'Management API доступен', notReady:'Management API не подтверждён', versionConflict:'Версия изменилась или не допускается', installedUnavailable:'Установленная версия не подтверждена', notChecked:'Не проверено', idle:'Нет транзакции', busy:'Занято', queued:'В очереди', preparing:'Подготовка', prepared:'Подготовлено', applying:'Установка', verifying:'Проверка', completed:'Завершено', failed:'Ошибка', cancelled:'Отменено', recovery_required:'Требуется восстановление' },
-    en: { title:'Transactional update', open:'Open planner', close:'Collapse', locked:'Execution is locked until hardware acceptance. Planning does not install packages.', refresh:'Refresh status', select:'Select all', clear:'Clear selection', preview:'Check plan', loading:'Checking…', unavailable:'Status unavailable. The last result may be stale.', noUpdates:'No eligible updates from a verified Dev snapshot.', invalid:'Plan rejected or snapshot changed. Refresh status.', source:'During execution: GitHub, verified Forgejo fallback.', order:'Installation order', download:'Download size', verified:'Verified packages', current:'Current transaction', history:'Completed transactions', empty:'No records', recovery:'Recovery required. Automatic replay is prohibited.', advisory:'Local management checks are not full lifecycle proofs.', unknown:'Unknown', bytes:'bytes', ready:'Management API ready', notReady:'Management API unverified', versionConflict:'Version changed or rejected', installedUnavailable:'Installed version unverified', notChecked:'Not checked', idle:'No transaction', busy:'Busy', queued:'Queued', preparing:'Preparing', prepared:'Prepared', applying:'Installing', verifying:'Verifying', completed:'Completed', failed:'Failed', cancelled:'Cancelled', recovery_required:'Recovery required' }
+  import { onMount } from 'svelte';
+  import { catalog } from '$lib/stores/catalog.js';
+  import { appUpdates, openUpdateProgress, closeUpdateProgress, refreshUpdateProgress } from '$lib/stores/app-updates.js';
+  import { updateRows, transactionProgress } from '$lib/transaction-preview.js';
+  export let locale='ru';
+  const words={
+    ru:{title:'Обновление RouterForge',history:'История обновлений',collapse:'Свернуть',logs:'Технический журнал',queued:'В очереди',preparing:'Загрузка',downloading:'Загрузка',downloaded:'Загружен',prepared:'Пакеты проверены',applying:'Установка',verifying:'Проверка',completed:'Готово',failed:'Ошибка',cancelled:'Остановлено',recovery_required:'Прервано',busy:'Занято',idle:'Нет операций',loading:'Подготовка обновления',stale:'Связь с Core потеряна. Ожидаем восстановления…',unconfirmed:'Запуск не подтверждён. Проверьте состояние; автоматически не повторяем.',installed:'Обновлено',download:'Загрузка',install:'Установка',verify:'Проверка',done:'Готово',noLog:'Журнал пока пуст',empty:'Нет записей',refresh:'Обновить статус'},
+    en:{title:'RouterForge update',history:'Update history',collapse:'Minimize',logs:'Technical log',queued:'Queued',preparing:'Downloading',downloading:'Downloading',downloaded:'Downloaded',prepared:'Packages verified',applying:'Installing',verifying:'Verifying',completed:'Completed',failed:'Failed',cancelled:'Stopped',recovery_required:'Interrupted',busy:'Busy',idle:'No updates',loading:'Preparing update',stale:'Core connection lost. Waiting for it to return…',unconfirmed:'Start not confirmed. Check status; no automatic retry.',installed:'Updated',download:'Download',install:'Install',verify:'Verify',done:'Done',noLog:'No log yet',empty:'No records',refresh:'Refresh status'}
   };
-  const nativeLabels = { management_ready:'ready', management_unavailable:'notReady', version_conflict:'versionConflict', installed_state_unavailable:'installedUnavailable', not_checked:'notChecked' };
-  let expanded = false;
-  let snapshot = null;
-  let selected = [];
-  let preview = null;
-  let statusError = false;
-  let previewError = false;
-  let loading = false;
-  let checking = false;
-  let starting = false;
-  let startMessage = '';
-  let generation = 0;
-  let timer;
-  let controller;
-  let disposed = false;
-  $: w = words[locale] || words.en;
-  $: e = executionWords[locale] || executionWords.en;
-  $: startBody = executionRequest(snapshot,preview,selected);
-  $: canStart = Boolean(startBody) && !starting && !checking && !loading && !statusError;
-  $: rows = previewSelection(snapshot);
-  $: progress = transactionProgress(snapshot?.slot);
-  $: slotState = snapshot?.slot?.state || '';
-  $: canPlan = !statusError && ['idle','completed'].includes(slotState) && selected.length > 0 && !loading && !checking && !starting;
-
-  async function refresh() {
-    if (loading || starting || disposed) return;
-    loading = true;
-    const requestGeneration = generation;
-    const requestController = new AbortController();
-    controller = requestController;
-    try {
-      const next = await getAppTransactionStatus(requestController.signal);
-      if (disposed || generation !== requestGeneration) return;
-      const changed = selectionKey(snapshot) !== selectionKey(next) || snapshot?.slot?.state !== next?.slot?.state;
-      snapshot = next;
-      executionPolicy = next?.execution_policy_active === true;
-      if (!expanded && next?.slot?.state && !['idle','completed'].includes(next.slot.state)) { expanded = true; clearInterval(timer); timer = setInterval(() => { if (!checking && !starting) void refresh(); },5000); }
-      if (changed) {
-        selected = selected.filter((name) => previewSelection(next).some((row) => row.package === name));
-        preview = null;
-      }
-      statusError = false;
-    } catch (error) {
-      if (disposed || generation !== requestGeneration) return;
-      snapshot = { ...snapshot, slot: error?.payload?.state ? { state:error.payload.state } : snapshot?.slot };
-      statusError = true;
-      preview = null;
-    } finally {
-      if (generation === requestGeneration) loading = false;
-    }
+  $: w=words[locale] || words.en;
+  $: slot=$appUpdates.snapshot?.slot;
+  $: progress=$appUpdates.launching?{verified:0,total:$appUpdates.pending.length}:transactionProgress(slot) || {verified:0,total:slot?.plan?.packages?.length || $appUpdates.pending.length || 0};
+  $: percent=progress.total?Math.floor(100*progress.verified/progress.total):0;
+  $: rows=$appUpdates.launching?$appUpdates.pending.map(name=>({name,state:'queued'})):updateRows(slot);
+  $: phase=$appUpdates.launching?'loading':slot?.state || 'idle';
+  $: visible=Boolean($appUpdates.launching || $appUpdates.open || slot?.plan || $appUpdates.error || slot?.state==='recovery_required');
+  $: dev=($catalog.release?.channel==='dev' && $catalog.release?.target==='aarch64-3.10') || ($catalog.modules || []).some(m=>m.id==='routerforge-core' && String(m.version||'').startsWith('1~dev.r'));
+  $: steps=[{label:w.download,done:phase==='completed'||phase==='prepared'||phase==='applying'||phase==='verifying'||(slot?.journal?.downloaded>0&&slot.journal.downloaded===progress.total),active:phase==='preparing'}, {label:w.install,done:phase==='completed',active:phase==='applying'||phase==='prepared'}, {label:w.verify,done:phase==='completed',active:phase==='verifying'},{label:w.done,done:phase==='completed',active:false}];
+  let timer,controller,stopped=false;
+  let now=Date.now();
+  $: elapsed=slot?.journal?.started_at?Math.max(0,Math.floor(((slot.journal.finished_at?slot.journal.finished_at*1000:now)-slot.journal.started_at*1000)/1000)):0;
+  $: elapsedText=`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}`;
+  function title(name){return name.replace(/^routerforge-/,'').split('-').map(x=>x==='dns'?'DNS':x==='nfqws'?'NFQWS':x==='core'?'Core':x.charAt(0).toUpperCase()+x.slice(1)).join(' ');}
+  function shortVersion(version){return String(version||'').replace(/^1~dev\.(r\d+)\..*$/,'$1');}
+  async function tick(){
+    if(stopped)return;
+    now=Date.now();
+    if(dev || $appUpdates.running || $appUpdates.launching){controller=new AbortController();await refreshUpdateProgress(controller.signal);}
+    if(!stopped)timer=setTimeout(tick,$appUpdates.running || $appUpdates.launching || $appUpdates.open ? 1800:12000);
   }
-  function togglePanel() {
-    if (starting) return;
-    expanded = !expanded;
-    generation++;
-    clearInterval(timer);
-    controller?.abort();
-    loading = false;
-    checking = false;
-    preview = null;
-    previewError = false;
-    if (expanded) {
-      void refresh();
-      timer = setInterval(() => { if (!checking && !starting) void refresh(); }, 5000);
-    }
-  }
-  function setSelected(names) { selected = names; preview = null; previewError = false; }
-  function toggle(name) { setSelected(selected.includes(name) ? selected.filter((x) => x !== name) : [...selected,name]); }
-  async function checkPlan() {
-    if (!canPlan) return;
-    const g = generation;
-    const key = selectionKey(snapshot);
-    const commit = snapshot.release_commit;
-    const names = [...selected];
-    checking = true;
-    preview = null;
-    previewError = false;
-    try {
-      const result = await previewAppTransaction(commit,names);
-      if (disposed || g !== generation) return;
-      if (key !== selectionKey(snapshot) || !previewMatches(result,commit,names) || !['idle','completed'].includes(snapshot?.slot?.state)) throw new Error('stale preview');
-      preview = result;
-    } catch {
-      if (!disposed && g === generation) previewError = true;
-    } finally {
-      if (!disposed && g === generation) checking = false;
-    }
-  }
-  async function executePlan() {
-    if (!canStart || !window.confirm(e.confirm)) return;
-    const body = startBody;
-    starting = true; startMessage = ''; preview = null;
-    try { const result = await startAppTransaction(body); if (!disposed) startMessage = result?.id === body.id ? 'accepted' : 'unknown'; }
-    catch { if (!disposed) startMessage = 'unknown'; }
-    finally { if (!disposed) { starting = false; await refresh(); } }
-  }
-  onMount(() => { void refresh(); });
-  onDestroy(() => { disposed = true; generation++; clearInterval(timer); controller?.abort(); });
+  async function manualRefresh(){if(!$appUpdates.launching)await refreshUpdateProgress();}
+  onMount(()=>{void tick();return()=>{stopped=true;clearTimeout(timer);controller?.abort();};});
 </script>
-<section class="transaction-panel" aria-label={w.title}>
-  <div class="transaction-head">
-    <strong>{w.title}</strong>
-    <button type="button" class="button compact" aria-expanded={expanded} onclick={togglePanel}>{expanded ? w.close : w.open}</button>
-  </div>
-  {#if expanded}
-    <p>{snapshot?.execution_available === true ? e.admitted : w.locked}</p>
-    {#if startMessage}<p role="status">{e[startMessage]}</p>{/if}
-    <div class="transaction-actions">
-      <button type="button" class="button compact" disabled={loading || checking || starting} onclick={refresh}>{w.refresh}</button>
-      <span>{w.current}: <strong>{w[slotState] || w.unknown}</strong></span>
-      {#if progress}<span>{w.verified}: {progress.verified}/{progress.total}</span>{/if}
-    </div>
-    {#if statusError}<p role="status">{w.unavailable}</p>{/if}
-    {#if slotState === 'recovery_required'}<p role="alert">{w.recovery}</p>{/if}
-    {#if snapshot?.slot?.journal?.error_code}<code>{snapshot.slot.journal.error_code}</code>{/if}
-    {#if snapshot?.slot?.plan?.id}<small class="mono">{snapshot.slot.plan.id}</small>{/if}
-    {#if rows.length}
-      <div class="transaction-actions">
-        <button type="button" class="button compact" disabled={checking || starting || statusError} onclick={() => setSelected(rows.map((row) => row.package))}>{w.select}</button>
-        <button type="button" class="button compact" disabled={checking || starting} onclick={() => setSelected([])}>{w.clear}</button>
-      </div>
-      <div class="transaction-rows">
-        {#each rows as row (row.package)}
-          <label class="transaction-row">
-            <input type="checkbox" checked={selected.includes(row.package)} disabled={checking || starting || statusError} onchange={() => toggle(row.package)}/>
-            <span>{row.package}<small class="mono">{row.installed_version} → {row.target_version}</small></span>
-          </label>
-        {/each}
-      </div>
-      <button type="button" class="button primary" disabled={!canPlan} onclick={checkPlan}>{checking ? w.loading : w.preview} ({selected.length})</button>
-    {:else if !loading && !statusError}<p>{w.noUpdates}</p>{/if}
-    {#if previewError}<p role="alert">{w.invalid}</p>{/if}
-    {#if preview}
-      <div class="transaction-result">
-        <strong>{w.order}</strong>
-        <small class="mono">{preview.plan.commit.slice(0,12)} · SHA256 {preview.plan_sha256.slice(0,12)}</small>
-        <span>{w.download}: {preview.download_bytes} {w.bytes}</span>
-        <ol>
-          {#each preview.plan.packages as pkg (pkg.name)}
-            <li>{pkg.name} <small class="mono">{pkg.version}</small><small>{w[nativeLabels[preview.management?.find((entry) => entry.package === pkg.name)?.state] || 'notChecked']}</small></li>
-          {/each}
-        </ol>
-        <p>{w.source}</p><p>{w.advisory}</p>
-        <button type="button" class="button primary" disabled={!canStart} onclick={executePlan}>{e.start}</button>
-      </div>
+<svelte:window onkeydown={(event)=>{if(event.key==='Escape' && $appUpdates.open)closeUpdateProgress();}} />
+{#if visible}
+  <button class="button compact rf-update-indicator" onclick={openUpdateProgress} aria-label={w.title}>
+    <span><i class="rf-indicator-dot" class:active={$appUpdates.running || $appUpdates.launching}></i> {w[phase] || phase} {#if progress.total}{progress.verified}/{progress.total}{/if}</span>
+    {#if progress.total}<progress max={100} value={percent} aria-label={w.title}></progress>{/if}
+  </button>
+{/if}
+{#if $appUpdates.open}
+  <div class="rf-update-backdrop" role="presentation"></div>
+  <section class="rf-update-dialog" role="dialog" aria-modal="true" aria-label={w.title}>
+    <div class="rf-update-head"><div><strong>{w.title}</strong><small>{w[phase] || phase}{#if slot?.journal?.started_at && ($appUpdates.running || slot.journal.finished_at)} · {elapsedText}{/if}</small></div><button class="button compact" onclick={closeUpdateProgress}>{w.collapse}</button></div>
+    {#if $appUpdates.launching}<div class="rf-note">{w.loading}…</div>{/if}
+    {#if $appUpdates.stale}<div class="rf-note" role="status">{w.stale}</div>{/if}
+    {#if $appUpdates.error}<div class="rf-note error" role="alert">{$appUpdates.error==='START_UNCONFIRMED'?w.unconfirmed:$appUpdates.error}</div>{/if}
+    {#if progress.total}
+      <div class="rf-update-count"><strong>{progress.verified} / {progress.total}</strong><strong>{percent}%</strong></div>
+      <progress class="rf-main-progress" max={100} value={percent} aria-label={w.title}></progress>
+      <div class="rf-update-steps">{#each steps as step}<span class:done={step.done} class:current={step.active}>{step.done?'✓':step.active?'●':'○'} {step.label}</span>{/each}</div>
     {/if}
-    <details>
-      <summary>{w.history}</summary>
-      {#if snapshot?.history_available === false}<p>{w.unavailable}</p>
-      {:else if snapshot?.history?.length}
-        {#each snapshot.history as item (item.id)}<div class="transaction-history"><span class="mono">{item.id}</span> · {w.completed} · {item.package_count}</div>{/each}
-      {:else}<p>{w.empty}</p>{/if}
+    <div class="rf-package-list">
+      {#each rows as row (row.name)}
+        <div class="rf-package-row" class:current={['downloading','applying','verifying'].includes(row.state)}>
+          <span class="rf-package-icon" class:done={row.state==='completed'} class:error={row.state==='failed'}>{row.state==='completed'?'✓':row.state==='failed'?'×':['downloading','applying','verifying'].includes(row.state)?'◉':'○'}</span>
+          <div><strong>{title(row.name)}</strong><small>{shortVersion(row.version)}</small></div>
+          <span class="rf-package-state" class:done={row.state==='completed'} class:error={row.state==='failed'}>{row.state==='completed'?w.installed:w[row.state] || row.state}</span>
+        </div>
+      {/each}
+    </div>
+    {#if slot?.journal?.error_code}<p class="rf-note error">{w[phase] || phase}: {slot.journal.error_code}</p>{/if}
+    <details><summary>{w.logs}</summary><pre>{$appUpdates.snapshot?.log || w.noLog}</pre></details>
+    <details><summary>{w.history}</summary>
+      {#each $appUpdates.snapshot?.history || [] as row (row.id)}<div class="rf-history"><span>{row.commit?.slice(0,12)} · {row.package_count}</span><span>{w[row.state || 'completed']}</span></div>{:else}<small>{w.empty}</small>{/each}
     </details>
-  {/if}
-</section>
+    <div class="rf-update-foot"><button class="button compact" disabled={$appUpdates.launching} onclick={manualRefresh}>{w.refresh}</button><button class="button" onclick={closeUpdateProgress}>{w.collapse}</button></div>
+  </section>
+{/if}
 <style>
-  .transaction-panel { border:1px solid var(--border, #526073); border-radius:8px; padding:12px; margin:10px 0; display:grid; gap:8px; min-width:0; }
-  .transaction-head,.transaction-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .transaction-head { justify-content:space-between; }
-  .transaction-panel p { margin:0; font-size:.88em; }
-  .transaction-rows,.transaction-result { display:grid; gap:6px; }
-  .transaction-row { display:flex; align-items:center; gap:8px; min-width:0; }
-  .transaction-row input { width:auto; flex:none; }
-  small { display:block; overflow-wrap:anywhere; opacity:.8; }
-  .transaction-result ol { margin:4px 0; padding-left:24px; }
-  .transaction-result li { margin-bottom:6px; overflow-wrap:anywhere; }
-  .transaction-history { overflow-wrap:anywhere; padding:4px 0; }
-  code { overflow-wrap:anywhere; }
+  .rf-update-indicator {display:grid;gap:3px;min-width:92px;max-width:155px;font-size:.72rem;white-space:nowrap;line-height:1.2;padding:.3rem .45rem}
+  .rf-update-indicator progress{width:100%;height:4px;display:block;accent-color:var(--rf-good,#52d273)}
+  .rf-indicator-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--rf-muted,#999);margin-right:4px}.rf-indicator-dot.active{background:var(--rf-good,#52d273);animation:rf-pulse 1s alternate infinite}
+  @keyframes rf-pulse{from{opacity:.5}to{opacity:1}}
+  .rf-update-backdrop{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.52)}
+  .rf-update-dialog{position:fixed;z-index:1201;top:50%;left:50%;transform:translate(-50%,-50%);width:min(570px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;display:grid;gap:12px;padding:18px;border:1px solid var(--rf-border,var(--border,#444));border-radius:12px;background:var(--rf-panel,var(--panel,#18191d));color:var(--rf-text,var(--text,#eee));font-family:inherit;font-size:.86rem;box-shadow:0 16px 60px rgba(0,0,0,.4);white-space:normal;box-sizing:border-box}
+  .rf-update-head,.rf-update-count,.rf-update-foot,.rf-history{display:flex;justify-content:space-between;align-items:center;gap:10px}.rf-update-head>div{display:grid;gap:4px}.rf-update-head strong{font-size:1.05rem}.rf-update-count{font-size:1.2rem}.rf-update-dialog small{color:var(--rf-muted,var(--muted,#aaa));font-size:.74rem}.rf-main-progress{width:100%;height:8px;accent-color:var(--rf-good,#52d273)}
+  .rf-update-steps{display:flex;justify-content:space-between;flex-wrap:wrap;gap:5px;color:var(--rf-muted,var(--muted,#aaa));font-size:.75rem}.rf-package-list{display:grid;gap:3px;border-top:1px solid var(--rf-border,var(--border,#444));padding-top:6px}.rf-package-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px;border-radius:6px}.rf-package-row.current{background:var(--rf-hover,var(--hover,#282d35))}.rf-package-row>div{display:grid;min-width:0;gap:1px}.rf-package-row strong{overflow-wrap:anywhere}.rf-package-state{font-size:.74rem;text-align:right}.done{color:var(--rf-good,#52d273)}.current{color:var(--rf-accent,#66aaff)}.error{color:var(--rf-danger,#ff6969)}.rf-note{font-size:.78rem;margin:0;overflow-wrap:anywhere;color:var(--rf-muted,var(--muted,#aaa))}.rf-note.error{color:var(--rf-danger,#ff6969)}
+  details{border-top:1px solid var(--rf-border,var(--border,#444));padding-top:8px}summary{cursor:pointer;font-weight:600}.rf-history{padding:5px 0}.rf-update-dialog pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.72rem;padding:8px;background:var(--rf-hover,var(--hover,#222));border-radius:6px;margin:8px 0 0}.rf-update-foot{justify-content:flex-end}
 </style>

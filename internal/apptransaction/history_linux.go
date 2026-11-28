@@ -17,11 +17,18 @@ type CompletedTransaction struct {
 	ID           string `json:"id"`
 	Commit       string `json:"commit"`
 	PackageCount int    `json:"package_count"`
+	State        string `json:"state,omitempty"`
 }
 
 // CompletedHistory reads only immutable completed archives. It never creates,
 // repairs, removes or replays a transaction. The active slot is reported separately.
 func (c *Coordinator) CompletedHistory(limit int) ([]CompletedTransaction, error) {
+	return c.updateHistory(limit, false)
+}
+func (c *Coordinator) UpdateHistory(limit int) ([]CompletedTransaction, error) {
+	return c.updateHistory(limit, true)
+}
+func (c *Coordinator) updateHistory(limit int, includeFailed bool) ([]CompletedTransaction, error) {
 	if limit < 1 || limit > 50 {
 		return nil, errors.New("invalid history limit")
 	}
@@ -46,10 +53,14 @@ func (c *Coordinator) CompletedHistory(limit int) ([]CompletedTransaction, error
 	}
 	var archives []archive
 	for _, entry := range entries {
-		if !strings.HasPrefix(entry.Name(), "completed-") {
+		prefix := "completed-"
+		if includeFailed && strings.HasPrefix(entry.Name(), "failed-") {
+			prefix = "failed-"
+		}
+		if !strings.HasPrefix(entry.Name(), prefix) {
 			continue
 		}
-		id := strings.TrimPrefix(entry.Name(), "completed-")
+		id := strings.TrimPrefix(entry.Name(), prefix)
 		if !token.MatchString(id) || !entry.IsDir() {
 			return nil, errors.New("invalid history archive")
 		}
@@ -71,10 +82,25 @@ func (c *Coordinator) CompletedHistory(limit int) ([]CompletedTransaction, error
 	out := make([]CompletedTransaction, 0, len(archives))
 	for _, archive := range archives {
 		v, err := inspectTransactionSlot(filepath.Join(c.root, archive.name))
-		if err != nil || v.State != string(Completed) || v.Plan == nil || v.Plan.ID != strings.TrimPrefix(archive.name, "completed-") {
+		completed := strings.HasPrefix(archive.name, "completed-")
+		prefix := "completed-"
+		if !completed {
+			prefix = "failed-"
+		}
+		if err != nil || v.Plan == nil || v.Plan.ID != strings.TrimPrefix(archive.name, prefix) || (completed && v.State != string(Completed)) {
+			if includeFailed {
+				continue
+			}
 			return nil, errors.New("invalid completed archive")
 		}
-		out = append(out, CompletedTransaction{ID: v.Plan.ID, Commit: v.Plan.Commit, PackageCount: len(v.Plan.Packages)})
+		state := ""
+		if includeFailed {
+			state = "failed"
+			if completed {
+				state = "completed"
+			}
+		}
+		out = append(out, CompletedTransaction{ID: v.Plan.ID, Commit: v.Plan.Commit, PackageCount: len(v.Plan.Packages), State: state})
 	}
 	return out, nil
 }

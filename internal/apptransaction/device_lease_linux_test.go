@@ -55,15 +55,14 @@ func TestDevicePackageLeaseSharedCoordinator(t *testing.T) {
 		t.Fatal(e)
 	}
 	f.Close()
-	// An abandoned/ambiguous slot must prevent every cooperating module, too.
+	// A historical slot does not keep the package manager permanently locked.
 	if e = os.Mkdir(c.slot(), 0700); e != nil {
 		t.Fatal(e)
 	}
-	if next, e := acquireCoordinatorPackageLease(c); !errors.Is(e, ErrRecovery) {
-		if next != nil {
-			next.Close()
-		}
-		t.Fatalf("unresolved slot accepted: %v", e)
+	if next, e := acquireCoordinatorPackageLease(c); e != nil {
+		t.Fatal(e)
+	} else {
+		next.Close()
 	}
 }
 

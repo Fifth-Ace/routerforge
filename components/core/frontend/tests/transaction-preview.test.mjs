@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewSelection, selectionKey, previewMatches, transactionProgress, executionRequest } from '../src/lib/transaction-preview.js';
+import { previewSelection, selectionKey, previewMatches, transactionProgress, executionRequest, updateRows, updateRunning } from '../src/lib/transaction-preview.js';
 const commit = 'a'.repeat(40);
 const row = { package: 'routerforge-core', installed_version: 'old', target_version: 'new' };
 test('only server supplied exact release selection', () => {
@@ -27,6 +27,16 @@ test('execution requires current admitted plan and exact confirmation', () => {
   const snapshot={release_commit:commit,eligible_packages:[row],execution_available:true,slot:{state:'idle'}};
   const preview={execution_available:true,plan:{id:'1'.repeat(32),commit,channel:'dev',target:'aarch64-3.10',packages:[{name:row.package,version:row.target_version}]},plan_sha256:'b'.repeat(64),management:[{package:row.package,state:'management_ready'}]};
   assert.deepEqual(executionRequest(snapshot,preview,[row.package]),{id:preview.plan.id,expected_commit:commit,packages:[row.package],plan_sha256:preview.plan_sha256,confirm:'EXECUTE:'+preview.plan_sha256});
-  for(const s of [{...snapshot,execution_available:false},{...snapshot,slot:{state:'recovery_required'}},{...snapshot,release_commit:'c'.repeat(40)},{...snapshot,eligible_packages:[]}]) assert.equal(executionRequest(s,preview,[row.package]),null);
-  for(const p of [{...preview,execution_available:false},{...preview,management:[]},{...preview,plan:{...preview.plan,id:'bad'}}]) assert.equal(executionRequest(snapshot,p,[row.package]),null);
+  for(const s of [{...snapshot,execution_available:false},{...snapshot,slot:{state:'applying'}},{...snapshot,slot:{state:'completed',busy:true}},{...snapshot,release_commit:'c'.repeat(40)},{...snapshot,eligible_packages:[]}]) assert.equal(executionRequest(s,preview,[row.package]),null);
+  for(const p of [{...preview,execution_available:false},{...preview,plan:{...preview.plan,id:'bad'}}]) assert.equal(executionRequest(snapshot,p,[row.package]),null);
+});
+
+test('manual new plan after failure does not require management health',()=>{
+ const snapshot={release_commit:commit,eligible_packages:[row],execution_available:true,slot:{state:'recovery_required'}};
+ const preview={execution_available:true,plan:{id:'1'.repeat(32),commit,channel:'dev',target:'aarch64-3.10',packages:[{name:row.package,version:row.target_version}]},plan_sha256:'b'.repeat(64)};
+ assert.ok(executionRequest(snapshot,preview,[row.package]));
+ const slot={state:'preparing',plan:{packages:[{name:'a'},{name:'b'}]},journal:{downloaded:1,next:0}};
+ assert.deepEqual(updateRows(slot).map(p=>p.state),['downloaded','downloading']);assert.ok(updateRunning(slot));
+ assert.deepEqual(updateRows({...slot,state:'verifying',journal:{next:1}}).map(p=>p.state),['completed','verifying']);
+ assert.equal(updateRunning({...slot,state:'recovery_required'}),false);
 });

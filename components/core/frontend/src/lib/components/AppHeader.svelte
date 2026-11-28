@@ -1,5 +1,6 @@
 <script>
   import { page } from '$app/stores';
+  import TransactionPlanner from '$lib/components/TransactionPlanner.svelte';
   import { snapshot, streamMode } from '$lib/stores/snapshot.js';
   import { adminSummary, adminOnline } from '$lib/stores/admin.js';
   import { systemModuleSummary, systemModuleOnline } from '$lib/stores/systemModule.js';
@@ -97,6 +98,7 @@
     </nav>
 
     <div class="header-status mono">
+      <TransactionPlanner {locale} />
       <div class="rf-language-switch" aria-label={t(locale, 'common.language')}>
         <button type="button" class:active={locale === 'ru'} aria-pressed={locale === 'ru'} onclick={() => setLocale('ru')}>RU</button>
         <span>/</span>

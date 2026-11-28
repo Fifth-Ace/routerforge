@@ -13,7 +13,7 @@
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
-  import TransactionPlanner from '$lib/components/TransactionPlanner.svelte';
+  import { appUpdates, startOfficialUpdates, openUpdateProgress } from '$lib/stores/app-updates.js';
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
   import SourceManager from '$lib/components/SourceManager.svelte';
@@ -35,7 +35,11 @@
   };
 
   let tab = 'routerforge';
-  let executionPolicy = false;
+  let viewMode = 'cards';
+  let selectedUpdates = [];
+  $: workerMode = releaseChannel === 'dev' && releaseTarget === 'aarch64-3.10';
+  $: updateBusy = Boolean($appUpdates.launching || $appUpdates.running);
+  $: selectedOfficialUpdates = officialRouterForgeUpdates.filter(item => selectedUpdates.includes(item.id));
   let search = '';
   let categoryFilter = 'all';
   let sortMode = 'name';
@@ -70,6 +74,8 @@
 
   onMount(() => {
     try {
+      const savedView = localStorage.getItem('routerforge:app-center-view');
+      if (['cards','list'].includes(savedView)) viewMode = savedView;
       const savedSort = localStorage.getItem('routerforge:app-center-sort');
       const savedGroup = localStorage.getItem('routerforge:app-center-group-v2');
       if (['name','category','publisher','installed','updates'].includes(savedSort)) sortMode = savedSort;
@@ -434,7 +440,6 @@
   }
 
   function canAction(item, action) {
-    if (executionPolicy && action === 'update' && isOfficialRouterForgeUpdate(item)) return false;
     return Boolean(item.actions?.[action])
       && (action === 'remove' || packageMode || officialRouterForgeLifecycleAction(item, action));
   }
@@ -731,7 +736,11 @@
     }
   }
   async function runCatalogAction(item, action, confirm = '', skipConfirm = false) {
-    if (!canAction(item, action) || busyId) return;
+    if (!canAction(item, action) || busyId || updateBusy) return;
+    if (workerMode && action === 'update' && isOfficialRouterForgeUpdate(item)) {
+      if (skipConfirm || window.confirm(`${a(locale,'update')} ${item.name}?`)) await launchOfficial([item]);
+      return;
+    }
     if (item.id !== 'routerforge-core') {
       await runAsyncCatalogAction(item, action, confirm, skipConfirm);
       return;
@@ -971,13 +980,14 @@
   }
 
   async function updateAllRouterForge() {
-    if (bulkUpdating || busyId || executionPolicy) return;
+    if (bulkUpdating || busyId || updateBusy) return;
     const initial = [...officialRouterForgeUpdates];
     if (!initial.length) return;
 
     const names = initial.map((item) => item.name || item.id).join('\n• ');
     const question = a(locale,'msgBulkConfirm',{count:initial.length,names});
     if (!window.confirm(question)) return;
+    if (workerMode) { await launchOfficial(initial); return; }
 
     const priority = (item) => item.id === 'profiling' ? 20 : item.id === 'routerforge-core' ? 30 : 10;
     const queue = [...initial].sort((a, b) => priority(a) - priority(b) || String(a.id).localeCompare(String(b.id)));
@@ -1030,6 +1040,15 @@
       busyAction = '';
     }
   }
+  function setViewMode(mode) { viewMode=mode; try { localStorage.setItem('routerforge:app-center-view',mode); } catch {} }
+  function toggleSelected(id) { selectedUpdates=selectedUpdates.includes(id)?selectedUpdates.filter(x=>x!==id):[...selectedUpdates,id]; }
+  async function launchOfficial(items) {
+    if (updateBusy || !items.length) return;
+    actionNotice=null;
+    try { await startOfficialUpdates(items.map(item=>item.release?.package)); selectedUpdates=[]; }
+    catch(error) { actionNotice={cls:'error',text:error?.payload?.error || error?.message || 'update failed'}; }
+  }
+  async function updateSelected() { if (selectedOfficialUpdates.length && window.confirm(locale==='ru'?'Обновить выбранные пакеты?':'Update selected packages?')) await launchOfficial(selectedOfficialUpdates); }
   function reviewRouterForgeUpdates() {
     setTab('updates');
   }
@@ -1210,7 +1229,7 @@
 
       {#if tab === 'routerforge'}
         <a class="button" href={'/release-notes?channel=' + (releaseChannel==='stable'?'stable':'beta')}>{locale==='ru'?'Что нового':'What’s new'}</a>
-        <button class="button primary" disabled={executionPolicy || bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
+        <button class="button primary" disabled={updateBusy || bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
           {bulkUpdating ? (a(locale,'msgBulkRunning')) : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
       {/if}
@@ -1230,8 +1249,8 @@
     <span>{a(locale,'registry')} <strong>{data.registry?.revision ? data.registry.revision.slice(0,12) : '—'}</strong></span>
   </div>
 
-  {#if tab === 'routerforge' && releaseChannel === 'dev' && releaseTarget === 'aarch64-3.10'}
-    <TransactionPlanner {locale} bind:executionPolicy />
+  {#if workerMode && ($appUpdates.snapshot?.slot?.plan || $appUpdates.launching)}
+    <div class="rf-update-link"><button class="button" onclick={openUpdateProgress}>{locale==='ru'?'Ход обновления и история':'Update progress and history'}</button></div>
   {/if}
 
   {#if actionNotice}
@@ -1379,7 +1398,15 @@
     {/if}
 
     {#if tab !== 'entware'}
-      <div class="catalog-grid catalog-grid-v2">
+      <div class="rf-view-controls">
+        <button class="button compact" aria-pressed={viewMode==='cards'} onclick={()=>setViewMode('cards')}>{locale==='ru'?'Карточки':'Cards'}</button>
+        <button class="button compact" aria-pressed={viewMode==='list'} onclick={()=>setViewMode('list')}>{locale==='ru'?'Список':'List'}</button>
+        {#if workerMode && tab==='routerforge' && officialRouterForgeUpdates.length}
+          <button class="button compact" disabled={updateBusy} onclick={()=>selectedUpdates=selectedOfficialUpdates.length===officialRouterForgeUpdates.length?[]:officialRouterForgeUpdates.map(item=>item.id)}>{locale==='ru'?'Выбрать / снять все':'Select / clear all'}</button>
+          <button class="button primary compact" disabled={updateBusy || !selectedOfficialUpdates.length} onclick={updateSelected}>{locale==='ru'?'Обновить выбранные':'Update selected'} ({selectedOfficialUpdates.length})</button>
+        {/if}
+      </div>
+      <div class="catalog-grid catalog-grid-v2 rf-compact-grid" class:rf-list-view={viewMode==='list'}>
         {#if !catalogItems.length && !['installed','updates'].includes(tab) && !(tab === 'routerforge' && routerForgeServerPreviewMatches(search))}<div class="catalog-empty">{a(locale,'noItems')}</div>{/if}
         {#each catalogDisplayRows as row (row.key)}
           {#if row.type === 'group'}
@@ -1394,7 +1421,7 @@
           {@const st = stateInfo(item,locale)}
           {@const ownURL = item.kind === 'module' && item.installed ? moduleURL(item) : ''}
           {@const warning = catalogWarning(item)}
-          <article class="catalog-card catalog-card-compact" class:update-available={item.update_available}>
+          <article class="catalog-card catalog-card-compact rf-compact-card" class:update-available={item.update_available}>
             <div class="catalog-card-main">
               <div class="catalog-card-head">
                 <div class="catalog-identity">
@@ -1406,16 +1433,16 @@
                 </div>
                 <div class="catalog-state-stack">
                   {#if item.update_available}<span class="state-chip warn">{a(locale,'updateBadge')}</span>{/if}
-                  <span class="state-chip {trustClass(item)}">{trustLabel(item)}</span>
+                  {#if workerMode && tab==='routerforge' && isOfficialRouterForgeUpdate(item)}<input type="checkbox" aria-label={(locale==='ru'?'Выбрать ':'Select ')+item.name} checked={selectedUpdates.includes(item.id)} disabled={updateBusy} onchange={()=>toggleSelected(item.id)} />{/if}
                   <span class="state-chip {st.cls}">{st.label}</span>
                 </div>
               </div>
 
-              <p class="catalog-card-description">{descriptionText(item)}</p>
+              <p class="catalog-card-description" title={descriptionText(item)}>{descriptionText(item)}</p>
 
               <div class="catalog-card-meta">
-                <span class="catalog-meta-chip">{catalogCategory(item)}</span>
-                <span class="catalog-meta-chip mono" class:good={item.update_available}>{catalogVersionText(item, locale)}</span>
+
+                <span class="catalog-meta-chip mono" class:good={item.update_available}>{catalogVersionText(item, locale).replace(/v1~dev\.(r\d+)\.[a-f0-9]{12}/g,"$1")}</span>
                 {#if hasServiceContract(item)}
                   <span
                     class="catalog-meta-chip"
@@ -1437,7 +1464,7 @@
                   <button
                     class="button"
                     class:primary={item.update_available}
-                    disabled={Boolean(busyId)}
+                    disabled={Boolean(busyId) || updateBusy}
                     onclick={() => runCatalogAction(item,'update')}
                   >
                     {busyId === item.id ? a(locale,'updating') : a(locale,'update')}
@@ -1455,13 +1482,17 @@
                 {#if !item.installed && canAction(item,'install')}
                   <button
                     class="button primary"
-                    disabled={Boolean(busyId)}
+                    disabled={Boolean(busyId) || updateBusy}
                     onclick={() => runCatalogAction(item,'install')}
                   >
                     {busyId === item.id ? a(locale,'installing') : a(locale,'install')}
                   </button>
                 {/if}
 
+                <details class="rf-card-more">
+                  <summary aria-label={locale==='ru'?'Дополнительно':'More'}>⋯</summary>
+                  <div class="rf-more-actions">
+                    <span class="state-chip {trustClass(item)}">{trustLabel(item)}</span>
                 {#if item.installed || item.install?.method || item.project_url}
                   <button class="button" onclick={() => plannerItem = item}>{a(locale,'details')}</button>
                 {/if}
@@ -1486,13 +1517,15 @@
                 <ModuleLifecycleControls
                   {item}
                   {locale}
-                  disabled={Boolean(busyId)}
+                  disabled={Boolean(busyId) || updateBusy}
                   onnotice={(notice) => actionNotice = notice}
                 />
 
                 {#if item.installed && canAction(item,'remove')}
-                  <button class="button danger-subtle compact" disabled={Boolean(busyId)} onclick={() => removeItem = item}>{a(locale,'remove')}</button>
+                  <button class="button danger-subtle compact" disabled={Boolean(busyId) || updateBusy} onclick={() => removeItem = item}>{a(locale,'remove')}</button>
                 {/if}
+                  </div>
+                </details>
               </div>
             </div>          </article>
           {/if}
@@ -1553,10 +1586,10 @@
                 <span class="mono muted">{pkg.installed_version ? a(locale,'installedVersion',{version:pkg.installed_version}) : ''}{pkg.installed_version && pkg.available_version ? ' · ' : ''}{pkg.available_version ? a(locale,'availableVersion',{version:pkg.available_version}) : ''}</span>
               </div>
               <div class="catalog-actions">
-                <button class="button" disabled={Boolean(busyId)} onclick={() => showEntwareDetail(pkg)}>{a(locale,'details')}</button>
-                {#if !pkg.installed && packageMode}<button class="button primary" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'install')}>{busyId === `entware:${pkg.name}` ? a(locale,'installing') : a(locale,'install')}</button>{/if}
-                {#if pkg.installed && pkg.upgradable && packageMode}<button class="button" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'update')}>{busyId === `entware:${pkg.name}` ? a(locale,'updating') : a(locale,'update')}</button>{/if}
-                {#if pkg.installed && !pkg.name.startsWith('routerforge-') && pkg.name !== 'opkg'}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'remove')}>{busyId === `entware:${pkg.name}` ? a(locale,'removing') : a(locale,'remove')}</button>{/if}
+                <button class="button" disabled={Boolean(busyId) || updateBusy} onclick={() => showEntwareDetail(pkg)}>{a(locale,'details')}</button>
+                {#if !pkg.installed && packageMode}<button class="button primary" disabled={Boolean(busyId) || updateBusy} onclick={() => runEntwareAction(pkg,'install')}>{busyId === `entware:${pkg.name}` ? a(locale,'installing') : a(locale,'install')}</button>{/if}
+                {#if pkg.installed && pkg.upgradable && packageMode}<button class="button" disabled={Boolean(busyId) || updateBusy} onclick={() => runEntwareAction(pkg,'update')}>{busyId === `entware:${pkg.name}` ? a(locale,'updating') : a(locale,'update')}</button>{/if}
+                {#if pkg.installed && !pkg.name.startsWith('routerforge-') && pkg.name !== 'opkg'}<button class="button danger-subtle" disabled={Boolean(busyId) || updateBusy} onclick={() => runEntwareAction(pkg,'remove')}>{busyId === `entware:${pkg.name}` ? a(locale,'removing') : a(locale,'remove')}</button>{/if}
               </div>
             </article>
           {/each}
@@ -2408,4 +2441,38 @@
 .app-center-page .catalog-group-select {
   min-width: 150px;
 }
+  /* Official and integration cards: compact default, details on demand. */
+  .app-center-page .rf-view-controls{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin:.45rem 0}
+  .app-center-page .rf-view-controls [aria-pressed="true"]{border-color:var(--rf-accent,var(--accent));color:var(--rf-accent,var(--accent))}
+  .app-center-page .rf-update-link{margin:.45rem 0}
+  .app-center-page .catalog-grid-v2.rf-compact-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;align-items:start}
+  .app-center-page .catalog-grid-v2.rf-compact-grid.rf-list-view{grid-template-columns:minmax(0,1fr)}
+  .app-center-page .rf-compact-grid .catalog-group-row{grid-column:1/-1}
+  .app-center-page .catalog-grid-v2 .rf-compact-card{min-height:0;min-width:0;padding:.55rem .65rem;gap:.25rem;overflow:visible}
+  .app-center-page .rf-compact-card .catalog-card-main{gap:.3rem}
+  .app-center-page .rf-compact-card .catalog-card-head{display:flex;flex-direction:row;align-items:center;gap:.35rem}
+  .app-center-page .rf-compact-card .catalog-identity{display:flex;min-width:0;gap:.42rem;align-items:center}
+  .app-center-page .rf-compact-card .catalog-identity h3{font-size:.94rem;line-height:1.15;margin:0}
+  .app-center-page .rf-compact-card .catalog-identity span{font-size:.67rem;display:none}
+  .app-center-page .rf-compact-card .catalog-icon{width:32px;height:32px;min-width:32px;font-size:.68rem}
+  .app-center-page .catalog-grid-v2 .rf-compact-card .catalog-state-stack{gap:.22rem;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;align-items:center;max-width:52%}
+  .app-center-page .rf-compact-card .catalog-state-stack input{width:auto;margin:0}
+  .app-center-page .rf-compact-card .catalog-state-stack .state-chip{font-size:.66rem;min-height:19px;padding:.1rem .32rem}
+  .app-center-page .rf-compact-card .catalog-card-description{min-height:0;display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:.75rem;margin:0}
+  .app-center-page .rf-compact-card .catalog-card-meta{gap:.25rem;flex-wrap:wrap}
+  .app-center-page .rf-compact-card .catalog-meta-chip{min-height:19px;font-size:.67rem;padding:.12rem .34rem;max-width:100%;overflow-wrap:anywhere}
+  .app-center-page .catalog-grid-v2 .rf-compact-card .compact-foot{margin-top:.25rem;padding-top:.28rem;display:flex;flex-direction:row;align-items:center}
+  .app-center-page .rf-compact-card .catalog-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem;width:100%}
+  .app-center-page .rf-compact-card .catalog-actions>.button{font-size:.72rem;padding:.25rem .45rem;min-height:24px}
+  .app-center-page .rf-card-more{margin-left:auto;max-width:100%}
+  .app-center-page .rf-card-more[open]{width:100%;margin-left:0}
+  .app-center-page .rf-card-more summary{cursor:pointer;list-style:none;display:inline-block;min-width:26px;text-align:center;border:1px solid var(--rf-border,var(--border));border-radius:5px;line-height:1.3;font-size:1rem;padding:0 .2rem}
+  .app-center-page .rf-card-more summary::-webkit-details-marker{display:none}
+  .app-center-page .rf-more-actions{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;align-items:center}
+  .app-center-page .rf-list-view .rf-compact-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,auto);align-items:center;gap:.75rem}
+  .app-center-page .rf-list-view .rf-compact-card .compact-foot{border:0;margin:0;padding:0}
+  @media(max-width:1599px){.app-center-page .catalog-grid-v2.rf-compact-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:1110px){.app-center-page .catalog-grid-v2.rf-compact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:640px){.app-center-page .catalog-grid-v2.rf-compact-grid{grid-template-columns:minmax(0,1fr)}.app-center-page .rf-list-view .rf-compact-card{grid-template-columns:minmax(0,1fr)}}
+
 </style>

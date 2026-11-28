@@ -15,14 +15,14 @@ import (
 var version = "dev"
 
 func main() {
-	if len(os.Args) != 1 || !apptransaction.DeviceExecutionConfigured(version) {
-		log.Fatal("RF_APP_WORKER: execution not accepted")
+	if len(os.Args) != 1 || !apptransaction.DeviceUpdateAvailable(version) {
+		log.Fatal("RF_APP_WORKER: update unavailable")
 	}
 	c, err := apptransaction.DeviceCoordinator()
 	if err != nil {
 		log.Fatal(err)
 	}
-	j, err := c.RunAcceptedDeviceWorker(context.Background(), version)
+	j, err := c.RunSimpleDeviceWorker(context.Background(), version)
 	if err != nil {
 		log.Fatalf("RF_APP_WORKER: phase=%s error=%v", j.Phase, err)
 	}

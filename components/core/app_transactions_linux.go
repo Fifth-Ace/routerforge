@@ -20,8 +20,7 @@ import (
 )
 
 // The new planner and admission guard are scoped to the Dev ARM64 build.
-// Execution requires an explicit root-controlled exact hardware acceptance
-// record. No approval is shipped; the start handler fails closed by default.
+// Official Dev updates use the independent worker and shared package lease.
 type coreTransactionState struct {
 	enabled     bool
 	coordinator *apptransaction.Coordinator
@@ -78,7 +77,7 @@ func (s coreTransactionState) acquire() (func(), error) {
 	if s.coordinator == nil {
 		return nil, errors.New("transaction admission unavailable")
 	}
-	f, err := s.coordinator.AcquireLegacy()
+	f, err := s.coordinator.AcquirePackageMutation()
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func buildCoreTransactionPreview(id string, req appTransactionPreviewRequest, do
 	out.Plan = plan
 	out.PlanSHA256 = h
 	out.ExecutionAvailable = false
-	out.Reason = "executor activation gated pending global mutation and lifecycle acceptance"
+	out.Reason = "update worker availability is checked by the HTTP handler"
 	return out, nil
 }
 
@@ -286,9 +285,9 @@ func confirmedTransactionPlan(req appTransactionStartRequest, doc routerForgeRel
 	}
 	return preview.Plan, nil
 }
-func coreExecutionPolicyActive() bool { return apptransaction.DeviceExecutionPolicyActive(version) }
+func coreExecutionPolicyActive() bool { return coreExecutionConfigured() }
 func coreExecutionConfigured() bool {
-	return apptransaction.DeviceExecutionConfigured(version) && coreTransactionIntegration.enabled && coreTransactionIntegration.coordinator != nil && normalizedReleaseChannel() == "dev" && normalizedReleaseTarget() == "aarch64-3.10"
+	return apptransaction.DeviceUpdateAvailable(version) && coreTransactionIntegration.enabled && coreTransactionIntegration.coordinator != nil && normalizedReleaseChannel() == "dev" && normalizedReleaseTarget() == "aarch64-3.10"
 }
 func coreLegacyOfficialUpdateBlocked(item catalogItem, action string) bool {
 	if !coreExecutionPolicyActive() || action != "update" {
@@ -301,7 +300,7 @@ func coreLegacyOfficialUpdateBlocked(item catalogItem, action string) bool {
 }
 func coreExecutionAuthorized(auth *authManager, r *http.Request) bool {
 	if !auth.authRequired() {
-		return false
+		return true
 	}
 	u, ok := auth.sessionUser(r)
 	return ok && u == "root"
@@ -315,11 +314,11 @@ func registerCoreTransactionStart(mux *http.ServeMux, auth *authManager) {
 			return
 		}
 		if !coreExecutionAuthorized(auth, r) || strings.TrimSpace(r.Header.Get("Origin")) == "" || !sameOriginRequest(r) {
-			writeCatalogJSON(w, 403, map[string]any{"error": "authenticated same-origin root session required"})
+			writeCatalogJSON(w, 403, map[string]any{"error": "same-origin package update authorization required"})
 			return
 		}
 		if !coreExecutionConfigured() {
-			writeCatalogJSON(w, 409, map[string]any{"error": "hardware acceptance required", "execution_available": false})
+			writeCatalogJSON(w, 409, map[string]any{"error": "update worker unavailable", "execution_available": false})
 			return
 		}
 		req, err := decodeTransactionStart(w, r)
@@ -335,7 +334,7 @@ func registerCoreTransactionStart(mux *http.ServeMux, auth *authManager) {
 		}
 		// Rebuild again inside the lease, before creating any execution slot. The
 		// independent worker separately verifies the acceptance sequence and proofs.
-		_, err = coreTransactionIntegration.coordinator.StartDeviceExecution(r.Context(), version, plan, func() error {
+		_, err = coreTransactionIntegration.coordinator.StartSimpleDeviceUpdate(r.Context(), version, plan, func() error {
 			if !coreExecutionConfigured() || !coreExecutionAuthorized(auth, r) {
 				return errors.New("execution admission changed")
 			}
@@ -345,7 +344,7 @@ func registerCoreTransactionStart(mux *http.ServeMux, auth *authManager) {
 		})
 		if err != nil {
 			log.Printf("RF_APP_TRANSACTION: start rejected: %v", err)
-			writeCatalogJSON(w, 409, map[string]any{"error": "transaction not confirmed; inspect durable status before any retry"})
+			writeCatalogJSON(w, 409, map[string]any{"error": "update not started: " + err.Error()})
 			return
 		}
 		writeCatalogJSON(w, http.StatusAccepted, map[string]any{"id": plan.ID, "state": "queued"})
@@ -368,7 +367,7 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 		}
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", http.MethodGet)
-			writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET required; transaction execution not activated"})
+			writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET required"})
 			return
 		}
 		if !coreTransactionIntegration.enabled {
@@ -381,7 +380,11 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 		}
 		status, err := coreTransactionIntegration.coordinator.Status()
 		if err != nil {
-			writeCatalogJSON(w, http.StatusServiceUnavailable, map[string]any{"execution_available": false, "state": status.State, "error": "transaction journal requires inspection"})
+			status.State = string(apptransaction.RecoveryRequired)
+		}
+		if r.URL.Query().Get("progress") == "1" {
+			history, historyErr := coreTransactionIntegration.coordinator.UpdateHistory(20)
+			writeCatalogJSON(w, http.StatusOK, map[string]any{"slot": status, "history": history, "history_available": historyErr == nil, "log": coreTransactionIntegration.coordinator.UpdateLog()})
 			return
 		}
 		doc, releaseStatus := routerForgeReleaseSnapshot()
@@ -390,7 +393,7 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 			commit = ""
 			eligible = nil
 		}
-		history, historyErr := coreTransactionIntegration.coordinator.CompletedHistory(20)
+		history, historyErr := coreTransactionIntegration.coordinator.UpdateHistory(20)
 		writeCatalogJSON(w, http.StatusOK, map[string]any{"execution_available": coreExecutionConfigured() && coreExecutionAuthorized(auth, r), "execution_policy_active": coreExecutionPolicyActive(), "slot": status, "release_commit": commit, "eligible_packages": eligible, "history": history, "history_available": historyErr == nil})
 	})
 	mux.HandleFunc("/api/apps/transactions/preview", func(w http.ResponseWriter, r *http.Request) {
@@ -432,46 +435,8 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 			writeCatalogJSON(w, http.StatusConflict, map[string]any{"error": "release selection changed"})
 			return
 		}
-		// Use the existing cooperative lease only for this explicitly requested,
-		// bounded read-only inspection. Do not acquire a durable execution slot.
-		lease, err := coreTransactionIntegration.coordinator.AcquireLegacy()
-		if err != nil {
-			writeCatalogJSON(w, coreMutationHTTPStatus(err), map[string]any{"error": "transaction state does not allow preview", "execution_available": false})
-			return
-		}
-		defer lease.Close()
-		out.Management, err = apptransaction.PreviewDeviceManagement(r.Context(), out.Plan)
-		if err != nil {
-			writeCatalogJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "management preview unavailable", "execution_available": false})
-			return
-		}
-		// Do not equate a native management check with complete lifecycle admission.
-		itemsAfter := readCatalog().Modules
-		for i := range out.Management {
-			for _, item := range itemsAfter {
-				if routerForgePackageForItem(item) == out.Management[i].Package && out.Management[i].InstalledVersion != "" && item.Version != out.Management[i].InstalledVersion {
-					out.Management[i].State = "version_conflict"
-				}
-			}
-		}
-		docAfter, statusAfter := routerForgeReleaseSnapshot()
-		again, err := buildCoreTransactionPreview(out.Plan.ID, req, docAfter, statusAfter, itemsAfter)
-		if err != nil || again.PlanSHA256 != out.PlanSHA256 || normalizedReleaseChannel() != out.Plan.Channel || normalizedReleaseTarget() != out.Plan.Target {
-			writeCatalogJSON(w, http.StatusConflict, map[string]any{"error": "release snapshot changed", "execution_available": false})
-			return
-		}
-		if coreExecutionConfigured() && coreExecutionAuthorized(auth, r) {
-			ready := len(out.Management) == len(out.Plan.Packages)
-			for _, entry := range out.Management {
-				if entry.State != "management_ready" {
-					ready = false
-				}
-			}
-			if ready && apptransaction.CheckDeviceExecution(r.Context(), version, out.Plan) == nil {
-				out.ExecutionAvailable = true
-				out.Reason = "accepted exact hardware transition; worker rechecks before mutation"
-			}
-		}
+		out.ExecutionAvailable = coreExecutionConfigured() && coreExecutionAuthorized(auth, r)
+		out.Reason = ""
 		writeCatalogJSON(w, http.StatusOK, out)
 	})
 }

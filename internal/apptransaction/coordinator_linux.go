@@ -18,6 +18,7 @@ type Coordinator struct{ root string }
 
 type SlotStatus struct {
 	State   string   `json:"state"`
+	Busy    bool     `json:"busy,omitempty"`
 	Plan    *Plan    `json:"plan,omitempty"`
 	Journal *Journal `json:"journal,omitempty"`
 }
@@ -35,7 +36,7 @@ func OpenCoordinator(root string) (*Coordinator, error) {
 // The persistent var parent must be an owned directory not writable by others.
 // Only our private subdirectory is created. No opkg, network or config edits.
 func DeviceCoordinator() (*Coordinator, error) {
-	return createCoordinatorUnder("/opt/var")
+	return deviceCoordinatorAt("/opt/var", "/opt/etc/routerforge")
 }
 func createCoordinatorUnder(parent string) (*Coordinator, error) {
 	original, err := os.Lstat(parent)
@@ -118,8 +119,9 @@ func (c *Coordinator) Status() (SlotStatus, error) {
 	if errors.Is(err, ErrBusy) {
 		v, e := c.inspect()
 		if e != nil {
-			return SlotStatus{State: "busy"}, nil
+			return SlotStatus{State: "busy", Busy: true}, nil
 		}
+		v.Busy = true
 		if v.State == "idle" {
 			v.State = "busy"
 		}
@@ -230,6 +232,9 @@ func (c *Coordinator) RunWorker(ctx context.Context, factory func(string, Plan, 
 	h, err := factory(c.slot(), p, lease)
 	if err != nil {
 		return zero, fmt.Errorf("worker hook setup: %w", err)
+	}
+	if cleanup, ok := h.(interface{ Cleanup() }); ok {
+		defer cleanup.Cleanup()
 	}
 	return s.Execute(ctx, p, h)
 }

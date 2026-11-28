@@ -13,6 +13,9 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 	}
 	mux.HandleFunc("/api/apps/transactions", unavailable)
 	mux.HandleFunc("/api/apps/transactions/preview", unavailable)
+	mux.HandleFunc("/api/apps/transactions/start", unavailable)
 }
 
 func serveCoreHTTPWithEvidence(server *http.Server, _ string) error { return server.ListenAndServe() }
+
+func coreLegacyOfficialUpdateBlocked(catalogItem, string) bool { return false }

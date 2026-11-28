@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewSelection, selectionKey, previewMatches, transactionProgress } from '../src/lib/transaction-preview.js';
+import { previewSelection, selectionKey, previewMatches, transactionProgress, executionRequest } from '../src/lib/transaction-preview.js';
 const commit = 'a'.repeat(40);
 const row = { package: 'routerforge-core', installed_version: 'old', target_version: 'new' };
 test('only server supplied exact release selection', () => {
@@ -8,17 +8,25 @@ test('only server supplied exact release selection', () => {
   assert.deepEqual(previewSelection({release_commit:'wrong',eligible_packages:[row]}),[]);
   assert.notEqual(selectionKey({release_commit:commit,eligible_packages:[row]}),selectionKey({release_commit:commit,eligible_packages:[{...row,installed_version:'changed'}]}));
 });
-test('preview is tied to selection and release; executable response is not accepted', () => {
+test('preview is tied to selection and release; admission is checked separately', () => {
   const p={execution_available:false,plan:{commit,channel:'dev',target:'aarch64-3.10',packages:[{name:row.package}]},plan_sha256:'b'.repeat(64)};
   assert.equal(previewMatches(p,commit,[row.package]),true);
   assert.equal(previewMatches(p,'c'.repeat(40),[row.package]),false);
   assert.equal(previewMatches({...p,plan:{...p.plan,target:'mips-3.4'}},commit,[row.package]),false);
   assert.equal(previewMatches({...p,plan:{...p.plan,packages:{}}},commit,[row.package]),false);
   assert.equal(previewMatches(p,commit,[]),false);
-  assert.equal(previewMatches({...p,execution_available:true},commit,[row.package]),false);
+  assert.equal(previewMatches({...p,execution_available:true},commit,[row.package]),true);
 });
 test('journal progress is verified packages, not speculative percent', () => {
   assert.deepEqual(transactionProgress({plan:{packages:[1,2]},journal:{next:1}}),{verified:1,total:2});
   assert.equal(transactionProgress({plan:{packages:[1]},journal:{next:2}}),null);
   assert.equal(transactionProgress({}),null);
+});
+
+test('execution requires current admitted plan and exact confirmation', () => {
+  const snapshot={release_commit:commit,eligible_packages:[row],execution_available:true,slot:{state:'idle'}};
+  const preview={execution_available:true,plan:{id:'1'.repeat(32),commit,channel:'dev',target:'aarch64-3.10',packages:[{name:row.package,version:row.target_version}]},plan_sha256:'b'.repeat(64),management:[{package:row.package,state:'management_ready'}]};
+  assert.deepEqual(executionRequest(snapshot,preview,[row.package]),{id:preview.plan.id,expected_commit:commit,packages:[row.package],plan_sha256:preview.plan_sha256,confirm:'EXECUTE:'+preview.plan_sha256});
+  for(const s of [{...snapshot,execution_available:false},{...snapshot,slot:{state:'recovery_required'}},{...snapshot,release_commit:'c'.repeat(40)},{...snapshot,eligible_packages:[]}]) assert.equal(executionRequest(s,preview,[row.package]),null);
+  for(const p of [{...preview,execution_available:false},{...preview,management:[]},{...preview,plan:{...preview.plan,id:'bad'}}]) assert.equal(executionRequest(snapshot,p,[row.package]),null);
 });

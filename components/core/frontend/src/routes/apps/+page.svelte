@@ -35,6 +35,7 @@
   };
 
   let tab = 'routerforge';
+  let executionPolicy = false;
   let search = '';
   let categoryFilter = 'all';
   let sortMode = 'name';
@@ -433,6 +434,7 @@
   }
 
   function canAction(item, action) {
+    if (executionPolicy && action === 'update' && isOfficialRouterForgeUpdate(item)) return false;
     return Boolean(item.actions?.[action])
       && (action === 'remove' || packageMode || officialRouterForgeLifecycleAction(item, action));
   }
@@ -969,7 +971,7 @@
   }
 
   async function updateAllRouterForge() {
-    if (bulkUpdating || busyId) return;
+    if (bulkUpdating || busyId || executionPolicy) return;
     const initial = [...officialRouterForgeUpdates];
     if (!initial.length) return;
 
@@ -1208,7 +1210,7 @@
 
       {#if tab === 'routerforge'}
         <a class="button" href={'/release-notes?channel=' + (releaseChannel==='stable'?'stable':'beta')}>{locale==='ru'?'Что нового':'What’s new'}</a>
-        <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
+        <button class="button primary" disabled={executionPolicy || bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
           {bulkUpdating ? (a(locale,'msgBulkRunning')) : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
       {/if}
@@ -1229,7 +1231,7 @@
   </div>
 
   {#if tab === 'routerforge' && releaseChannel === 'dev' && releaseTarget === 'aarch64-3.10'}
-    <TransactionPlanner {locale} />
+    <TransactionPlanner {locale} bind:executionPolicy />
   {/if}
 
   {#if actionNotice}

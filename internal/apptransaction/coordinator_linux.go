@@ -158,6 +158,9 @@ func (c *Coordinator) AcquireLegacy() (*os.File, error) {
 // authorize the exact selected plan and choose the trusted executable/args.
 // A completed slot is archived, never deleted; ambiguous slots block launch.
 func (c *Coordinator) Start(executable string, args []string, p Plan) (int, error) {
+	return c.startChecked(executable, args, p, nil)
+}
+func (c *Coordinator) startChecked(executable string, args []string, p Plan, check func() error) (int, error) {
 	if _, err := p.Hash(); err != nil {
 		return 0, err
 	}
@@ -169,6 +172,11 @@ func (c *Coordinator) Start(executable string, args []string, p Plan) (int, erro
 	v, err := c.inspect()
 	if err != nil {
 		return 0, err
+	}
+	if check != nil {
+		if err = check(); err != nil {
+			return 0, err
+		}
 	}
 	// Reject replay before changing the existing slot or history.
 	if _, err = os.Lstat(filepath.Join(c.root, "completed-"+p.ID)); !errors.Is(err, os.ErrNotExist) {
@@ -233,6 +241,9 @@ func ValidateDevUpgrade(current, target string) error { return allowUpgrade(curr
 // RunVerifiedWorker requires real pre/post observations, exact package status
 // and durable proof files. No HTTP or CLI path activates it in this delivery.
 func (c *Coordinator) RunVerifiedWorker(ctx context.Context, probe LifecycleProbe) (Journal, error) {
+	return c.runVerifiedWorker(ctx, probe, nil)
+}
+func (c *Coordinator) runVerifiedWorker(ctx context.Context, probe LifecycleProbe, wrap func(Plan, *lifecycleProofHooks) (Hooks, error)) (Journal, error) {
 	if probe == nil {
 		return Journal{}, errors.New("missing lifecycle probe")
 	}
@@ -256,6 +267,10 @@ func (c *Coordinator) RunVerifiedWorker(ctx context.Context, probe LifecycleProb
 		if err != nil {
 			return nil, err
 		}
-		return &lifecycleProofHooks{Hooks: adapter, proof: proof}, nil
+		h := &lifecycleProofHooks{Hooks: adapter, proof: proof}
+		if wrap != nil {
+			return wrap(p, h)
+		}
+		return h, nil
 	})
 }

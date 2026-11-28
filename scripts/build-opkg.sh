@@ -105,6 +105,15 @@ frontend_assets_embed.go
         -o "$WORK/data/opt/bin/routerforge" $CORE_SOURCES
 )
 
+# The independent executor is Dev ARM64 only. A separate process name keeps
+# Core's existing init stop action from targeting its own package worker.
+if [ "$CHANNEL" = dev ] && [ "$TARGET" = aarch64-3.10 ]; then
+    (cd "$ROOT" && routerforge_go build -trimpath \
+        -ldflags="-s -w -X main.version=$PKG_VERSION" \
+        -o "$WORK/data/opt/bin/rf-app-worker" ./cmd/routerforge-app-worker)
+    chmod 0755 "$WORK/data/opt/bin/rf-app-worker"
+    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/rf-app-worker"
+fi
 chmod 0755 "$WORK/data/opt/bin/routerforge"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge"
 cp "$ROOT/components/core/packaging/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"

@@ -123,6 +123,11 @@ def verify_ipks(target):
             require(len(binary) > 20 and binary[:4] == b"\x7fELF" and binary[5] == endian and
                     int.from_bytes(binary[18:20], "little" if endian == 1 else "big") == machine,
                     f"wrong Core ELF target: {target}")
+            worker = payload.get("opt/bin/rf-app-worker")
+            if target == "aarch64-3.10":
+                require(worker is not None and len(worker) > 20 and worker[:4] == b"\x7fELF" and worker[5] == 1 and int.from_bytes(worker[18:20], "little") == 183, "independent worker ELF missing or incorrect")
+            else:
+                require(worker is None, "worker shipped outside Dev ARM64")
             init = ROOT / "components/core/packaging/S90routerforge"
             require(payload["opt/etc/init.d/S90routerforge"] == init.read_bytes(), "Core init script mismatch")
         else:

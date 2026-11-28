@@ -178,6 +178,9 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 	if !ok {
 		return catalogActionResult{}, &catalogInstallFailure{Status: 404, Message: "catalog item not found"}
 	}
+	if coreLegacyOfficialUpdateBlocked(item, action) {
+		return catalogActionResult{}, &catalogInstallFailure{Status: 409, Message: "official update requires the confirmed transaction planner"}
+	}
 	if !packageManagementAllowsCatalogAction(item, action) {
 		return catalogActionResult{}, &catalogInstallFailure{
 			Status:  403,

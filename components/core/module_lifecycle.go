@@ -155,21 +155,26 @@ func moduleLifecycleRunInit(ctx context.Context, service string, action string) 
 	return strings.TrimSpace(string(output)), runErr
 }
 
-func moduleLifecycleWait(spec moduleLifecycleSpec, running bool, timeout time.Duration) bool {
-	if len(spec.ProcessNames) == 0 {
-		return running
-	}
+// A missing process snapshot is unknown, not proof that a service is stopped.
+func moduleLifecycleStateMatches(spec moduleLifecycleSpec, processes map[string]bool, running bool) bool {
+	return len(spec.ProcessNames) > 0 && len(processes) > 0 && moduleLifecycleRuntimeState(spec, processes) == running
+}
+
+func moduleLifecycleWait(spec moduleLifecycleSpec, running bool, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		current := moduleLifecycleRuntimeState(spec, readProcessNames())
-		if current == running {
-			return current
+		if moduleLifecycleStateMatches(spec, readProcessNames(), running) {
+			return nil
 		}
 		if time.Now().After(deadline) {
-			return current
+			return errors.New("module lifecycle state not confirmed")
 		}
 		time.Sleep(125 * time.Millisecond)
 	}
+}
+
+func moduleLifecycleResultMatches(item *catalogItem, running, disabled bool) bool {
+	return item != nil && item.Installed && item.ServiceRunning == running && item.Disabled == disabled
 }
 
 func runModuleLifecycleAction(ctx context.Context, id, action string) (map[string]any, error) {
@@ -224,7 +229,7 @@ func runModuleLifecycleAction(ctx context.Context, id, action string) (map[strin
 		}
 		output, err = moduleLifecycleRunInit(ctx, service, "start")
 		if err == nil {
-			moduleLifecycleWait(spec, true, 4*time.Second)
+			err = moduleLifecycleWait(spec, true, 4*time.Second)
 		}
 
 	case "restart":
@@ -236,13 +241,13 @@ func runModuleLifecycleAction(ctx context.Context, id, action string) (map[strin
 		}
 		output, err = moduleLifecycleRunInit(ctx, service, "restart")
 		if err == nil {
-			moduleLifecycleWait(spec, true, 4*time.Second)
+			err = moduleLifecycleWait(spec, true, 4*time.Second)
 		}
 
 	case "stop":
 		output, err = moduleLifecycleRunInit(ctx, service, "stop")
 		if err == nil {
-			moduleLifecycleWait(spec, false, 4*time.Second)
+			err = moduleLifecycleWait(spec, false, 4*time.Second)
 		}
 
 	case "disable":
@@ -250,7 +255,9 @@ func runModuleLifecycleAction(ctx context.Context, id, action string) (map[strin
 		if err != nil {
 			break
 		}
-		moduleLifecycleWait(spec, false, 4*time.Second)
+		if err = moduleLifecycleWait(spec, false, 4*time.Second); err != nil {
+			break
+		}
 		if err = moduleLifecycleSetDisabled(id, true); err != nil {
 			break
 		}
@@ -265,7 +272,7 @@ func runModuleLifecycleAction(ctx context.Context, id, action string) (map[strin
 		}
 		output, err = moduleLifecycleRunInit(ctx, service, "start")
 		if err == nil {
-			moduleLifecycleWait(spec, true, 4*time.Second)
+			err = moduleLifecycleWait(spec, true, 4*time.Second)
 		}
 
 	default:
@@ -289,6 +296,17 @@ func runModuleLifecycleAction(ctx context.Context, id, action string) (map[strin
 		}
 	}
 
+	expectedRunning := action == "start" || action == "restart" || action == "enable"
+	expectedDisabled := disabled
+	if action == "enable" {
+		expectedDisabled = false
+	}
+	if action == "disable" {
+		expectedDisabled = true
+	}
+	if !moduleLifecycleResultMatches(current, expectedRunning, expectedDisabled) {
+		return nil, &moduleLifecycleFailure{Status: http.StatusConflict, Detail: "module lifecycle postcondition not confirmed"}
+	}
 	result := map[string]any{
 		"ok":      true,
 		"id":      id,

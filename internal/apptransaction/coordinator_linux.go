@@ -227,18 +227,32 @@ func (c *Coordinator) RunWorker(ctx context.Context, factory func(string, Plan, 
 // executor, so the server-side planner cannot advertise a rejected upgrade.
 func ValidateDevUpgrade(current, target string) error { return allowUpgrade(current, target) }
 
-// RunVerifiedWorker binds the trusted staging and opkg adapters to the
-// coordinator. A production caller must supply the accepted lifecycle proof
-// function. No HTTP path in this delivery calls this method.
-func (c *Coordinator) RunVerifiedWorker(ctx context.Context, lifecycle func(context.Context, Package) error) (Journal, error) {
-	if lifecycle == nil {
-		return Journal{}, errors.New("missing lifecycle verifier")
+// RunVerifiedWorker requires real pre/post observations, exact package status
+// and durable proof files. No HTTP or CLI path activates it in this delivery.
+func (c *Coordinator) RunVerifiedWorker(ctx context.Context, probe LifecycleProbe) (Journal, error) {
+	if probe == nil {
+		return Journal{}, errors.New("missing lifecycle probe")
 	}
 	return c.RunWorker(ctx, func(dir string, p Plan, lease *os.File) (Hooks, error) {
 		staging, err := NewStaging(dir, p)
 		if err != nil {
 			return nil, err
 		}
-		return NewVerifiedOPKG(staging, c.root, lease, lifecycle)
+		store, err := Open(dir)
+		if err != nil {
+			return nil, err
+		}
+		var proof *lifecycleProof
+		adapter, err := NewVerifiedOPKG(staging, c.root, lease, func(ctx context.Context, pkg Package) error {
+			return proof.verify(ctx, pkg)
+		})
+		if err != nil {
+			return nil, err
+		}
+		proof, err = newLifecycleProof(store, p, adapter.status, probe)
+		if err != nil {
+			return nil, err
+		}
+		return &lifecycleProofHooks{Hooks: adapter, proof: proof}, nil
 	})
 }

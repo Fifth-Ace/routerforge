@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/Fifth-Ace/routerforge/internal/apptransaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 	"io"
 	"net/http"
@@ -121,13 +122,21 @@ func installerStart(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 }
+
+// Hold the common admission lease over both opkg invocations and the rest of
+// the existing managed installation. No change to bouncer or firewall policy.
 func installerExecute(ctx context.Context, url, key string) error {
+	lease, err := apptransaction.AcquireDevicePackageLease(version)
+	if err != nil {
+		return fmt.Errorf("package mutation admission denied: %w", err)
+	}
+	defer lease.Close()
 	installerProgress("dependencies", "Installing ipset and iptables", nil, false)
 	// Entware needs these helpers for ipsets and the FORWARD DROP chain.
-	if _, err := safety.RunCommand(ctx, 24<<10, "/opt/bin/opkg", "update"); err != nil {
+	if err := installerDependencyCommand(ctx, lease, "update"); err != nil {
 		return errors.New("opkg update failed")
 	}
-	if _, err := safety.RunCommand(ctx, 24<<10, "/opt/bin/opkg", "install", "ipset", "iptables"); err != nil {
+	if err := installerDependencyCommand(ctx, lease, "install", "ipset", "iptables"); err != nil {
 		return errors.New("opkg dependency installation failed")
 	}
 	installerProgress("download", "Downloading pinned official bouncer archive", nil, false)
@@ -227,6 +236,18 @@ func writeExclusive(path string, data []byte, mode os.FileMode) error {
 const bouncerOwnershipPath = "/opt/etc/crowdsec/.routerforge-bouncer-owned"
 const bouncerOwnershipStamp = "routerforge-crowdsec-manager:v1\n"
 
+func installerDependencyCommand(ctx context.Context, lease *apptransaction.DevicePackageLease, args ...string) error {
+	cmd, err := safety.CommandContext(ctx, "/opt/bin/opkg", args...)
+	if err != nil {
+		return err
+	}
+	if err = lease.Attach(cmd); err != nil {
+		return err
+	}
+	_, err = cmd.CombinedOutput()
+	return err
+}
+
 func installerManaged() bool {
 	b, err := os.ReadFile(bouncerOwnershipPath)
 	return err == nil && string(b) == bouncerOwnershipStamp
@@ -243,6 +264,11 @@ func installerRemove(w http.ResponseWriter, r *http.Request) {
 		if busy {
 			return errors.New("installation still running")
 		}
+		lease, err := apptransaction.AcquireDevicePackageLease(version)
+		if err != nil {
+			return fmt.Errorf("package mutation admission denied: %w", err)
+		}
+		defer lease.Close()
 		if !installerManaged() {
 			return errors.New("this bouncer is not owned by RouterForge; nothing removed")
 		}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/apptransaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -184,6 +185,11 @@ func createEntwareHTTPSConfig(root, tmp string) (string, error) {
 }
 
 func invokeEntwareInstall(ctx context.Context, name string) error {
+	lease, err := apptransaction.AcquireDevicePackageLease(version)
+	if err != nil {
+		return fmt.Errorf("package mutation admission denied: %w", err)
+	}
+	defer lease.Close()
 	config, err := createEntwareHTTPSConfig("/opt/etc", "/opt/tmp")
 	if err != nil {
 		return fmt.Errorf("Entware HTTPS configuration: %w", err)
@@ -192,6 +198,9 @@ func invokeEntwareInstall(ctx context.Context, name string) error {
 	cmd, err := safety.CommandContext(ctx, "/opt/bin/opkg", "-f", config, "install", name)
 	if err != nil {
 		return errors.New("unable to launch Entware package manager")
+	}
+	if err = lease.Attach(cmd); err != nil {
+		return err
 	}
 	cmd.Env = []string{"PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 	out, err := cmd.CombinedOutput()

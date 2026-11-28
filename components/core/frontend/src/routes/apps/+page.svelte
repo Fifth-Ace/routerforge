@@ -13,6 +13,8 @@
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
+  import CatalogIcon from '$lib/components/CatalogIcon.svelte';
+  import { displayVersion, integrationDescription } from '$lib/app-center-ux.js';
   import { appUpdates, startOfficialUpdates, openUpdateProgress } from '$lib/stores/app-updates.js';
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
@@ -45,6 +47,28 @@
   let sortMode = 'name';
   let groupMode = 'none';
   let plannerItem = null;
+  let detailStartTab='about';
+  function openDetails(item,tab='about'){detailStartTab=tab;plannerItem=item;}
+  $: detailItem = plannerItem ? [...modules,...integrations].find(item=>item.id===plannerItem.id && item.kind===plannerItem.kind) || plannerItem : null;
+  function detailAction(action) {
+    const item=detailItem;
+    if (!item || busyId || updateBusy || !canAction(item,action)) return;
+    plannerItem=null;
+    if(action==='remove') removeItem=item;
+    else void runCatalogAction(item,action);
+  }
+  // Native details stays keyboard accessible; its panel is out of grid flow.
+  function closeCardMenu(node) {
+    const outside=(event)=>{if(node.open && !node.contains(event.target))node.open=false;};
+    const key=(event)=>{if(node.open && event.key==='Escape'){node.open=false;node.querySelector('summary')?.focus();}};
+    const selected=(event)=>{if(event.target.closest?.('button,a'))node.open=false;};
+    const place=()=>{if(!node.open)return;const panel=node.querySelector('.rf-more-actions');if(!panel)return;node.classList.remove('rf-menu-up');const rect=panel.getBoundingClientRect();if(rect.bottom>window.innerHeight-8 && node.getBoundingClientRect().top>rect.height+8)node.classList.add('rf-menu-up');};
+    document.addEventListener('pointerdown',outside);
+    document.addEventListener('keydown',key);
+    node.addEventListener('click',selected);
+    node.addEventListener('toggle',place);
+    return {destroy(){document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',key);node.removeEventListener('click',selected);node.removeEventListener('toggle',place);}};
+  }
   let removeItem = null;
   let webWorkspace = null;
   let webProbeBusyId = '';
@@ -219,10 +243,10 @@
     const installed = String(item?.version || '').trim();
     const available = String(item?.release?.version || item?.available_version || '').trim();
     if (item?.update_available && installed && available && installed !== available) {
-      return `v${installed} → v${available}`;
+      return `${displayVersion(installed)} → ${displayVersion(available)}`;
     }
-    if (installed) return `v${installed}`;
-    if (available) return `${currentLocale === 'ru' ? 'доступно' : 'available'} v${available}`;
+    if (installed) return displayVersion(installed);
+    if (available) return `${currentLocale === 'ru' ? 'доступно' : 'available'} ${displayVersion(available)}`;
     return currentLocale === 'ru' ? 'версия —' : 'version —';
   }
 
@@ -247,13 +271,13 @@
     return hints.length ? hints.join(' · ') : (item.compatibility?.status || '—');
   }
 
-  function descriptionText(item) {
+  function descriptionText(item, language=locale) {
     if (item?.kind === 'module') {
       const key = `moduleDescriptions.${item.id}`;
-      const translated = a(locale, key);
+      const translated = a(language, key);
       if (translated !== key) return translated;
     }
-    return item?.description || '';
+    return integrationDescription(item, language);
   }
 
   function hasServiceContract(item) {
@@ -1255,7 +1279,7 @@
     <span>{a(locale,'registry')} <strong>{data.registry?.revision ? data.registry.revision.slice(0,12) : '—'}</strong></span>
   </div>
 
-  {#if workerMode && ($appUpdates.snapshot?.slot?.plan || $appUpdates.launching)}
+  {#if workerMode}
     <div class="rf-update-link"><button class="button" onclick={openUpdateProgress}>{locale==='ru'?'Ход обновления и история':'Update progress and history'}</button></div>
   {/if}
 
@@ -1431,9 +1455,9 @@
             <div class="catalog-card-main">
               <div class="catalog-card-head">
                 <div class="catalog-identity">
-                  <div class="catalog-icon mono">{acronym(item)}</div>
+                  <div class="catalog-icon rf-app-icon"><CatalogIcon {item}/></div>
                   <div>
-                    <h3 title={item.name}>{cardTitle(item)}</h3>
+                    <h3><button class="rf-app-title" type="button" title={item.name} onclick={()=>openDetails(item)}>{cardTitle(item)}</button></h3>
                     <span class="mono">{item.publisher?.name || item.source || 'community'} · {catalogCategory(item)}</span>
                   </div>
                 </div>
@@ -1444,7 +1468,7 @@
                 </div>
               </div>
 
-              <p class="catalog-card-description" title={descriptionText(item)}>{descriptionText(item)}</p>
+              <p class="catalog-card-description" title={descriptionText(item,locale)}>{descriptionText(item,locale)}</p>
 
               <div class="catalog-card-meta">
 
@@ -1493,14 +1517,12 @@
                   </button>
                 {/if}
 
-                <details class="rf-card-more">
+                <button class="button rf-details-button" type="button" onclick={()=>openDetails(item)}>{a(locale,'details')}</button>
+                <details class="rf-card-more" use:closeCardMenu>
                   <summary title={warning || (locale==='ru'?'Дополнительно':'More')} aria-label={locale==='ru'?'Дополнительно':'More'}>{#if warning}<span class="rf-warning-mark">!</span>{/if}⋯</summary>
                   <div class="rf-more-actions">
                     <span class="state-chip {trustClass(item)}">{trustLabel(item)}</span>
-                    {#if warning}<div class="catalog-action-reason rf-detail-warning">{warning}</div>{/if}
-                {#if item.installed || item.install?.method || item.project_url}
-                  <button class="button" onclick={() => plannerItem = item}>{a(locale,'details')}</button>
-                {/if}
+                    {#if warning}<button class="button" type="button" onclick={()=>openDetails(item,'install')}>{locale==='ru'?'Условия установки':'Installation details'}</button>{/if}
 
                 {#if item.installed && catalogWebURL(item)}
                   {#if webSecurityDecision(item).externalAllowed}
@@ -1519,12 +1541,9 @@
                   <a class="button compact" target="_blank" rel="noopener noreferrer" href={item.project_url}>{a(locale,'project')}</a>
                 {/if}
 
-                <ModuleLifecycleControls
-                  {item}
-                  {locale}
-                  disabled={Boolean(busyId) || updateBusy}
-                  onnotice={(notice) => actionNotice = notice}
-                />
+                {#if item.installed && item.lifecycle_managed && item.id!=='routerforge-core'}
+                  <button class="button" type="button" onclick={()=>openDetails(item)}>{locale==='ru'?'Управление службой':'Manage service'}</button>
+                {/if}
 
                 {#if item.installed && canAction(item,'remove')}
                   <button class="button danger-subtle compact" disabled={Boolean(busyId) || updateBusy} onclick={() => removeItem = item}>{a(locale,'remove')}</button>
@@ -1700,7 +1719,21 @@
 {/if}
 
 {#if webWorkspace}<ExternalWebWorkspace workspace={webWorkspace} {locale} onclose={() => webWorkspace = null}/>{/if}
-{#if plannerItem}<InstallPlanner item={plannerItem} onclose={() => plannerItem = null}/>{/if}
+{#if detailItem}
+  <InstallPlanner item={detailItem} initialTab={detailStartTab} description={descriptionText(detailItem,locale)} warning={catalogWarning(detailItem)}
+    canInstall={canAction(detailItem,'install')} canUpdate={canAction(detailItem,'update')} canRemove={canAction(detailItem,'remove')}
+    disabled={Boolean(busyId) || updateBusy} onaction={detailAction} onclose={()=>plannerItem=null}>
+    <div slot="actions" class="rf-detail-action-slot">
+      {#if detailItem.kind==='module' && detailItem.installed && moduleURL(detailItem)}<a class="button" href={moduleURL(detailItem)} onclick={()=>plannerItem=null}>{a(locale,'open')}</a>{/if}
+      {#if detailItem.installed && catalogWebURL(detailItem)}
+        {#if webSecurityDecision(detailItem).externalAllowed}<a class="button" target="_blank" rel="noopener noreferrer" href={catalogWebURL(detailItem)}>{a(locale,'open')} :{catalogWebPort(detailItem)}</a>
+        {:else}<button class="button" type="button" onclick={()=>{const item=detailItem;plannerItem=null;showWebSecurityNotice(item);}}>{a(locale,'open')} :{catalogWebPort(detailItem)}</button>{/if}
+        {#if webSecurityDecision(detailItem).embedAllowed}<button class="button" type="button" disabled={webProbeBusyId===detailItem.id} onclick={()=>{const item=detailItem;plannerItem=null;void openEmbeddedWeb(item);}}>{a(locale,'msgEmbedMode')}</button>{/if}
+      {/if}
+      <ModuleLifecycleControls item={detailItem} {locale} disabled={Boolean(busyId) || updateBusy} onnotice={(notice)=>{actionNotice=notice;plannerItem=null;}}/>
+    </div>
+  </InstallPlanner>
+{/if}
 {#if removeItem}<RemoveConfirm item={removeItem} busy={busyId === removeItem.id && busyAction === 'remove'} oncancel={() => { if (!busyId) removeItem = null; }} onconfirm={(typed) => runCatalogAction(removeItem,'remove',typed)}/>{/if}
 
 <style>
@@ -1754,8 +1787,8 @@
     gap:.42rem;
     margin:.75rem 0 .85rem;
     padding:.15rem 0 .2rem;
-    overflow-x:auto;
-    scrollbar-width:thin;
+    flex-wrap:wrap;
+    overflow:visible;
   }
 
   .app-center-page .catalog-facet {
@@ -2470,7 +2503,7 @@
   .app-center-page .rf-compact-card .catalog-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem;width:100%}
   .app-center-page .rf-compact-card .catalog-actions>.button{font-size:.72rem;padding:.25rem .45rem;min-height:24px}
   .app-center-page .rf-card-more{margin-left:auto;max-width:100%}
-  .app-center-page .rf-card-more[open]{width:100%;margin-left:0}
+  .app-center-page .rf-card-more[open]{width:auto;margin-left:auto}
   .app-center-page .rf-card-more summary{cursor:pointer;list-style:none;display:inline-block;min-width:26px;text-align:center;border:1px solid var(--rf-border,var(--border));border-radius:5px;line-height:1.3;font-size:1rem;padding:0 .2rem}
   .app-center-page .rf-card-more summary::-webkit-details-marker{display:none}
   .app-center-page .rf-more-actions{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;align-items:center}
@@ -2491,4 +2524,17 @@
   .app-center-page .rf-warning-mark{color:var(--rf-warn,#f7b955);font-weight:700;margin-right:.2rem}
   .app-center-page .rf-detail-warning{width:100%;font-size:.72rem;margin:0}
   .app-center-page .rf-list-view .rf-compact-card{display:grid;min-height:0}
+  .app-center-page .rf-compact-card .catalog-card-description{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;white-space:normal;min-height:2.7em;line-height:1.35;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere}
+  .app-center-page .rf-compact-card .rf-app-icon{color:var(--rf-accent,var(--accent));background:color-mix(in srgb,var(--rf-panel,var(--panel)) 90%,var(--rf-accent,var(--accent)));border-color:var(--rf-border,var(--border))}
+  .app-center-page .rf-app-title{appearance:none;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:inherit;font-weight:inherit;text-align:left;color:inherit;border:0;padding:0;background:transparent;cursor:pointer}
+  .app-center-page .rf-app-title:hover{color:var(--rf-accent,var(--accent));text-decoration:underline}
+  .app-center-page .rf-compact-card .catalog-identity>div:last-child{min-width:0;flex:1}
+  .app-center-page .rf-compact-card:has(.rf-card-more[open]){position:relative;z-index:15}
+  .app-center-page .rf-card-more{position:relative;flex:none}
+  .app-center-page .rf-card-more .rf-more-actions{position:absolute;right:0;top:calc(100% + 5px);z-index:40;width:min(230px,calc(100vw - 36px));display:grid;justify-items:stretch;gap:4px;margin:0;padding:8px;border:1px solid var(--rf-border,var(--border));border-radius:9px;background:var(--rf-panel,var(--panel));box-shadow:0 12px 26px #0005}
+  .app-center-page .rf-card-more.rf-menu-up .rf-more-actions{top:auto;bottom:calc(100% + 5px)}
+  .app-center-page .rf-more-actions>.button{text-align:left;justify-content:flex-start;font-size:.78rem;white-space:normal}
+  .app-center-page .rf-details-button{color:var(--rf-muted,var(--muted))}
+  .rf-detail-action-slot{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+  .app-center-page .rf-list-view .rf-compact-card .catalog-card-description{min-height:0}
 </style>

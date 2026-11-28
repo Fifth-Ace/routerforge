@@ -50,3 +50,28 @@ test('parallel download progress counts real bytes not queue positions',async()=
  assert.deepEqual(progressRows(slot,reports).map(x=>x.state),['queued','downloaded','downloading']);
  assert.equal(downloadStats({...slot,state:'applying'},reports).percent,100);
 });
+
+import { displayVersion, updateIndicatorState, integrationDescription } from '../src/lib/app-center-ux.js';
+test('header indicator expires successful operation and retains dismissible failure', () => {
+  const slot={state:'completed',plan:{id:'job1'},journal:{finished_at:100}};
+  assert.equal(updateIndicatorState({slot,now:102000}),'success');
+  assert.equal(updateIndicatorState({slot,now:105000}),'');
+  assert.equal(updateIndicatorState({slot,now:200000,running:true}),'active');
+  assert.equal(updateIndicatorState({slot,now:200000,launching:true,dismissed:'job1'}),'active');
+  assert.equal(updateIndicatorState({slot:{...slot,state:'recovery_required'},now:200000}),'error');
+  assert.equal(updateIndicatorState({slot:{...slot,state:'recovery_required'},dismissed:'job1'}),'');
+  assert.equal(updateIndicatorState({slot:{...slot,state:'failed',plan:{id:'job2'}},dismissed:'job1'}),'error');
+  assert.equal(updateIndicatorState({}),'');
+});
+test('versions are formatted once and unknown descriptions are not invented', () => {
+  assert.equal(displayVersion('vv0.107.79-1'),'v0.107.79-1');
+  assert.equal(displayVersion('1~dev.r1475.117c414afe57'),'v1~dev.r1475.117c414afe57');
+  assert.equal(displayVersion(''),'—');
+  const item={id:'kvas',kind:'integration',description:'Domain-selective routing/VPN toolkit using ipset with dnsmasq/dnscrypt or AdGuard Home.'};
+  assert.match(integrationDescription(item,'ru'),/маршрутизация/i);
+  assert.equal(integrationDescription(item,'en'),item.description);
+  assert.equal(integrationDescription({...item,id:'unknown'},'ru'),item.description);
+  assert.equal(integrationDescription({...item,source:'user-source'},'ru'),item.description);
+  assert.equal(integrationDescription({...item,id:'constructor'},'ru'),item.description);
+  assert.equal(integrationDescription({...item,description:'Собственное описание'},'ru'),'Собственное описание');
+});

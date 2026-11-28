@@ -4,6 +4,7 @@
   import { catalog } from '$lib/stores/catalog.js';
   import { appUpdates, openUpdateProgress, closeUpdateProgress, refreshUpdateProgress } from '$lib/stores/app-updates.js';
   import { progressRows, downloadStats, transactionProgress } from '$lib/transaction-preview.js';
+  import { updateIndicatorState } from '$lib/app-center-ux.js';
   export let locale='ru';
   const words={
     ru:{title:'Обновление RouterForge',history:'История обновлений',collapse:'Свернуть',logs:'Технический журнал',queued:'В очереди',preparing:'Загрузка',downloading:'Загрузка',downloaded:'Загружен',prepared:'Пакеты проверены',applying:'Установка',verifying:'Проверка',completed:'Готово',failed:'Ошибка',cancelled:'Остановлено',recovery_required:'Прервано',busy:'Занято',idle:'Нет операций',loading:'Подготовка обновления',stale:'Связь с Core потеряна. Ожидаем восстановления…',unconfirmed:'Запуск не подтверждён. Проверьте состояние; автоматически не повторяем.',installed:'Обновлено',download:'Загрузка',install:'Установка',verify:'Проверка',done:'Готово',noLog:'Журнал пока пуст',empty:'Нет записей',refresh:'Обновить статус'},
@@ -21,7 +22,10 @@
   $: history=$appUpdates.snapshot?.history || [];
   $: activeResult=slot?.plan && ['completed','failed','cancelled','recovery_required'].includes(phase) && !slot?.busy;
   $: phase=$appUpdates.launching?'loading':slot?.state || 'idle';
-  $: visible=Boolean($appUpdates.launching || $appUpdates.open || slot?.plan || $appUpdates.error || slot?.state==='recovery_required');
+  let dismissed='';
+  $: indicator=updateIndicatorState({running:$appUpdates.running,launching:$appUpdates.launching,slot,error:$appUpdates.error,now,dismissed});
+  $: if ($appUpdates.launching) dismissed='';
+  function dismissResult(){dismissed=slot?.plan?.id || 'launch-error';try{sessionStorage.setItem('rf:update-dismissed',dismissed);}catch{}}
   $: dev=($catalog.release?.channel==='dev' && $catalog.release?.target==='aarch64-3.10') || ($catalog.modules || []).some(m=>m.id==='routerforge-core' && String(m.version||'').startsWith('1~dev.r'));
   let timer,controller,stopped=false,polling=false,fast=false;
   let now=Date.now();
@@ -47,15 +51,21 @@
   }
   onMount(()=>{
     const unsub=appUpdates.subscribe(s=>{const next=Boolean(s.running || s.launching || s.open);if(next===fast)return;fast=next;if(!polling && !stopped){clearTimeout(timer);void tick();}});
-    void tick();return()=>{stopped=true;clearTimeout(timer);controller?.abort();unsub();};
+    try{dismissed=sessionStorage.getItem('rf:update-dismissed') || '';}catch{}
+    const clock=setInterval(()=>{now=Date.now();},1000);
+    void tick();return()=>{stopped=true;clearInterval(clock);clearTimeout(timer);controller?.abort();unsub();};
   });
 </script>
 <svelte:window onkeydown={(event)=>{if(event.key==='Escape' && $appUpdates.open)closeUpdateProgress();}} />
-{#if visible}
-  <button class="button compact rf-update-indicator" onclick={openUpdateProgress} aria-label={w.title}>
-    <span><i class="rf-indicator-dot" class:active={$appUpdates.running || $appUpdates.launching}></i> {w[phase] || phase} {#if progress.total}{progress.verified}/{progress.total}{/if}</span>
-    {#if progress.total}<span class="rf-track mini" aria-hidden="true"><i style={`width:${downloading?downloads.percent:percent}%`}></i></span>{/if}
-  </button>
+{#if indicator}
+  <div class="rf-header-update" class:result-error={indicator==='error'} class:result-ok={indicator==='success'}>
+    <button class="rf-header-update-trigger" type="button" onclick={openUpdateProgress} aria-label={w.title}>
+      {#if indicator==='active'}<span class="rf-header-spinner" aria-hidden="true"></span>{:else}<span aria-hidden="true">{indicator==='success'?'✓':'!'}</span>{/if}
+      <span>{indicator==='error'?w.failed:indicator==='success'?w.done:(w[phase] || phase)} {#if progress.total && indicator==='active'}{progress.verified}/{progress.total}{/if}</span>
+      {#if indicator==='active' && progress.total}<span class="rf-header-meter" aria-hidden="true"><span style={`width:${downloading?downloads.percent:percent}%`}></span></span>{/if}
+    </button>
+    {#if indicator==='error'}<button class="rf-header-dismiss" type="button" aria-label={locale==='ru'?'Закрыть уведомление':'Dismiss notification'} onclick={dismissResult}>×</button>{/if}
+  </div>
 {/if}
 {#if $appUpdates.open}
   <div class="rf-update-backdrop" role="presentation" transition:fade={{duration:160}}></div>
@@ -103,9 +113,12 @@
   </section>
 {/if}
 <style>
-  .rf-update-indicator {display:grid;gap:3px;min-width:92px;max-width:155px;font-size:.72rem;white-space:nowrap;line-height:1.2;padding:.3rem .45rem}
-  .rf-indicator-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--rf-muted,#999);margin-right:4px}.rf-indicator-dot.active{background:var(--rf-good,#52d273);animation:rf-pulse 1s alternate infinite}
-  @keyframes rf-pulse{from{opacity:.5}to{opacity:1}}
+  .rf-header-update{display:inline-flex;align-items:center;gap:2px;flex:none;max-width:100%;font-family:Inter,system-ui,sans-serif;font-size:.72rem;line-height:1.2;color:var(--rf-muted,var(--muted));white-space:nowrap}
+  .rf-header-update-trigger,.rf-header-dismiss{appearance:none;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;padding:3px 4px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .rf-header-update-trigger:hover,.rf-header-dismiss:hover{color:var(--rf-text,var(--text))}.rf-header-update.result-ok{color:var(--rf-good,#52d273)}.rf-header-update.result-error{color:var(--rf-danger,#ff6969)}
+  .rf-header-spinner{width:11px;height:11px;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:rf-spin .85s linear infinite;flex:none}
+  .rf-header-meter{display:inline-block;width:26px;height:3px;border-radius:2px;background:var(--rf-hover,var(--hover));overflow:hidden}.rf-header-meter>span{display:block;height:3px;background:var(--rf-good,#52d273);transition:width .35s ease;border-radius:2px}
+  @media(prefers-reduced-motion:reduce){.rf-header-spinner{animation:none}.rf-header-meter>span{transition:none}}
   .rf-update-backdrop{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.52)}
   .rf-update-dialog{position:fixed;z-index:1201;top:50%;left:50%;transform:translate(-50%,-50%);width:min(600px,calc(100vw - 24px));max-height:min(760px,calc(100dvh - 32px));display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--rf-border,var(--border,#444));border-radius:12px;background:var(--rf-panel,var(--panel,#18191d));color:var(--rf-text,var(--text,#eee));font-family:Inter,system-ui,sans-serif;font-size:.86rem;box-shadow:0 16px 60px rgba(0,0,0,.4);white-space:normal;box-sizing:border-box;animation:rf-enter .2s ease-out}
   @keyframes rf-enter{from{transform:translate(-50%,-47%) scale(.985)}to{transform:translate(-50%,-50%) scale(1)}}
@@ -116,5 +129,5 @@
   .rf-spinner{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:rf-spin .85s linear infinite;vertical-align:-2px;flex:none}@keyframes rf-spin{to{transform:rotate(360deg)}}
   .rf-package-list{display:grid;gap:2px;border-top:1px solid var(--rf-border,var(--border,#444));padding-top:5px}.rf-package-row{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:31px;padding:4px 6px;border-radius:6px;transition:background-color .2s,color .2s}.rf-package-row.current{background:var(--rf-hover,var(--hover,#282d35))}.rf-package-copy{min-width:0}.rf-package-copy strong{overflow-wrap:anywhere;font-size:.83rem}.rf-package-state{font-size:.74rem;text-align:right;white-space:nowrap}.rf-package-state small{display:block}.done{color:var(--rf-good,#52d273)}.current{color:var(--rf-accent,#66aaff)}.error{color:var(--rf-danger,#ff6969)}.rf-note{font-size:.78rem;margin:0;overflow-wrap:anywhere;color:var(--rf-muted,var(--muted,#aaa))}.rf-note.error{color:var(--rf-danger,#ff6969)}
   details{border-top:1px solid var(--rf-border,var(--border,#444));padding-top:8px}summary{cursor:pointer;font-weight:600;font-size:.8rem}.rf-history{padding:5px 0}.rf-update-dialog pre{max-height:145px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:'Roboto Mono',monospace;font-size:.71rem;padding:8px;background:var(--rf-hover,var(--hover,#222));border-radius:6px;margin:8px 0 0}.rf-update-foot>span{color:var(--rf-good,#52d273)}
-  @media(prefers-reduced-motion:reduce){.rf-update-dialog,.rf-spinner,.rf-track i.flow::after,.rf-track b,.rf-indicator-dot.active{animation:none}.rf-track i,.rf-track b,.rf-package-row{transition:none}}
+  @media(prefers-reduced-motion:reduce){.rf-update-dialog,.rf-spinner,.rf-track i.flow::after,.rf-track b{animation:none}.rf-track i,.rf-track b,.rf-package-row{transition:none}}
 </style>

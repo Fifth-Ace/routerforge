@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -47,10 +48,57 @@ func ProbeRunningModuleHealth(ctx context.Context, name, installedVersion string
 }
 
 func probeNativeHealth(ctx context.Context, socket, binary string, uid uint32, module, version string) (NativeModuleHealth, error) {
-	var out NativeModuleHealth
-	if ctx == nil || version == "" || len(version) > 128 {
-		return out, errors.New("missing native health identity")
+	if version == "" || len(version) > 128 {
+		return NativeModuleHealth{}, errors.New("missing native health identity")
 	}
+	peer, err := probeNativeEndpoint(ctx, socket, binary, uid, "/v1/health", func(body []byte) error { return validateNativeHealth(body, module, version) })
+	if err != nil {
+		return NativeModuleHealth{}, err
+	}
+	return NativeModuleHealth{Module: module, RuntimeVersion: version, PeerPID: peer.pid}, nil
+}
+
+// nativeEndpointPeer is local identity evidence, never an API payload.
+type nativeEndpointPeer struct {
+	pid            int
+	start          string
+	socket, binary os.FileInfo
+}
+
+func (p nativeEndpointPeer) same(q nativeEndpointPeer) bool {
+	return p.pid == q.pid && p.start == q.start && os.SameFile(p.socket, q.socket) && os.SameFile(p.binary, q.binary)
+}
+func nativeProcessStart(pid int) (string, error) {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return "", err
+	}
+	s := string(b)
+	i := strings.LastIndex(s, ") ")
+	if i < 0 {
+		return "", errors.New("invalid process stat")
+	}
+	fields := strings.Fields(s[i+2:])
+	if len(fields) <= 19 {
+		return "", errors.New("missing process start time")
+	}
+	start := fields[19]
+	if start == "" || strings.Trim(start, "0123456789") != "" {
+		return "", errors.New("invalid process start time")
+	}
+	return start, nil
+}
+func probeNativeEndpoint(ctx context.Context, socket, binary string, uid uint32, endpoint string, validate func([]byte) error) (nativeEndpointPeer, error) {
+	var out nativeEndpointPeer
+	if ctx == nil || validate == nil {
+		return out, errors.New("missing native endpoint identity")
+	}
+	switch endpoint {
+	case "/v1/health", "/v1/startup", "/v1/service/status":
+	default:
+		return out, errors.New("unsupported native read-only endpoint")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	sock, err := os.Lstat(socket)
@@ -91,7 +139,15 @@ func probeNativeHealth(ctx context.Context, socket, binary string, uid uint32, m
 		return out, errors.New("native socket peer identity rejected")
 	}
 	procExe := fmt.Sprintf("/proc/%d/exe", cred.Pid)
+	start, err := nativeProcessStart(int(cred.Pid))
+	if err != nil {
+		return out, err
+	}
 	check := func() error {
+		currentStart, e := nativeProcessStart(int(cred.Pid))
+		if e != nil || currentStart != start {
+			return errors.New("native process identity changed during probe")
+		}
 		cur, e := os.Stat(procExe)
 		if e != nil || !os.SameFile(exe, cur) {
 			return errors.New("native process executable differs from installed binary")
@@ -124,7 +180,7 @@ func probeNativeHealth(ctx context.Context, socket, binary string, uid uint32, m
 		return raw, nil
 	}}
 	defer tr.CloseIdleConnections()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://routerforge.local/v1/health", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://routerforge.local"+endpoint, nil)
 	if err != nil {
 		return out, err
 	}
@@ -140,7 +196,7 @@ func probeNativeHealth(ctx context.Context, socket, binary string, uid uint32, m
 	if err != nil || len(body) > 64<<10 {
 		return out, errors.New("native health body rejected")
 	}
-	if err = validateNativeHealth(body, module, version); err != nil {
+	if err = validate(body); err != nil {
 		return out, err
 	}
 	if err = ctx.Err(); err != nil {
@@ -149,41 +205,48 @@ func probeNativeHealth(ctx context.Context, socket, binary string, uid uint32, m
 	if err = check(); err != nil {
 		return out, err
 	}
-	return NativeModuleHealth{Module: module, RuntimeVersion: version, PeerPID: int(cred.Pid)}, nil
+	return nativeEndpointPeer{pid: int(cred.Pid), start: start, socket: sock, binary: exe}, nil
 }
 
-func validateNativeHealth(body []byte, module, version string) error {
+func nativeObject(body []byte) (map[string]json.RawMessage, error) {
 	// Reject duplicate top-level fields (including otherwise ignored fields).
 	// Unknown fields are permitted for existing and future health payloads.
 	d := json.NewDecoder(bytes.NewReader(body))
 	t, err := d.Token()
 	if err != nil || t != json.Delim('{') {
-		return errors.New("invalid native health object")
+		return nil, errors.New("invalid native health object")
 	}
 	fields := map[string]json.RawMessage{}
 	for d.More() {
 		k, e := d.Token()
 		if e != nil {
-			return e
+			return nil, e
 		}
 		key, ok := k.(string)
 		if !ok {
-			return errors.New("invalid native health key")
+			return nil, errors.New("invalid native health key")
 		}
 		if _, exists := fields[key]; exists {
-			return errors.New("duplicate native health field")
+			return nil, errors.New("duplicate native health field")
 		}
 		var raw json.RawMessage
 		if e = d.Decode(&raw); e != nil {
-			return e
+			return nil, e
 		}
 		fields[key] = raw
 	}
 	if t, err = d.Token(); err != nil || t != json.Delim('}') {
-		return errors.New("invalid native health object end")
+		return nil, errors.New("invalid native health object end")
 	}
 	if _, err = d.Token(); err != io.EOF {
-		return errors.New("trailing native health data")
+		return nil, errors.New("trailing native health data")
+	}
+	return fields, nil
+}
+func validateNativeHealth(body []byte, module, version string) error {
+	fields, err := nativeObject(body)
+	if err != nil {
+		return err
 	}
 	var good bool
 	var m, v string

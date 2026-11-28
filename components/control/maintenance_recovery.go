@@ -263,7 +263,7 @@ func registerAdminRecoveryRoutes(mux *http.ServeMux) {
 		}
 		writeJSON(w, 200, p)
 	}))
-	mux.HandleFunc("/v1/maintenance/recovery-restore", mutationOnly(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/maintenance/recovery-restore", packageMutationOnly(func(w http.ResponseWriter, r *http.Request) {
 		var q recoveryRequest
 		if decodeMutationJSON(w, r, &q) != nil || q.Confirm != "RECOVERY_RESTORE_ONE" || len(q.SnapshotID) > 80 || len(q.ArtifactID) > 64 || len(q.Token) != 64 {
 			writeJSON(w, 400, map[string]string{"error": "INVALID_CONFIRMATION"})

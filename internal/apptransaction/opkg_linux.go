@@ -225,11 +225,34 @@ func (a *VerifiedOPKG) Install(ctx context.Context, p Package) error {
 	if err != nil {
 		return err
 	}
+	intent := ""
+	if p.Name == "routerforge-profiling" {
+		intent, err = recordProfilingMigration(a.store, p, current, profilingMarkerPath, uint32(os.Geteuid()))
+		if err != nil {
+			return err
+		}
+	}
+	cmd.Env, err = executionEnvironment(cmd.Environ(), intent)
+	if err != nil {
+		return err
+	}
 	cmd.ExtraFiles = []*os.File{a.lease}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err = cmd.Run(); err != nil {
 		return fmt.Errorf("opkg install %s: %w", p.Name, err)
+	}
+	// Only the fixed device adapter scans real process descriptors; fixture
+	// executables in tests exercise the observer separately. A holder or an
+	// ambiguous observation is a recovery-required result, never an unlock.
+	if a.executable == "/opt/bin/opkg" {
+		pid, auditErr := foreignLeaseHolder("/proc", a.lease, uint32(os.Geteuid()), os.Getpid())
+		if auditErr != nil {
+			return fmt.Errorf("lease descriptor audit: %w", auditErr)
+		}
+		if pid != 0 {
+			return fmt.Errorf("foreign lease descriptor remains in PID %d", pid)
+		}
 	}
 	return nil
 }

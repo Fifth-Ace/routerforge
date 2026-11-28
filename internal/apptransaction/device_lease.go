@@ -37,6 +37,11 @@ func (l *DevicePackageLease) Attach(cmd *exec.Cmd) error {
 		return errors.New("invalid package lease or command")
 	}
 	if l.file != nil {
+		env, err := executionEnvironment(cmd.Environ(), "")
+		if err != nil {
+			return err
+		}
+		cmd.Env = env
 		cmd.ExtraFiles = []*os.File{l.file}
 	}
 	return nil

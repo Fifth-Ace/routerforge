@@ -1,4 +1,9 @@
 #!/bin/sh
+# RF cooperative OPKG: the package manager retains FD 3; service daemons must not.
+if [ "${RF_APP_TRANSACTION_LEASE_FD:-}" = 3 ]; then
+    exec 3>&-
+    unset RF_APP_TRANSACTION_LEASE_FD RF_APP_TRANSACTION_PROFILING_INTENT
+fi
 ENABLED=no
 PROCS=routerforge-antiscan-manager
 SOCKET=/opt/var/run/routerforge-antiscan-manager.sock

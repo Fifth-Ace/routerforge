@@ -385,7 +385,7 @@ jobs:
         run: python3 scripts/verify-antiscan-upstream-contract.py --remote
 
       - name: Set up Node
-        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.dns_lite_frontend == 'true' || steps.scope.outputs.dns_runtime_frontend == 'true'
+        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.dns_lite_frontend == 'true' || steps.scope.outputs.dns_runtime_frontend == 'true' || steps.scope.outputs.go == 'true' || steps.scope.outputs.shell == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
@@ -653,6 +653,17 @@ jobs:
       - name: Test
         if: steps.scope.outputs.go == 'true'
         run: go test ./...
+      - name: C7 Core and Profiling IPK smoke (no publish)
+        if: steps.scope.outputs.go == 'true' || steps.scope.outputs.shell == 'true' || steps.scope.outputs.full_release == 'true'
+        run: |
+          set -eu
+          python3 scripts/verify-app-transaction-packaging.py
+          for target in aarch64-3.10 mips-3.4 mipsel-3.4; do
+            ROUTERFORGE_CHANNEL=dev ROUTERFORGE_UPX=0 ROUTERFORGE_TARGET="$target" sh scripts/build-opkg.sh 0.0.0-c7ci
+            ROUTERFORGE_CHANNEL=dev ROUTERFORGE_UPX=0 ROUTERFORGE_TARGET="$target" sh scripts/build-module-opkg.sh profiling 0.0.0-c7ci
+            python3 scripts/verify-app-transaction-packaging.py --ipk-target "$target"
+          done
+
       - name: R7 DNS Router experimental IPK matrix (no publish)
         if: steps.scope.outputs.go == 'true'
         run: sh scripts/verify-dns-router-experimental.sh

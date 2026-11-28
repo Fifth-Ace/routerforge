@@ -1,4 +1,9 @@
 #!/bin/sh
+# RF cooperative OPKG: the package manager retains FD 3; service daemons must not.
+if [ "${RF_APP_TRANSACTION_LEASE_FD:-}" = 3 ]; then
+    exec 3>&-
+    unset RF_APP_TRANSACTION_LEASE_FD RF_APP_TRANSACTION_PROFILING_INTENT
+fi
 # RouterForge DPR2-O3C: OPTIONAL Entware rc.unslung service template.
 # This template is delivered under /opt/share, NOT /opt/etc/init.d.
 # Copy to /opt/etc/init.d/ only after explicit DSTest-only acceptance.

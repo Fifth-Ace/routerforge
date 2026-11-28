@@ -66,7 +66,7 @@ func registerAdminConfigVaultRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/maintenance/config-vault-restore-preview", getOnly(handleAdminConfigVaultRestorePreview))
 	mux.HandleFunc("/v1/maintenance/config-vault-capture", mutationOnly(handleAdminConfigVaultCapture))
 	mux.HandleFunc("/v1/maintenance/config-vault-last-working", mutationOnly(handleAdminConfigVaultLastWorking))
-	mux.HandleFunc("/v1/maintenance/config-vault-restore", mutationOnly(handleAdminConfigVaultRestore))
+	mux.HandleFunc("/v1/maintenance/config-vault-restore", packageMutationOnly(handleAdminConfigVaultRestore))
 }
 
 func newAdminConfigVault() (*configvault.Store, error) {

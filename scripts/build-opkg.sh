@@ -61,6 +61,7 @@ marketplace_install.go
 marketplace_install_http.go
 app_center_entware.go
 app_center_jobs.go
+app_transactions_linux.go
 user_app_sources.go
 unmanaged_github_release.go
 core_platform.go

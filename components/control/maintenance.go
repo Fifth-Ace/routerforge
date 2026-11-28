@@ -25,7 +25,7 @@ func registerAdminMaintenanceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/maintenance/tasks", getOnly(handleAdminMaintenanceTasks))
 	mux.HandleFunc("/v1/maintenance/backups", getOnly(handleAdminMaintenanceBackups))
 	mux.HandleFunc("/v1/maintenance/backup", mutationOnly(handleAdminMaintenanceBackup))
-	mux.HandleFunc("/v1/maintenance/restore", mutationOnly(handleAdminMaintenanceRestore))
+	mux.HandleFunc("/v1/maintenance/restore", packageMutationOnly(handleAdminMaintenanceRestore))
 	registerAdminWatchdogRoutes(mux)
 	registerAdminNFQWSJobRoutes(mux)
 	registerAdminSnapshotRoutes(mux)

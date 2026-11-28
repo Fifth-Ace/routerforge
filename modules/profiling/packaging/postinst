@@ -1,4 +1,27 @@
 #!/bin/sh
+# The trusted Verified OPKG adapter captured the old marker before any prerm.
+# A legacy/manual install without this explicit protocol keeps its old behavior.
+if [ "${RF_APP_TRANSACTION_LEASE_FD:-}" = 3 ]; then
+    marker=/opt/etc/routerforge/profiling.enabled
+    if [ -L "$marker" ] || { [ -e "$marker" ] && [ ! -f "$marker" ]; }; then
+        echo 'RF_PROFILING_MIGRATION_UNSAFE_MARKER' >&2
+        exit 1
+    fi
+    case "${RF_APP_TRANSACTION_PROFILING_INTENT:-}" in
+        on) (umask 022; : > "$marker") || exit 1 ;;
+        off) rm -f "$marker" || exit 1 ;;
+        *) echo 'RF_PROFILING_MIGRATION_MISSING_INTENT' >&2; exit 1 ;;
+    esac
+    # Child service commands must not inherit the OPKG lease descriptor.
+    # Keep the original parent descriptor until this maintainer script exits.
+    if [ ! -x /opt/etc/init.d/S90routerforge ]; then
+        echo 'RF_PROFILING_MIGRATION_CORE_MISSING' >&2
+        exit 1
+    fi
+    /opt/etc/init.d/S90routerforge stop 3>&- >/dev/null 2>&1 || exit 1
+    /opt/etc/init.d/S90routerforge start 3>&- >/dev/null 2>&1 || exit 1
+    exit 0
+fi
 if [ -x /opt/etc/init.d/S90routerforge ]; then
     /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true
     /opt/etc/init.d/S90routerforge start >/dev/null 2>&1 || true

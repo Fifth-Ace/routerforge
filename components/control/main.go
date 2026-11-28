@@ -406,6 +406,22 @@ func acquireAdminPackageMutation() (func(), error) {
 	return lease.Close, nil
 }
 
+// A synchronous mutation must hold admission for the whole handler, after
+// normal method/auth checks. Never wrap read-only requests or persistent PTYs.
+func adminPackageMutationOnly(next http.HandlerFunc, acquire func() (func(), error)) http.HandlerFunc {
+	return mutationOnly(func(w http.ResponseWriter, r *http.Request) {
+		release, ok := adminPackageMutationAdmission(w, acquire)
+		if !ok {
+			return
+		}
+		defer release()
+		next(w, r)
+	})
+}
+func packageMutationOnly(next http.HandlerFunc) http.HandlerFunc {
+	return adminPackageMutationOnly(next, acquireAdminPackageMutation)
+}
+
 func handleProcessSignal(w http.ResponseWriter, r *http.Request) {
 	pid, ok := parseProcessSignalPath(r.URL.Path)
 	if !ok {

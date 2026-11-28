@@ -199,10 +199,10 @@ func invokeEntwareInstall(ctx context.Context, name string) error {
 	if err != nil {
 		return errors.New("unable to launch Entware package manager")
 	}
+	cmd.Env = []string{"PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 	if err = lease.Attach(cmd); err != nil {
 		return err
 	}
-	cmd.Env = []string{"PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Entware HTTPS installation failed: %s", limitedInstallError(out))

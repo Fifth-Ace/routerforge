@@ -233,6 +233,13 @@ func registerRecoveryNativeRoutes(mux *http.ServeMux) {
 				writeJSON(w, 400, map[string]string{"error": "INVALID_RECOVERY_CONFIRMATION"})
 				return
 			}
+			if op == "dns-restore" {
+				release, ok := adminPackageMutationAdmission(w, acquireAdminPackageMutation)
+				if !ok {
+					return
+				}
+				defer release()
+			}
 			unlock, _ := lockAdminConfigVaultMutation(adminConfigVaultManagedRoot)
 			defer unlock()
 			v, e := newAdminConfigVault()

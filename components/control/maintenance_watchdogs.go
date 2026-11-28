@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/apptransaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -331,15 +332,36 @@ func (runtime *adminWatchdogRuntime) tick(now time.Time) {
 		if !detected || service.Running || !service.Executable || !safeAdminWatchdogServicePath(service.Path) {
 			continue
 		}
-		if !runtime.reserveAttempt(definition.ID, now) {
-			continue
-		}
-
-		attempt := runAdminWatchdogServiceStart(service.Path, now, adminWatchdogStartTimeout)
-		runtime.mu.Lock()
-		runtime.lastAttempt[definition.ID] = attempt
-		runtime.mu.Unlock()
+		// Re-observe under the same cooperative package lease as Core. A busy
+		// or unresolved transaction must not consume the watchdog retry budget.
+		withAdminWatchdogLease(func() (*apptransaction.DevicePackageLease, error) {
+			return apptransaction.AcquireDevicePackageLease(version)
+		}, func() {
+			current, detected := findAdminWatchdogService(definition, readServices())
+			if !detected || current.Path != service.Path || current.Running || !current.Executable || !safeAdminWatchdogServicePath(current.Path) {
+				return
+			}
+			if !runtime.reserveAttempt(definition.ID, now) {
+				return
+			}
+			attempt := runAdminWatchdogServiceStart(current.Path, now, adminWatchdogStartTimeout)
+			runtime.mu.Lock()
+			runtime.lastAttempt[definition.ID] = attempt
+			runtime.mu.Unlock()
+		})
 	}
+}
+
+// Do not inherit the lease into a long-lived service. This guards the
+// synchronous watchdog command only, not asynchronous work in init scripts.
+func withAdminWatchdogLease(acquire func() (*apptransaction.DevicePackageLease, error), action func()) bool {
+	lease, err := acquire()
+	if err != nil || lease == nil {
+		return false
+	}
+	defer lease.Close()
+	action()
+	return true
 }
 
 func (runtime *adminWatchdogRuntime) reserveAttempt(id string, now time.Time) bool {

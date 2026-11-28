@@ -1,6 +1,10 @@
 package main
 
 import (
+	"errors"
+	"os/exec"
+
+	"github.com/Fifth-Ace/routerforge/internal/apptransaction"
 	"os"
 	"path/filepath"
 	"testing"
@@ -120,5 +124,26 @@ func TestWatchdogAttemptWindowPruning(t *testing.T) {
 	runtime.pruneAttemptsLocked(now)
 	if got := len(runtime.attempts["nfqws2"]); got != 1 {
 		t.Fatalf("attempts=%d want=1", got)
+	}
+}
+
+func TestAdminWatchdogLeaseBlocksAttemptAndReleases(t *testing.T) {
+	calls := 0
+	action := func() { calls++ }
+	if withAdminWatchdogLease(func() (*apptransaction.DevicePackageLease, error) { return nil, errors.New("busy") }, action) || calls != 0 {
+		t.Fatal("busy admission consumed attempt")
+	}
+	if withAdminWatchdogLease(func() (*apptransaction.DevicePackageLease, error) { return nil, nil }, action) || calls != 0 {
+		t.Fatal("missing lease consumed attempt")
+	}
+	lease, err := apptransaction.AcquireDevicePackageLease("stable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !withAdminWatchdogLease(func() (*apptransaction.DevicePackageLease, error) { return lease, nil }, action) || calls != 1 {
+		t.Fatal("admitted action not run")
+	}
+	if err = lease.Attach(&exec.Cmd{}); err == nil {
+		t.Fatal("lease left open")
 	}
 }

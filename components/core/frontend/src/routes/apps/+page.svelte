@@ -13,6 +13,7 @@
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
+  import TransactionPlanner from '$lib/components/TransactionPlanner.svelte';
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
   import SourceManager from '$lib/components/SourceManager.svelte';
@@ -1226,6 +1227,10 @@
     <span>{a(locale,'target')} <strong>{releaseTarget}</strong>{#if data.release?.experimental} · {a(locale,'experimental')}{/if}</span>
     <span>{a(locale,'registry')} <strong>{data.registry?.revision ? data.registry.revision.slice(0,12) : '—'}</strong></span>
   </div>
+
+  {#if tab === 'routerforge' && releaseChannel === 'dev' && releaseTarget === 'aarch64-3.10'}
+    <TransactionPlanner {locale} />
+  {/if}
 
   {#if actionNotice}
     <div class="catalog-install-notice {actionNotice.cls}">

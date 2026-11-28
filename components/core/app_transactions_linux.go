@@ -95,11 +95,12 @@ type appTransactionPreviewRequest struct {
 	Packages       []string `json:"packages"`
 }
 type appTransactionPreview struct {
-	Plan               apptransaction.Plan `json:"plan"`
-	PlanSHA256         string              `json:"plan_sha256"`
-	DownloadBytes      int64               `json:"download_bytes"`
-	ExecutionAvailable bool                `json:"execution_available"`
-	Reason             string              `json:"reason"`
+	Management         []apptransaction.ManagementPreview `json:"management,omitempty"`
+	Plan               apptransaction.Plan                `json:"plan"`
+	PlanSHA256         string                             `json:"plan_sha256"`
+	DownloadBytes      int64                              `json:"download_bytes"`
+	ExecutionAvailable bool                               `json:"execution_available"`
+	Reason             string                             `json:"reason"`
 }
 
 // Pure planner: compare the trusted remote release snapshot with the server's
@@ -152,6 +153,37 @@ func buildCoreTransactionPreview(id string, req appTransactionPreviewRequest, do
 	return out, nil
 }
 
+type coreTransactionEligiblePackage struct {
+	Package          string `json:"package"`
+	InstalledVersion string `json:"installed_version"`
+	TargetVersion    string `json:"target_version"`
+}
+
+// Every advertised package must pass the same immutable-plan admission used
+// for a user selection. The browser never guesses package IDs or release SHA.
+func coreTransactionEligibleSelection(doc routerForgeReleaseIndex, status routerForgeReleaseStatus, items []catalogItem) (string, []coreTransactionEligiblePackage) {
+	rows := make([]coreTransactionEligiblePackage, 0)
+	if len(doc.Components) != 11 {
+		return "", rows
+	}
+	for _, component := range doc.Components {
+		req := appTransactionPreviewRequest{ExpectedCommit: doc.Commit, Packages: []string{component.Package}}
+		if _, err := buildCoreTransactionPreview("selection", req, doc, status, items); err != nil {
+			continue
+		}
+		for _, item := range items {
+			if routerForgePackageForItem(item) == component.Package {
+				rows = append(rows, coreTransactionEligiblePackage{component.Package, item.Version, component.Version})
+				break
+			}
+		}
+	}
+	if len(rows) == 0 {
+		return "", rows
+	}
+	return doc.Commit, rows
+}
+
 func decodeTransactionPreview(w http.ResponseWriter, r *http.Request) (appTransactionPreviewRequest, error) {
 	var req appTransactionPreviewRequest
 	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
@@ -197,7 +229,14 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 			writeCatalogJSON(w, http.StatusServiceUnavailable, map[string]any{"execution_available": false, "state": status.State, "error": "transaction journal requires inspection"})
 			return
 		}
-		writeCatalogJSON(w, http.StatusOK, map[string]any{"execution_available": false, "slot": status})
+		doc, releaseStatus := routerForgeReleaseSnapshot()
+		commit, eligible := coreTransactionEligibleSelection(doc, releaseStatus, readCatalog().Modules)
+		if normalizedReleaseChannel() != "dev" || normalizedReleaseTarget() != "aarch64-3.10" {
+			commit = ""
+			eligible = nil
+		}
+		history, historyErr := coreTransactionIntegration.coordinator.CompletedHistory(20)
+		writeCatalogJSON(w, http.StatusOK, map[string]any{"execution_available": false, "slot": status, "release_commit": commit, "eligible_packages": eligible, "history": history, "history_available": historyErr == nil})
 	})
 	mux.HandleFunc("/api/apps/transactions/preview", func(w http.ResponseWriter, r *http.Request) {
 		if !authorized(r) || !sameOriginRequest(r) {
@@ -236,6 +275,34 @@ func registerCoreAppTransactionHandlers(mux *http.ServeMux, auth *authManager) {
 		// Reject channel drift after reading the snapshot. No mutation takes place.
 		if normalizedReleaseChannel() != out.Plan.Channel || normalizedReleaseTarget() != out.Plan.Target {
 			writeCatalogJSON(w, http.StatusConflict, map[string]any{"error": "release selection changed"})
+			return
+		}
+		// Use the existing cooperative lease only for this explicitly requested,
+		// bounded read-only inspection. Do not acquire a durable execution slot.
+		lease, err := coreTransactionIntegration.coordinator.AcquireLegacy()
+		if err != nil {
+			writeCatalogJSON(w, coreMutationHTTPStatus(err), map[string]any{"error": "transaction state does not allow preview", "execution_available": false})
+			return
+		}
+		defer lease.Close()
+		out.Management, err = apptransaction.PreviewDeviceManagement(r.Context(), out.Plan)
+		if err != nil {
+			writeCatalogJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "management preview unavailable", "execution_available": false})
+			return
+		}
+		// Do not equate a native management check with complete lifecycle admission.
+		itemsAfter := readCatalog().Modules
+		for i := range out.Management {
+			for _, item := range itemsAfter {
+				if routerForgePackageForItem(item) == out.Management[i].Package && out.Management[i].InstalledVersion != "" && item.Version != out.Management[i].InstalledVersion {
+					out.Management[i].State = "version_conflict"
+				}
+			}
+		}
+		docAfter, statusAfter := routerForgeReleaseSnapshot()
+		again, err := buildCoreTransactionPreview(out.Plan.ID, req, docAfter, statusAfter, itemsAfter)
+		if err != nil || again.PlanSHA256 != out.PlanSHA256 || normalizedReleaseChannel() != out.Plan.Channel || normalizedReleaseTarget() != out.Plan.Target {
+			writeCatalogJSON(w, http.StatusConflict, map[string]any{"error": "release snapshot changed", "execution_available": false})
 			return
 		}
 		writeCatalogJSON(w, http.StatusOK, out)

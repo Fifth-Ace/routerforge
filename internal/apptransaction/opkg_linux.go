@@ -83,9 +83,13 @@ func (b *opkgOutput) Write(p []byte) (int, error) {
 // killed by HTTP cancellation or a deadline. A stuck opkg must remain visible
 // and keep the lease; recovery is a separate, explicit operator action.
 func (a *VerifiedOPKG) status(ctx context.Context, p Package) (string, error) {
+	return readInstalledDevVersion(ctx, a.executable, p.Name)
+}
+
+func readInstalledDevVersion(ctx context.Context, executable, name string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	cmd, err := safety.CommandContext(ctx, a.executable, "status", p.Name)
+	cmd, err := safety.CommandContext(ctx, executable, "status", name)
 	if err != nil {
 		return "", err
 	}
@@ -93,12 +97,12 @@ func (a *VerifiedOPKG) status(ctx context.Context, p Package) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("opkg status %s: %w", p.Name, err)
+		return "", fmt.Errorf("opkg status %s: %w", name, err)
 	}
 	if out.overflow {
 		return "", errors.New("opkg status output exceeds limit")
 	}
-	return installedDevVersion(string(out.data), p.Name)
+	return installedDevVersion(string(out.data), name)
 }
 
 func installedDevVersion(raw, name string) (string, error) {

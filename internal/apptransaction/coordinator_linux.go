@@ -79,7 +79,10 @@ func (c *Coordinator) slot() string { return filepath.Join(c.root, activeSlot) }
 // inspect validates the durable request and checkpoint together. A missing
 // checkpoint is valid only while a launcher/worker holds the global lease.
 func (c *Coordinator) inspect() (SlotStatus, error) {
-	dir := c.slot()
+	return inspectTransactionSlot(c.slot())
+}
+
+func inspectTransactionSlot(dir string) (SlotStatus, error) {
 	if _, err := os.Lstat(dir); errors.Is(err, os.ErrNotExist) {
 		return SlotStatus{State: "idle"}, nil
 	} else if err != nil {

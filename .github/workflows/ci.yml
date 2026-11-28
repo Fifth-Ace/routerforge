@@ -1472,6 +1472,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: sh scripts/verify-published-beta.sh
 
+  execution_acceptance:
+    name: Execution acceptance (isolated Entware OPKG)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && contains(github.event.head_commit.message, '[rf-ci-only]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact acceptance source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go for acceptance
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+          cache: false
+      - name: D Real Entware OPKG and detached worker acceptance (no publish)
+        run: bash scripts/verify-app-transaction-real-opkg.sh
+
   publish_dev:
     name: Publish rolling ARM64 Dev channel
     needs: [test, changes]
